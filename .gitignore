@@ -1,0 +1,13 @@
+/.idea/
+
+# Python
+*.pyc
+__pycache__
+
+/data
+
+/telegram_bot_authorized_users.json
+/franka_web_interface_account.json
+
+/build
+*.egg-info
