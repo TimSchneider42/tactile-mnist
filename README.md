@@ -76,6 +76,7 @@ Each data point has the following fields:
     - `id`: the ID of the data point (from the original high resolution MNIST dataset).
     - `label`: the label of the data point (0-9).
 
+**TODO**: outdated
 Code for the generation of the _MNIST 3D_ and _Starstruck_ datasets can be found in the `mnist_3d` and `starstruck` folders, respectively.
 Among other scripts, the `tools` directory contains the `mesh_dataset_view.py` script, which can be used to view the dataset, while also serving as an example for the usage of the `MeshDataset` class.
 
