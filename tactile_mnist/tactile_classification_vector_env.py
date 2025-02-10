@@ -504,7 +504,7 @@ class TactileClassificationVectorEnv(
         if np.any(np.isnan(sensor_target_pos_rel)):
             raise ValueError("NaN values detected in sensor target position.")
         action_reward = np.mean(
-            sensor_target_pos_rel**2 * self._action_regularization, axis=-1
+            -sensor_target_pos_rel**2 * self._action_regularization, axis=-1
         )
 
         # Project everything back into unit circle
@@ -525,7 +525,7 @@ class TactileClassificationVectorEnv(
             if np.any(np.isnan(sensor_target_rot_rel)):
                 raise ValueError("NaN values detected in sensor target rotation.")
             action_reward += np.mean(
-                sensor_target_rot_rel**2 * self._action_regularization, axis=-1
+                -sensor_target_rot_rel**2 * self._action_regularization, axis=-1
             )
             sensor_target_rot_rel_clipped = self._project_sphere(sensor_target_rot_rel)
             sensor_target_rot_rel_scaled = (
