@@ -68,7 +68,7 @@ def register_envs():
             )
 
             gym.envs.registration.register(
-                id=f"StarStruck{s}-v0",
+                id=f"Starstruck{s}-v0",
                 entry_point=lambda *args, **kwargs: TactileClassificationEnv(
                     MeshDataset.load(
                         get_remote_resource(f"starstruck_split_v0/{split}")
