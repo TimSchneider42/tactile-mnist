@@ -218,7 +218,7 @@ class TouchDatasetRoundIterator(
         datasets = self.__datasets
         if self.__shuffle:
             datasets = [datasets[i] for i in rng.permutation(np.arange(len(datasets)))]
-        dataset_seeds = rng.integers(0, 2**32 - 1, size=len(datasets))
+        dataset_seeds = rng.integers(0, 2**32 - 1, size=len(datasets), endpoint=True)
         dataset_queue = PeekableQueue(maxsize=self.__dataset_prefetch_count)
         terminate_signal = self._TerminateSignal()
         dataset_start_index = np.searchsorted(
