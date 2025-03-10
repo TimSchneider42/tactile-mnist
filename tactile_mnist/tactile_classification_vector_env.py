@@ -239,7 +239,6 @@ class TactileClassificationVectorEnv(
             num_envs,
             len(all_labels),
             single_action_space,
-            batch_space(single_action_space, num_envs),
         )
         self.single_observation_space = gym.spaces.Dict(single_observation_space)
         self.observation_space = batch_space(self.single_observation_space, num_envs)
@@ -259,7 +258,6 @@ class TactileClassificationVectorEnv(
             np.concatenate([CELL_SIZE / 2 - CELL_MARGIN, [0.02]]),
         )
 
-        self._rng: Optional[np.random.Generator] = None
         self._object_poses_platform_frame: Optional[Transformation] = None
         self._current_step: Optional[np.ndarray] = None
         self._last_sensor_output: Optional[np.ndarray] = None
@@ -288,6 +286,7 @@ class TactileClassificationVectorEnv(
         self._max_distance_angular = self._calculate_max_distance_scalar(
             transfer_timedelta_s, angular_acceleration, angular_velocity
         )
+        self._prev_done = None
 
     def _sample_sensor_target_poses(self, count: int) -> List[Transformation]:
         sensor_poses = []
@@ -295,15 +294,15 @@ class TactileClassificationVectorEnv(
             position = np.zeros(3, dtype=np.float32)
             rotation = Rotation.identity()
             if self._randomize_initial_sensor_pose:
-                position[:2] = self._rng.uniform(
+                position[:2] = self.np_random.uniform(
                     low=self._sensor_pos_limits[0][:2],
                     high=self._sensor_pos_limits[1][:2],
                     size=(2,),
                 )
                 if self._allow_sensor_rotation:
-                    polar_angle = self._rng.uniform(low=0, high=self._max_tilt_angle)
-                    azimuthal_angle = self._rng.uniform(low=-np.pi, high=np.pi)
-                    z_angle = self._rng.uniform(low=-np.pi, high=np.pi)
+                    polar_angle = self.np_random.uniform(low=0, high=self._max_tilt_angle)
+                    azimuthal_angle = self.np_random.uniform(low=-np.pi, high=np.pi)
+                    z_angle = self.np_random.uniform(low=-np.pi, high=np.pi)
                     rotation = Rotation.from_euler(
                         "zyz", [z_angle, polar_angle, azimuthal_angle]
                     )
@@ -316,56 +315,66 @@ class TactileClassificationVectorEnv(
     def _reset_partial(
         self, mask: Sequence[bool], options: Optional[Dict[str, Any]] = None
     ) -> np.ndarray:
-        if not np.any(mask):
-            return self.current_prediction_target
+        if np.any(mask):
+            if options is None:
+                options = {}
 
-        if options is None:
-            options = {}
-
-        datapoint_idx = list(options.get("datapoint_idx", [None] * self.num_envs))
-        current_datapoints_lst = list(self._current_data_points)
-        object_poses_lst = [Transformation() for _ in range(self.num_envs)]
-        for i in np.where(mask)[0]:
-            idx = (
-                self._rng.integers(0, len(self._datasets[i]))
-                if datapoint_idx[i] is None
-                else datapoint_idx[i]
-            )
-            current_datapoints_lst[i] = self._datasets[i][idx]
-            initial_pose = Transformation(
-                [0, 0, np.quantile(-current_datapoints_lst[i].mesh.vertices[:, 2], 0.9)]
-            )
-            if self._randomize_initial_object_pose:
-                xy_min = np.min(current_datapoints_lst[i].mesh.vertices[:, :2], axis=0)
-                xy_max = np.max(current_datapoints_lst[i].mesh.vertices[:, :2], axis=0)
-                margin = 0.01
-                low = -CELL_SIZE / 2 + margin - xy_min
-                high = CELL_SIZE / 2 - margin - xy_max
-                conflict = low > high
-                low[conflict] = high[conflict] = ((low + high) / 2)[conflict]
-                translation_perturbation = self._rng.uniform(low=low, high=high)
-                rotation_perturbation = self._rng.uniform(
-                    low=-np.pi / 8, high=np.pi / 8, size=(1,)
+            datapoint_idx = list(options.get("datapoint_idx", [None] * self.num_envs))
+            current_datapoints_lst = list(self._current_data_points)
+            object_poses_lst = [Transformation() for _ in range(self.num_envs)]
+            for i in np.where(mask)[0]:
+                idx = (
+                    self.np_random.integers(0, len(self._datasets[i]))
+                    if datapoint_idx[i] is None
+                    else datapoint_idx[i]
                 )
-                perturbation = Transformation.from_pos_euler(
-                    np.concatenate(
-                        [translation_perturbation, np.zeros((1,), dtype=np.float32)]
-                    ),
-                    np.concatenate(
-                        [np.zeros((2,), dtype=np.float32), rotation_perturbation]
-                    ),
+                current_datapoints_lst[i] = self._datasets[i][idx]
+                initial_pose = Transformation(
+                    [
+                        0,
+                        0,
+                        np.quantile(
+                            -current_datapoints_lst[i].mesh.vertices[:, 2], 0.9
+                        ),
+                    ]
                 )
-                initial_pose *= perturbation
-            object_poses_lst[i] = initial_pose
+                if self._randomize_initial_object_pose:
+                    xy_min = np.min(
+                        current_datapoints_lst[i].mesh.vertices[:, :2], axis=0
+                    )
+                    xy_max = np.max(
+                        current_datapoints_lst[i].mesh.vertices[:, :2], axis=0
+                    )
+                    margin = 0.01
+                    low = -CELL_SIZE / 2 + margin - xy_min
+                    high = CELL_SIZE / 2 - margin - xy_max
+                    conflict = low > high
+                    low[conflict] = high[conflict] = ((low + high) / 2)[conflict]
+                    translation_perturbation = self.np_random.uniform(low=low, high=high)
+                    rotation_perturbation = self.np_random.uniform(
+                        low=-np.pi / 8, high=np.pi / 8, size=(1,)
+                    )
+                    perturbation = Transformation.from_pos_euler(
+                        np.concatenate(
+                            [translation_perturbation, np.zeros((1,), dtype=np.float32)]
+                        ),
+                        np.concatenate(
+                            [np.zeros((2,), dtype=np.float32), rotation_perturbation]
+                        ),
+                    )
+                    initial_pose *= perturbation
+                object_poses_lst[i] = initial_pose
 
-        self._current_data_points = tuple(current_datapoints_lst)
-        assert all(dp is not None for dp in self._current_data_points)
-        self._renderer.objects = self._current_data_points
-        self._object_poses_platform_frame = Transformation.batch_concatenate(
-            object_poses_lst
-        )
-        self._renderer.set_object_poses(self._object_poses_platform_frame, mask=mask)
-        self._current_step[mask] = np.zeros(np.sum(mask), dtype=np.float32)
+            self._current_data_points = tuple(current_datapoints_lst)
+            assert all(dp is not None for dp in self._current_data_points)
+            self._renderer.objects = self._current_data_points
+            self._object_poses_platform_frame = Transformation.batch_concatenate(
+                object_poses_lst
+            )
+            self._renderer.set_object_poses(
+                self._object_poses_platform_frame, mask=mask
+            )
+            self._current_step[mask] = np.zeros(np.sum(mask), dtype=np.float32)
 
         return np.array(
             [
@@ -400,12 +409,10 @@ class TactileClassificationVectorEnv(
         info = {"depth": depth_output, "sensor_pose": sensor_pose}
         return obs, info
 
-    def _reset(
-        self, *, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
-    ) -> Tuple["ObsType", Dict[str, Any], np.ndarray]:
-        self._rng = np.random.default_rng(seed)
+    def _reset(self, *, options: Optional[Dict[str, Any]] = None):
         self._current_step = np.zeros(self.num_envs, dtype=np.int_)
         self._current_data_points = [None] * self.num_envs
+        self._prev_done = np.zeros(self.num_envs, dtype=np.bool_)
         labels = self._reset_partial(
             np.ones(self.num_envs, dtype=np.bool_), options=options
         )
@@ -495,9 +502,11 @@ class TactileClassificationVectorEnv(
         return output
 
     def _step(
-        self, action: "ActType", prediction: np.ndarray, prev_done: np.ndarray
-    ) -> Tuple["ObsType", float, bool, bool, Dict[str, Any], np.ndarray]:
-        labels = self._reset_partial(prev_done)
+        self,
+        action: "ActType",
+        prediction: np.ndarray,
+    ):
+        labels = self._reset_partial(self._prev_done)
 
         sensor_pos_min, sensor_pos_max = self._sensor_pos_limits
         sensor_target_pos_rel = action["sensor_target_pos_rel"]
@@ -553,9 +562,9 @@ class TactileClassificationVectorEnv(
         assert np.all(sensor_target_rot_mat[..., 2, 2] >= 0)
 
         sensor_target_pose = Transformation(sensor_target_pos, sensor_target_rot)
-        if np.any(prev_done):
+        if np.any(self._prev_done):
             sensor_target_pose = transformation_where(
-                prev_done,
+                self._prev_done,
                 Transformation.batch_concatenate(
                     self._sample_sensor_target_poses(self.num_envs)
                 ),
@@ -565,13 +574,14 @@ class TactileClassificationVectorEnv(
         # relative_sensor_pose = self._current_sensor_pose_platform_frame.inv * sensor_pose
         # transfer_time = self._calculate_transfer_time(relative_sensor_pose)
 
-        self._current_step[~prev_done] += 1
+        self._current_step[~self._prev_done] += 1
         terminated = self._current_step >= self._max_episode_steps
         truncated = np.zeros(self.num_envs, dtype=np.bool_)
 
         obs, info = self._get_obs_info(sensor_target_pose)
 
-        action_reward = np.where(prev_done, 0, action_reward)
+        action_reward = np.where(self._prev_done, 0, action_reward)
+        self._prev_done = terminated | truncated
         return obs, action_reward, terminated, truncated, info, labels
 
     def execute_step(
@@ -595,8 +605,8 @@ class TactileClassificationVectorEnv(
             self._current_sensor_target_pose_platform_frame
         )
         if self._perturb_object_pose:
-            translation_perturbation = self._rng.normal(scale=1e-3, size=2)
-            rotation_perturbation = self._rng.normal(scale=5e-2)
+            translation_perturbation = self.np_random.normal(scale=1e-3, size=2)
+            rotation_perturbation = self.np_random.normal(scale=5e-2)
             perturbation = Transformation.from_pos_euler(
                 np.concatenate([translation_perturbation, [0]]),
                 [0, 0, rotation_perturbation],
