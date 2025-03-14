@@ -300,7 +300,9 @@ class TactileClassificationVectorEnv(
                     size=(2,),
                 )
                 if self._allow_sensor_rotation:
-                    polar_angle = self.np_random.uniform(low=0, high=self._max_tilt_angle)
+                    polar_angle = self.np_random.uniform(
+                        low=0, high=self._max_tilt_angle
+                    )
                     azimuthal_angle = self.np_random.uniform(low=-np.pi, high=np.pi)
                     z_angle = self.np_random.uniform(low=-np.pi, high=np.pi)
                     rotation = Rotation.from_euler(
@@ -350,7 +352,9 @@ class TactileClassificationVectorEnv(
                     high = CELL_SIZE / 2 - margin - xy_max
                     conflict = low > high
                     low[conflict] = high[conflict] = ((low + high) / 2)[conflict]
-                    translation_perturbation = self.np_random.uniform(low=low, high=high)
+                    translation_perturbation = self.np_random.uniform(
+                        low=low, high=high
+                    )
                     rotation_perturbation = self.np_random.uniform(
                         low=-np.pi / 8, high=np.pi / 8, size=(1,)
                     )
@@ -513,7 +517,7 @@ class TactileClassificationVectorEnv(
         if np.any(np.isnan(sensor_target_pos_rel)):
             raise ValueError("NaN values detected in sensor target position.")
         action_reward = np.mean(
-            -sensor_target_pos_rel**2 * self._action_regularization, axis=-1
+            -(sensor_target_pos_rel**2) * self._action_regularization, axis=-1
         )
 
         # Project everything back into unit circle
@@ -534,7 +538,7 @@ class TactileClassificationVectorEnv(
             if np.any(np.isnan(sensor_target_rot_rel)):
                 raise ValueError("NaN values detected in sensor target rotation.")
             action_reward += np.mean(
-                -sensor_target_rot_rel**2 * self._action_regularization, axis=-1
+                -(sensor_target_rot_rel**2) * self._action_regularization, axis=-1
             )
             sensor_target_rot_rel_clipped = self._project_sphere(sensor_target_rot_rel)
             sensor_target_rot_rel_scaled = (

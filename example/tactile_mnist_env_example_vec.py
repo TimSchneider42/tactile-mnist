@@ -26,7 +26,9 @@ for s in range(100):
     obs, _ = env.reset(seed=s)
 
     # Generate a circle trajectory
-    angles = np.arange(env.spec.max_episode_steps) / env.spec.max_episode_steps * 2 * np.pi
+    angles = (
+        np.arange(env.spec.max_episode_steps) / env.spec.max_episode_steps * 2 * np.pi
+    )
     target_trajectory = np.stack(
         [np.cos(angles), np.sin(angles), np.zeros_like(angles)], axis=-1
     )
