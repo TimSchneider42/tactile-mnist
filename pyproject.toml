@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tactile-mnist"
 version = "0.10.0"
-description = "A package for the Tactile MNIST dataset."
+description = "The Tactile MNIST benchmark for active tactile perception."
 readme = "README.md"
 authors = [
     { name = "Tim Schneider", email = "tim@robot-learning.de" }
 ]
 license = { text = "MIT" }
 dependencies = [
-    "ap_gym @ git+https://git.ias.informatik.tu-darmstadt.de/schneider/active-perception-gym.git",
+    "ap_gym",
     "filelock",
     "numpy",
     "transformation3d>=1.0.1",
@@ -25,26 +25,26 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://git.ias.informatik.tu-darmstadt.de/schneider/tactile-mnist.git"
+Homepage = "https://github.com/TimSchneider42/tactile-mnist"
 
 [project.optional-dependencies]
 examples = ["matplotlib"]
 torch = [
-    "taxim_gpu[torch] @ git+https://git.ias.informatik.tu-darmstadt.de/tactile-sensing/taxim-gpu.git",
+    "taxim[torch]",
     "torch",
     "torchvision"
 ]
 jax-cpu = [
-    "taxim_gpu[jax-cpu] @ git+https://git.ias.informatik.tu-darmstadt.de/tactile-sensing/taxim-gpu.git",
+    "taxim[jax-cpu]",
     "jax"
 ]
 jax = [
-    "taxim_gpu[jax] @ git+https://git.ias.informatik.tu-darmstadt.de/tactile-sensing/taxim-gpu.git",
+    "taxim[jax]",
     "jax[cuda12]"
 ]
 
-[tool.setuptools]
-packages = ["tactile_mnist"]
+[tool.setuptools.packages.find]
+include = ["tactile_mnist*"]
 
 [tool.setuptools.package-data]
 tactile_mnist = ["resources/*"]
