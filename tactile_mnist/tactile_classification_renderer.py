@@ -428,9 +428,7 @@ class TactileClassificationRenderer:
                     1.0 - self._tactile_screen_pos_rel[1],
                 ]
             )
-            t_size = np.round(self._tactile_screen_size_rel * img_size).astype(
-                np.int_
-            )
+            t_size = np.round(self._tactile_screen_size_rel * img_size).astype(np.int_)
             t_pos = np.round(target_pos_rel * img_size - t_size / 2).astype(np.int_)
             for i, t_img in enumerate(tactile_img):
                 tactile_img_scaled = np.array(
