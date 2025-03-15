@@ -1,4 +1,4 @@
-# Tactile MNIST Dataset
+# The Tactile MNIST Benchmark
 
 This repository contains code to access the Tactile MNIST simulated benchmark tasks and datasets, as further described on our [project page](https://sites.google.com/robot-learning.de/tactile-mnist/), which also links to the paper.
 
