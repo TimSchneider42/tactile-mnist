@@ -45,13 +45,13 @@ This package provides an easy way of loading and working with these datasets, as
 <table align="center" style="border-collapse: collapse; border: none;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="150px"/><br/>
+            <img src="doc/img/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="100%"/><br/>
             <a href="doc/TactileMNIST.md">
                 TactileMNIST-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/Starstruck-v0.gif" alt="Starstruck-v0" width="150px"/><br/>
+            <img src="doc/img/Starstruck-v0.gif" alt="Starstruck-v0" width="100%"/><br/>
             <a href="doc/Starstruck.md">
                 MNIST-v0
             </a>
