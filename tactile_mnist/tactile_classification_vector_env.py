@@ -1,3 +1,4 @@
+import copy
 from abc import abstractmethod, ABC
 from functools import partial
 from itertools import chain
@@ -17,6 +18,7 @@ from typing import (
 
 import gymnasium as gym
 import numpy as np
+from gymnasium.envs.registration import EnvSpec
 from gymnasium.vector.utils import batch_space
 from scipy.spatial.transform import Rotation
 from taxim import Taxim, CALIB_GELSIGHT_MINI
@@ -140,7 +142,7 @@ class TactileClassificationVectorEnv(
         self,
         dataset: Union[MeshDataset, Sequence[MeshDataset]],
         num_envs: int,
-        max_episode_steps: int = 16,
+        step_limit: int = 16,
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         taxim_device: Optional[str] = None,
         convert_image_to_numpy: bool = True,
@@ -271,7 +273,7 @@ class TactileClassificationVectorEnv(
             transparent_background=render_transparent_background,
         )
 
-        self._max_episode_steps = max_episode_steps
+        self._step_limit = step_limit
         self._linear_velocity = linear_velocity
         self._angular_velocity = angular_velocity
         self._linear_acceleration = linear_acceleration
@@ -287,6 +289,7 @@ class TactileClassificationVectorEnv(
             transfer_timedelta_s, angular_acceleration, angular_velocity
         )
         self._prev_done = None
+        self._spec: EnvSpec | None = None
 
     def _sample_sensor_target_poses(self, count: int) -> List[Transformation]:
         sensor_poses = []
@@ -402,7 +405,7 @@ class TactileClassificationVectorEnv(
         obs = {
             "sensor_pos": sensor_pos_normalized.astype(np.float32),
             "sensor_img": sensor_output,
-            "time_step": (self._current_step / self._max_episode_steps * 2 - 1).astype(
+            "time_step": (self._current_step / self._step_limit * 2 - 1).astype(
                 np.float32
             ),
         }
@@ -579,7 +582,7 @@ class TactileClassificationVectorEnv(
         # transfer_time = self._calculate_transfer_time(relative_sensor_pose)
 
         self._current_step[~self._prev_done] += 1
-        terminated = self._current_step >= self._max_episode_steps
+        terminated = self._current_step >= self._step_limit
         truncated = np.zeros(self.num_envs, dtype=np.bool_)
 
         obs, info = self._get_obs_info(sensor_target_pose)
@@ -682,5 +685,15 @@ class TactileClassificationVectorEnv(
         return self._object_poses_platform_frame
 
     @property
-    def max_episode_steps(self) -> int:
-        return self._max_episode_steps
+    def step_limit(self) -> int:
+        return self._step_limit
+
+    @property
+    def spec(self) -> EnvSpec | None:
+        return self._spec
+
+    @spec.setter
+    def spec(self, spec: EnvSpec):
+        spec = copy.copy(spec)
+        spec.max_episode_steps = self._step_limit
+        self._spec = spec

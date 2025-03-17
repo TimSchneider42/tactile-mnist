@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 def TactileClassificationEnv(
     dataset: MeshDataset,
-    max_episode_steps: int = 16,
+    step_limit: int = 16,
     render_mode: Literal["rgb_array", "human"] = "rgb_array",
     taxim_device: Optional[str] = None,
     convert_image_to_numpy: bool = True,
@@ -43,7 +43,7 @@ def TactileClassificationEnv(
         TactileClassificationVectorEnv(
             dataset,
             1,
-            max_episode_steps=max_episode_steps,
+            step_limit=step_limit,
             render_mode=render_mode,
             taxim_device=taxim_device,
             convert_image_to_numpy=convert_image_to_numpy,
