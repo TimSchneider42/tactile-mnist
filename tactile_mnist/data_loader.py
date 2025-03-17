@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import concurrent
 import os
 from abc import abstractmethod, ABC
@@ -6,10 +8,7 @@ from dataclasses import dataclass
 from queue import Queue, Full
 from threading import Thread
 from typing import (
-    Tuple,
     Iterable,
-    Union,
-    Optional,
     TypeVar,
     Generic,
     Iterator,
@@ -50,7 +49,7 @@ class MultiThreadedPipeline(
     def __init__(
         self,
         data: SeekableSizedIterable[InputDatapointType],
-        num_workers: Optional[int] = None,
+        num_workers: int | None = None,
     ):
         self.__data = data
         self.__num_workers = os.cpu_count() if num_workers is None else num_workers
@@ -62,7 +61,7 @@ class MultiThreadedPipeline(
     def __queue_feeder(
         self,
         start: int,
-        queue: Queue[Union[None, concurrent.futures.Future, Exception]],
+        queue: Queue[concurrent.futures.Future | Exception | None],
         executor: ThreadPoolExecutor,
         terminate_signal: TerminateSignal,
     ):
@@ -84,7 +83,7 @@ class MultiThreadedPipeline(
 
     def _iter(self, start: int):
         with ThreadPoolExecutor(self.__num_workers) as executor:
-            queue: "Queue[Optional[concurrent.futures.Future]]" = Queue(
+            queue: Queue[concurrent.futures.Future | None] = Queue(
                 maxsize=self.__num_workers
             )
             terminate_signal = TerminateSignal()
@@ -167,7 +166,7 @@ class TouchDatasetRoundIterator(
     def __init__(
         self,
         datasets: Iterable[TouchDataset[MetadataType, DataPointType]],
-        seed: Optional[int] = None,
+        seed: int | None = None,
         dataset_prefetch_count: int = 0,
         shuffle: bool = False,
     ):
@@ -185,7 +184,7 @@ class TouchDatasetRoundIterator(
     ):
         def load_ds(
             ds: TouchDataset[MetadataType, DataPointType], ds_seed: int
-        ) -> Tuple[
+        ) -> tuple[
             LoadedTouchDataset[MetadataType, DataPointType],
             Any,
             Sequence[_BaseTouchDatasetType[MetadataType, DataPointType]],
@@ -295,11 +294,11 @@ class TouchDatasetRoundSubsampler(
 
 @dataclass(frozen=True)
 class TouchDatasetDataLoader(
-    SeekableSizedIterable[Tuple[Tuple[MetadataType, DataType], ...]],
+    SeekableSizedIterable[tuple[tuple[MetadataType, DataType], ...]],
     Generic[MetadataType, DataType],
 ):
     data: SeekableSizedIterable[_BaseTouchDatasetType[MetadataType, DataPointType]]
-    num_workers: Optional[int] = None
+    num_workers: int | None = None
     use_multithreading: bool = True
 
     def _iter(self, start: int):
@@ -333,15 +332,15 @@ class TouchDatasetDataLoader(
 
 class TouchDatasetDataPointCreator(
     MultiThreadedPipeline[
-        Tuple[Tuple[MetadataType, DataType], ...], Tuple[DataPointType, ...]
+        tuple[tuple[MetadataType, DataType], ...], tuple[DataPointType, ...]
     ],
     Generic[MetadataType, DataType, DataPointType],
 ):
     def __init__(
         self,
-        data: SeekableSizedIterable[Tuple[Tuple[MetadataType, DataType], ...]],
-        num_workers_inner: Optional[int] = None,
-        num_workers_outer: Optional[int] = None,
+        data: SeekableSizedIterable[tuple[tuple[MetadataType, DataType], ...]],
+        num_workers_inner: int | None = None,
+        num_workers_outer: int | None = None,
         use_per_round_multithreading: bool = True,
     ):
         super().__init__(data, num_workers_outer)
@@ -356,8 +355,8 @@ class TouchDatasetDataPointCreator(
             self.__executor = None
 
     def _process(
-        self, datapoint: Tuple[Tuple[MetadataType, DataType], ...]
-    ) -> Tuple[DataPointType, ...]:
+        self, datapoint: tuple[tuple[MetadataType, DataType], ...]
+    ) -> tuple[DataPointType, ...]:
         if self.__executor is not None:
             return tuple(
                 self.__executor.map(
@@ -372,7 +371,7 @@ class TouchDatasetDataPointCreator(
 
 def TouchDatasetRoundLoader(
     data: SeekableSizedIterable[_BaseTouchDatasetType[MetadataType, DataPointType]],
-    num_workers: Optional[int] = None,
+    num_workers: int | None = None,
     use_per_round_multithreading: bool = True,
 ):
     itr = BufferedDataLoader(

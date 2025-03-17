@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from queue import Empty, Queue
 from time import time
-from typing import Optional
 
 
 class PeekableQueue(Queue):
-    def __init__(self, maxsize: Optional[int] = None):
+    def __init__(self, maxsize: int | None = None):
         super().__init__(maxsize=maxsize)
 
     def peek(self, block=True, timeout=None):

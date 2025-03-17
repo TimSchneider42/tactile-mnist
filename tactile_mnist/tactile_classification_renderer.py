@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import time
 from contextlib import nullcontext
 from functools import partial
 from importlib.resources import files
-from typing import Union, Tuple, Optional, Sequence, Iterable
+from typing import Sequence, Iterable
 
 import numpy as np
 import trimesh
@@ -145,14 +147,14 @@ class TactileClassificationRenderer:
     def __init__(
         self,
         num_envs: int,
-        depth_map_resolution: Tuple[int, int],
+        depth_map_resolution: tuple[int, int],
         depth_map_pixmm: float,
-        external_camera_resolution: Tuple[int, int] = (640, 480),
+        external_camera_resolution: tuple[int, int] = (640, 480),
         show_viewer: bool = False,
         show_sensor_target_pos: bool = False,
-        object_color: Tuple[Union[float, int], ...] = (51, 0, 4),
-        tactile_screen_zoom_color: Tuple[Union[float, int], ...] = (255, 100, 100, 160),
-        platform_color: Tuple[Union[float, int], ...] = (0, 11, 51),
+        object_color: tuple[float | int, ...] = (51, 0, 4),
+        tactile_screen_zoom_color: tuple[float | int, ...] = (255, 100, 100, 160),
+        platform_color: tuple[float | int, ...] = (0, 11, 51),
         show_tactile_image: bool = True,
         transparent_background: bool = False,
     ):
@@ -165,7 +167,7 @@ class TactileClassificationRenderer:
             [Transformation()] * num_envs
         )
 
-        self._objects: Optional[Tuple[MeshDataPoint]] = None
+        self._objects: tuple[MeshDataPoint] | None = None
         self._object_poses: Transformation = Transformation.batch_concatenate(
             [Transformation()] * num_envs
         )
@@ -278,7 +280,7 @@ class TactileClassificationRenderer:
         )
         self._transparent_sensor_node.matrix = self.sensor_shadow_poses.matrix
 
-        self._camera_object_node: Optional[Node] = None
+        self._camera_object_node: Node | None = None
         platform_node = Node(
             mesh=Mesh.from_trimesh(platform_mesh),
             matrix=self._platform_pose.matrix,
@@ -368,18 +370,18 @@ class TactileClassificationRenderer:
 
         if show_viewer:
             self._viewer = Viewer(self._camera_scene, run_in_thread=True)
-            self._camera_renderer: Optional[OffscreenRenderer] = None
+            self._camera_renderer: OffscreenRenderer | None = None
             # For some reason it is necessary to wait here
             time.sleep(0.5)
         else:
             # Variables needed for camera rendering
             self._camera_renderer = OffscreenRenderer(*external_camera_resolution)
-            self._viewer: Optional[Viewer] = None
+            self._viewer: Viewer | None = None
         self._object_color = object_color
 
     def render_external_cameras(
-        self, tactile_img: Optional[np.ndarray] = None
-    ) -> Optional[np.ndarray]:
+        self, tactile_img: np.ndarray | None = None
+    ) -> np.ndarray | None:
         if self._camera_renderer is None:
             return None
         show_tactile_img = tactile_img is not None and self._show_tactile_image
@@ -449,7 +451,7 @@ class TactileClassificationRenderer:
         return img
 
     def render_sensor_depths(
-        self, virtual_sensor_poses: Optional[Transformation] = None
+        self, virtual_sensor_poses: Transformation | None = None
     ) -> np.ndarray:
         if virtual_sensor_poses is None:
             virtual_sensor_poses = self.sensor_poses
@@ -466,7 +468,7 @@ class TactileClassificationRenderer:
         return depth_clipped - self._camera_dist_to_gel
 
     def set_object_poses(
-        self, new_object_poses: Transformation, mask: Optional[Sequence[bool]] = None
+        self, new_object_poses: Transformation, mask: Sequence[bool] | None = None
     ):
         if mask is None:
             mask = np.ones(self._num_envs, dtype=np.bool_)
@@ -514,7 +516,7 @@ class TactileClassificationRenderer:
         return depth
 
     @property
-    def objects(self) -> Tuple[MeshDataPoint, ...]:
+    def objects(self) -> tuple[MeshDataPoint, ...]:
         return self._objects
 
     @objects.setter

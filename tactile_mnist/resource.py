@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import logging
 import os
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
 from zipfile import ZipFile
 
 import filelock
@@ -22,9 +23,9 @@ custom_remote_search_locations = list(
 
 @dataclass(frozen=True)
 class Resource:
-    path: Union[os.PathLike, str]
+    path: os.PathLike | str
     remote: bool = False
-    resource_dir: Union[os.PathLike, str] = DEFAULT_RESOURCE_DIR
+    resource_dir: os.PathLike | str = DEFAULT_RESOURCE_DIR
     base_url: str = DEFAULT_BASE_URL
 
     def get(self):
@@ -60,8 +61,8 @@ class Resource:
 
     @staticmethod
     def parse_resource_spec(
-        resource_spec: Union[os.PathLike, str],
-        resource_dir: Union[os.PathLike, str] = DEFAULT_RESOURCE_DIR,
+        resource_spec: os.PathLike | str,
+        resource_dir: os.PathLike | str = DEFAULT_RESOURCE_DIR,
         base_url: str = DEFAULT_BASE_URL,
     ) -> "Resource":
         """
@@ -121,8 +122,8 @@ class Resource:
 
 
 def get_remote_resource(
-    path: Union[os.PathLike, str],
-    resource_dir: Union[os.PathLike, str] = DEFAULT_RESOURCE_DIR,
+    path: os.PathLike | str,
+    resource_dir: os.PathLike | str = DEFAULT_RESOURCE_DIR,
     base_url: str = DEFAULT_BASE_URL,
 ) -> Path:
     return Resource(
@@ -131,8 +132,8 @@ def get_remote_resource(
 
 
 def get_resource(
-    resource_spec: Union[os.PathLike, str],
-    resource_dir: Union[os.PathLike, str] = DEFAULT_RESOURCE_DIR,
+    resource_spec: os.PathLike | str,
+    resource_dir: os.PathLike | str = DEFAULT_RESOURCE_DIR,
     base_url: str = DEFAULT_BASE_URL,
 ) -> Path:
     return Resource.parse_resource_spec(

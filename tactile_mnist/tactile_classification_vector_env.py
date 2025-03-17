@@ -1,13 +1,11 @@
+from __future__ import annotations
+
 import copy
 from abc import abstractmethod, ABC
 from functools import partial
 from itertools import chain
 from typing import (
-    Dict,
-    Union,
     Any,
-    Tuple,
-    Optional,
     Literal,
     Sequence,
     TYPE_CHECKING,
@@ -49,8 +47,8 @@ except ImportError:
     jax = jnp = None
 
 if TYPE_CHECKING:
-    ObsType = Dict[str, Union[np.ndarray, torch.Tensor, jax.Array]]
-    ActType = Dict[str, np.ndarray]
+    ObsType = dict[str, np.ndarray | torch.Tensor | jax.Array]
+    ActType = dict[str, np.ndarray]
 
 ArrayType = TypeVar("ArrayType")
 
@@ -127,7 +125,7 @@ else:
 class TactileClassificationVectorEnv(
     ActiveClassificationVectorEnv["ObsType", "ActType"]
 ):
-    metadata: Dict[str, Any] = OverridableStaticField(
+    metadata: dict[str, Any] = OverridableStaticField(
         {
             "render_fps": 5,
             "render_modes": ["rgb_array", "human"],
@@ -140,16 +138,16 @@ class TactileClassificationVectorEnv(
 
     def __init__(
         self,
-        dataset: Union[MeshDataset, Sequence[MeshDataset]],
+        dataset: MeshDataset | Sequence[MeshDataset],
         num_envs: int,
         step_limit: int = 16,
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
-        taxim_device: Optional[str] = None,
+        taxim_device: str | None = None,
         convert_image_to_numpy: bool = True,
         show_sensor_target_pos: bool = False,
         perturb_object_pose: bool = True,
         randomize_initial_object_pose: bool = True,
-        sensor_output_size: Optional[Sequence[int]] = None,
+        sensor_output_size: Sequence[int] | None = None,
         randomize_initial_sensor_pose: bool = True,
         depth_only: bool = False,
         allow_sensor_rotation: bool = True,
@@ -188,7 +186,7 @@ class TactileClassificationVectorEnv(
             )
         }
         self._inverse_label_map = {l: i for i, l in self._label_map.items()}
-        self._current_data_points: Optional[Tuple[MeshDataPoint]] = None
+        self._current_data_points: tuple[MeshDataPoint] | None = None
         self._sensor_device = taxim_device
         self._sensor = Taxim(
             calib_folder=CALIB_GELSIGHT_MINI,
@@ -260,9 +258,9 @@ class TactileClassificationVectorEnv(
             np.concatenate([CELL_SIZE / 2 - CELL_MARGIN, [0.02]]),
         )
 
-        self._object_poses_platform_frame: Optional[Transformation] = None
-        self._current_step: Optional[np.ndarray] = None
-        self._last_sensor_output: Optional[np.ndarray] = None
+        self._object_poses_platform_frame: Transformation | None = None
+        self._current_step: np.ndarray | None = None
+        self._last_sensor_output: np.ndarray | None = None
 
         self._renderer = TactileClassificationRenderer(
             self.num_envs,
@@ -318,7 +316,7 @@ class TactileClassificationVectorEnv(
         return sensor_poses
 
     def _reset_partial(
-        self, mask: Sequence[bool], options: Optional[Dict[str, Any]] = None
+        self, mask: Sequence[bool], options: dict[str, Any] | None = None
     ) -> np.ndarray:
         if np.any(mask):
             if options is None:
@@ -392,7 +390,7 @@ class TactileClassificationVectorEnv(
 
     def _get_obs_info(
         self, sensor_target_poses: Transformation
-    ) -> Tuple["ObsType", Dict[str, Any]]:
+    ) -> tuple["ObsType", dict[str, Any]]:
         sensor_output, depth_output, sensor_pose = self.execute_step(
             sensor_target_poses
         )
@@ -416,7 +414,7 @@ class TactileClassificationVectorEnv(
         info = {"depth": depth_output, "sensor_pose": sensor_pose}
         return obs, info
 
-    def _reset(self, *, options: Optional[Dict[str, Any]] = None):
+    def _reset(self, *, options: dict[str, Any] | None = None):
         self._current_step = np.zeros(self.num_envs, dtype=np.int_)
         self._current_data_points = [None] * self.num_envs
         self._prev_done = np.zeros(self.num_envs, dtype=np.bool_)
@@ -460,8 +458,8 @@ class TactileClassificationVectorEnv(
 
     @staticmethod
     def _calculate_transfer_time_scalar(
-        distance: Union[float, np.ndarray], acceleration: float, max_velocity: float
-    ) -> Union[float, np.ndarray]:
+        distance: float | np.ndarray, acceleration: float, max_velocity: float
+    ) -> float | np.ndarray:
         half_distance = distance / 2
         unconstrained_acceleration_time = np.sqrt(2 * half_distance / acceleration)
         acceleration_time = max_velocity / acceleration
@@ -475,10 +473,10 @@ class TactileClassificationVectorEnv(
 
     @staticmethod
     def _calculate_max_distance_scalar(
-        transfer_time: Union[float, np.ndarray],
+        transfer_time: float | np.ndarray,
         acceleration: float,
         max_velocity: float,
-    ) -> Union[float, np.ndarray]:
+    ) -> float | np.ndarray:
         half_transfer_time = transfer_time / 2
         acceleration_time = np.minimum(max_velocity / acceleration, half_transfer_time)
         max_velocity_time = half_transfer_time - acceleration_time
@@ -592,7 +590,7 @@ class TactileClassificationVectorEnv(
         return obs, action_reward, terminated, truncated, info, labels
 
     def execute_step(
-        self, sensor_target_pose: Transformation, mask: Optional[Sequence[bool]] = None
+        self, sensor_target_pose: Transformation, mask: Sequence[bool] | None = None
     ):
         if mask is None:
             mask = np.ones(self.num_envs, dtype=np.bool_)
@@ -665,7 +663,7 @@ class TactileClassificationVectorEnv(
 
         return sensor_output, depth_output, sensor_poses
 
-    def render(self) -> Optional[np.ndarray]:
+    def render(self) -> np.ndarray | None:
         return self._renderer.render_external_cameras(self._last_sensor_output)
 
     @property
@@ -673,11 +671,11 @@ class TactileClassificationVectorEnv(
         return self._render_mode
 
     @property
-    def sensor_pos_limits(self) -> Tuple[np.ndarray, np.ndarray]:
+    def sensor_pos_limits(self) -> tuple[np.ndarray, np.ndarray]:
         return self._sensor_pos_limits
 
     @property
-    def current_data_points(self) -> Tuple[MeshDataPoint]:
+    def current_data_points(self) -> tuple[MeshDataPoint]:
         return self._current_data_points
 
     @property

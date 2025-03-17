@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import io
 import pickle
@@ -6,7 +8,7 @@ import threading
 from collections import defaultdict
 from pathlib import Path
 from tarfile import TarFile, TarInfo
-from typing import IO, Union
+from typing import IO
 
 import filelock
 
@@ -72,7 +74,7 @@ class FastTarFileReader(TarFile):
         super().close()
         self.fileobj.close()
 
-    def extractfile(self, member: Union[str, TarInfo]) -> IO[bytes]:
+    def extractfile(self, member: str | TarInfo) -> IO[bytes]:
         if isinstance(member, str):
             tarinfo = self.__members[member]
         else:

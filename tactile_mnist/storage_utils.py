@@ -1,20 +1,22 @@
+from __future__ import annotations
+
 import dataclasses
 import itertools
 import typing
 from collections import OrderedDict
 from itertools import chain
 from pathlib import Path
-from typing import Dict, Any, Optional, Union, Tuple, Iterable, List, Iterator
+from typing import Any, Iterable, List, Iterator, Union, Optional
 
 import numpy as np
 
-SupportedDtypes = Union[np.ndarray, str, int, float]
-NestedDict = Dict[str, Union[SupportedDtypes, "NestedDict"]]
+SupportedDtypes = np.ndarray | str | int | float
+NestedDict = dict[str, Union[SupportedDtypes, "NestedDict"]]
 
 FieldsType = typing.OrderedDict[str, Optional["FieldType"]]
 
 
-def nested_dict_to_list(d: Dict[str, Any], fields: FieldsType):
+def nested_dict_to_list(d: dict[str, Any], fields: FieldsType):
     return list(
         chain.from_iterable(
             nested_dict_to_list(d[k], v) if isinstance(d[k], dict) else (d[k],)
@@ -23,15 +25,15 @@ def nested_dict_to_list(d: Dict[str, Any], fields: FieldsType):
     )
 
 
-def get_fields(d: Dict[str, Any]) -> FieldsType:
+def get_fields(d: dict[str, Any]) -> FieldsType:
     return OrderedDict(
         [(k, get_fields(d[k]) if isinstance(d[k], dict) else None) for k in sorted(d)]
     )
 
 
 def flatten_fields(
-    fields: FieldsType, prefix: Tuple[str, ...] = ()
-) -> Tuple[Tuple[str, ...], ...]:
+    fields: FieldsType, prefix: tuple[str, ...] = ()
+) -> tuple[tuple[str, ...], ...]:
     return tuple(
         chain.from_iterable(
             flatten_fields(v, prefix=prefix + (k,))
@@ -43,8 +45,8 @@ def flatten_fields(
 
 
 def _maybe_pad(
-    val: SupportedDtypes, shape: Tuple[int, ...]
-) -> Tuple[SupportedDtypes, ...]:
+    val: SupportedDtypes, shape: tuple[int, ...]
+) -> tuple[SupportedDtypes, ...]:
     if isinstance(val, np.ndarray):
         val_padded = np.pad(
             val, [(0, s_t - s_v) for s_t, s_v in zip(shape, val.shape)], mode="constant"
@@ -55,14 +57,14 @@ def _maybe_pad(
 
 
 def _pad_numpy_arrays(
-    data: List[SupportedDtypes], target_shapes: List[Optional[Tuple[int, ...]]]
+    data: List[SupportedDtypes], target_shapes: List[tuple[int, ...] | None]
 ):
     return tuple(
         e for d, shape in zip(data, target_shapes) for e in _maybe_pad(d, shape)
     )
 
 
-def _todict(obj: Union[object, NestedDict]):
+def _todict(obj: object | NestedDict):
     if isinstance(obj, dict):
         return obj
     else:
@@ -108,7 +110,7 @@ def data_to_struct_array(data: Iterable[object]):
     return np.array(data, dtype=out_dtypes)
 
 
-def flat_dict_to_nested_dict(array_dict: Dict[str, SupportedDtypes]) -> NestedDict:
+def flat_dict_to_nested_dict(array_dict: dict[str, SupportedDtypes]) -> NestedDict:
     output = {k: v for k, v in array_dict.items() if "." not in k}
     sub_dicts = {k: v for k, v in array_dict.items() if "." in k}
     sub_dicts_grouped = itertools.groupby(
@@ -125,7 +127,7 @@ def flat_dict_to_nested_dict(array_dict: Dict[str, SupportedDtypes]) -> NestedDi
     return output
 
 
-def _restore_dtypes(array_dict: Dict[str, Any]) -> Dict[str, SupportedDtypes]:
+def _restore_dtypes(array_dict: dict[str, Any]) -> dict[str, SupportedDtypes]:
     return {
         k: v[tuple(slice(0, s) for s in array_dict[f"{k}.shape"])].copy()
         if isinstance(v, np.ndarray)
@@ -137,8 +139,8 @@ def _restore_dtypes(array_dict: Dict[str, Any]) -> Dict[str, SupportedDtypes]:
 
 def save_data(
     path: Path,
-    data: Iterable[Union[object, NestedDict]],
-    metadata: Optional[NestedDict] = None,
+    data: Iterable[object | NestedDict],
+    metadata: NestedDict | None = None,
 ):
     if metadata is None:
         metadata = {}
@@ -147,7 +149,7 @@ def save_data(
     )
 
 
-def load_data(path: Path) -> Tuple[Iterator[NestedDict], NestedDict]:
+def load_data(path: Path) -> tuple[Iterator[NestedDict], NestedDict]:
     with np.load(path, allow_pickle=False) as f:
         struct_array = f["data"]
         metadata = f["metadata"]
