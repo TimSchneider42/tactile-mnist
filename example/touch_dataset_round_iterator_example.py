@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import logging
 
 from tactile_mnist import TouchDatasetRoundIterator, TouchDataset, get_resource
