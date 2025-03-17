@@ -133,6 +133,7 @@ class TactileClassificationVectorEnv(
         {
             "render_fps": 5,
             "render_modes": ["rgb_array", "human"],
+            "autoreset_mode": gym.vector.AutoresetMode.NEXT_STEP,
         }
     )
 
