@@ -36,9 +36,7 @@ class Dataset(
     def __init__(
         self,
         partial_data_points: Iterable[PartialDataPointType],
-        load_full_kwargs:
-            dict[str, Any] | Iterable[dict[str, Any]]
-         | None = None,
+        load_full_kwargs: dict[str, Any] | Iterable[dict[str, Any]] | None = None,
         cache_size: int | Literal["full"] = 0,
         _cached_get_item_func: Callable[[int, int], FullDataPointType] | None = None,
     ):
@@ -107,9 +105,7 @@ class Dataset(
         ...
 
     @overload
-    def __getitem__(
-        self, index: slice | Sequence[int] | np.ndarray
-    ) -> SubDatasetType:
+    def __getitem__(self, index: slice | Sequence[int] | np.ndarray) -> SubDatasetType:
         ...
 
     def __getitem__(self, index: int | slice | Sequence[int]):

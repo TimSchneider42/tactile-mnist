@@ -53,7 +53,7 @@ class TouchMetadata(PartialDataPoint[DataPointType], Generic[DataPointType, Data
     label: int
     pos_in_cell: np.ndarray
     object_id: Any
-    round_id: str |  int
+    round_id: str | int
     touch_no: int
     info: dict[str, Any]
 
@@ -82,9 +82,7 @@ class TouchMetadata(PartialDataPoint[DataPointType], Generic[DataPointType, Data
                 f,
             )
 
-    def copy_data(
-        self, source: Path | TarFile, destination: Path | TarFile
-    ):
+    def copy_data(self, source: Path | TarFile, destination: Path | TarFile):
         if isinstance(source, Path) and isinstance(destination, Path):
             shutil.copy2(source / self.data_filename, destination / self.data_filename)
         elif isinstance(source, Path) and isinstance(destination, TarFile):
@@ -383,9 +381,7 @@ class BaseTouchDataset(
     @cached_property
     def rounds(
         self,
-    ) -> dict[
-        str | int, BaseTouchDataset[MetadataType, DataPointType, SubDatasetType]
-    ]:
+    ) -> dict[str | int, BaseTouchDataset[MetadataType, DataPointType, SubDatasetType]]:
         return {
             self.round_ids[s]: self[s:e]
             for s, e in zip(self.round_boundaries[:-1], self.round_boundaries[1:])
