@@ -39,8 +39,10 @@ from .iterable_types import (
 )
 from .resource import Resource, get_resource, get_remote_resource
 from .constants import *
-from .tactile_classification_env import TactileClassificationEnv
-from .tactile_classification_vector_env import TactileClassificationVectorEnv
+from .tactile_classification_env import (
+    TactileClassificationEnv,
+    TactileClassificationVectorEnv,
+)
 
 
 def register_envs():
