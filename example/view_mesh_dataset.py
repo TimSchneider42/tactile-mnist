@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 
 from tactile_mnist import MeshDataset, get_resource
@@ -8,7 +10,7 @@ if __name__ == "__main__":
         "-d",
         "--dataset",
         type=str,
-        default="remote:mnist3d_split_v0/train",
+        default="remote:mnist3d-v0/train",
         help="Path or resource specification of the mesh dataset.",
     )
     parser.add_argument(
