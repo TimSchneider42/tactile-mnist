@@ -110,10 +110,10 @@ class Resource:
                                 f.write(chunk)
                                 bar.update(len(chunk))
                             bar.close()
-                    logger.info(f"Extracting {path}... ", end="")
+                    logger.info(f"Extracting {path}... ")
                     with ZipFile(tmp_file) as zipfile:
                         zipfile.extractall(target_path.parent)
-                    logger.info("done.")
+                    logger.info("Done.")
                 finally:
                     if tmp_file.exists():
                         tmp_file.unlink()
