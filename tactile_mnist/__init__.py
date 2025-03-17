@@ -54,12 +54,12 @@ def register_envs():
             gym.envs.registration.register(
                 id=f"TactileMNIST{s}-v0",
                 entry_point=lambda *args, **kwargs: TactileClassificationEnv(
-                    MeshDataset.load(get_remote_resource(f"mnist3d_split_v0/{split}")),
+                    MeshDataset.load(get_remote_resource(f"mnist3d-v0/{split}")),
                     *args,
                     **kwargs,
                 ),
                 vector_entry_point=lambda *args, **kwargs: TactileClassificationVectorEnv(
-                    MeshDataset.load(get_remote_resource(f"mnist3d_split_v0/{split}")),
+                    MeshDataset.load(get_remote_resource(f"mnist3d-v0/{split}")),
                     *args,
                     **kwargs,
                 ),
@@ -71,14 +71,14 @@ def register_envs():
                 id=f"Starstruck{s}-v0",
                 entry_point=lambda *args, **kwargs: TactileClassificationEnv(
                     MeshDataset.load(
-                        get_remote_resource(f"starstruck_split_v0/{split}")
+                        get_remote_resource(f"starstruck-v0/{split}")
                     ),
                     *args,
                     **kwargs,
                 ),
                 vector_entry_point=lambda *args, **kwargs: TactileClassificationVectorEnv(
                     MeshDataset.load(
-                        get_remote_resource(f"starstruck_split_v0/{split}")
+                        get_remote_resource(f"starstruck-v0/{split}")
                     ),
                     *args,
                     **kwargs,
