@@ -37,7 +37,7 @@ class MultiNode:
         *args,
         single_instance: bool = False,
         individual_args: bool = False,
-        **kwargs
+        **kwargs,
     ):
         if single_instance:
             assert not individual_args

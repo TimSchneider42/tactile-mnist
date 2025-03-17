@@ -22,7 +22,11 @@ from scipy.spatial.transform import Rotation
 from taxim import Taxim, CALIB_GELSIGHT_MINI
 from transformation import Transformation
 
-from ap_gym import ImageSpace, ActiveClassificationVectorEnv, ActivePerceptionVectorToSingleWrapper
+from ap_gym import (
+    ImageSpace,
+    ActiveClassificationVectorEnv,
+    ActivePerceptionVectorToSingleWrapper,
+)
 from tactile_mnist import (
     CELL_MARGIN,
     CELL_SIZE,
@@ -695,6 +699,7 @@ class TactileClassificationVectorEnv(
         spec = copy.copy(spec)
         spec.max_episode_steps = self._step_limit
         self._spec = spec
+
 
 def TactileClassificationEnv(
     dataset: MeshDataset,
