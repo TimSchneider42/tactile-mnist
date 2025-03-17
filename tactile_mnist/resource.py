@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_RESOURCE_DIR = Path.home() / ".local" / "share" / "tactile-mnist"
 DEFAULT_BASE_URL = "https://archimedes.ias.informatik.tu-darmstadt.de/s/EiFPmyqa34DLF8S"
 
+custom_remote_search_locations = list(
+    map(Path, os.environ.get("TACTILE_MNIST_REMOTE_DATA_PATH", "").split(":"))
+)
+
 
 @dataclass(frozen=True)
 class Resource:
@@ -32,6 +36,14 @@ class Resource:
             main_resource = Path(path.parts[0])
             relative_resource = path.relative_to(main_resource)
             resource_dir.mkdir(parents=True, exist_ok=True)
+
+            custom_locations = [
+                p / main_resource
+                for p in custom_remote_search_locations
+                if (p / main_resource).exists()
+            ]
+            if len(custom_locations) > 0:
+                return (custom_locations[0] / relative_resource).resolve()
 
             try:
                 resource_path = self._download_resource(
