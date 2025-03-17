@@ -63,23 +63,22 @@ def register_envs():
                     *args,
                     **kwargs,
                 ),
-                kwargs=dict(sensor_output_size=(64, 64), allow_sensor_rotation=False),
-                max_episode_steps=16,
+                kwargs=dict(
+                    sensor_output_size=(64, 64),
+                    allow_sensor_rotation=False,
+                    step_limit=16,
+                ),
             )
 
             gym.envs.registration.register(
                 id=f"Starstruck{s}-v0",
                 entry_point=lambda *args, **kwargs: TactileClassificationEnv(
-                    MeshDataset.load(
-                        get_remote_resource(f"starstruck-v0/{split}")
-                    ),
+                    MeshDataset.load(get_remote_resource(f"starstruck-v0/{split}")),
                     *args,
                     **kwargs,
                 ),
                 vector_entry_point=lambda *args, **kwargs: TactileClassificationVectorEnv(
-                    MeshDataset.load(
-                        get_remote_resource(f"starstruck-v0/{split}")
-                    ),
+                    MeshDataset.load(get_remote_resource(f"starstruck-v0/{split}")),
                     *args,
                     **kwargs,
                 ),
@@ -88,8 +87,8 @@ def register_envs():
                     allow_sensor_rotation=False,
                     randomize_initial_object_pose=False,
                     perturb_object_pose=False,
+                    step_limit=32,
                 ),
-                max_episode_steps=32,
             )
 
 
