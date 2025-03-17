@@ -1,6 +1,7 @@
 import json
 import pickle
 import shutil
+import warnings
 from abc import abstractmethod
 from contextlib import nullcontext, contextmanager
 from dataclasses import dataclass
@@ -188,9 +189,10 @@ class TouchSeqMetadata(TouchMetadata["TouchSeq", np.ndarray]):
                             video_reader.read()[1], cv2.COLOR_BGR2RGB
                         )
                 else:
-                    output = torchvision.io.read_video(data_path, output_format="THWC")[
-                        0
-                    ].numpy()
+                    # pts_unit="sec" is needed to suppress a warning here
+                    output = torchvision.io.read_video(
+                        data_path, pts_unit="sec", output_format="THWC"
+                    )[0].numpy()
                 assert (
                     output.shape[0]
                     == len(self.time_stamp_rel_seq)
@@ -244,10 +246,12 @@ class TouchSingleMetadata(TouchMetadata["TouchSingle", bytes]):
                     cv2.COLOR_BGR2RGB,
                 )
             else:
+                # We need this to suppress the warning from torch that data is not writable
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=UserWarning)
+                    data_torch = torch.frombuffer(data, dtype=torch.uint8)
                 img = (
-                    torchvision.io.image.decode_image(
-                        torch.frombuffer(data, dtype=torch.uint8)
-                    )
+                    torchvision.io.image.decode_image(data_torch)
                     .permute((1, 2, 0))
                     .numpy()
                 )
