@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import csv
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Union, List, Set, Dict, Literal, Tuple
+from typing import Iterable, List, Set, Literal
 
 import trimesh
 from trimesh import Trimesh
@@ -27,7 +29,7 @@ class MeshMetadata(PartialDataPoint["MeshDataPoint"]):
                 for e in reader
             ]
 
-    def load_full(self) -> "MeshDataPoint":
+    def load_full(self) -> MeshDataPoint:
         mesh = trimesh.load(self._mesh_path)
         return MeshDataPoint(self, mesh)
 
@@ -41,13 +43,13 @@ class MeshDataPoint:
 class MeshDataset(
     Dataset[MeshMetadata, MeshDataPoint, "MeshDataset[MeshMetadata, MeshDataPoint]"]
 ):
-    def by_labels(self) -> Dict[int, "MeshDataset"]:
+    def by_labels(self) -> dict[int, MeshDataset]:
         return {
             l: self[[i for i, e in enumerate(self.partial) if e.label == l]]
             for l in self.labels
         }
 
-    def filter_labels(self, labels: Union[int, Iterable[int]]) -> "MeshDataset":
+    def filter_labels(self, labels: int | Iterable[int]) -> MeshDataset:
         if not isinstance(labels, Iterable):
             labels = [labels]
         labels = set(labels)
@@ -58,9 +60,9 @@ class MeshDataset(
         return set(e.label for e in self.partial)
 
     @property
-    def metadata(self) -> Tuple[MeshMetadata, ...]:
+    def metadata(self) -> tuple[MeshMetadata, ...]:
         return self.partial
 
     @staticmethod
-    def load(path: Path, cache_size: Union[int, Literal["full"]] = 0) -> "MeshDataset":
+    def load(path: Path, cache_size: int | Literal["full"] = 0) -> MeshDataset:
         return MeshDataset(MeshMetadata.load(path), cache_size=cache_size)

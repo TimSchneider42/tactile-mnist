@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import abstractmethod, ABC
 from typing import TypeVar, Iterator, Iterable, Generic, Protocol
 
@@ -25,7 +27,7 @@ class SeekableIterable(Iterable[T], Generic[T], ABC):
 
 
 class ShiftedSizedIterable(SizedIterable[T], Generic[T], ABC):
-    def __init__(self, inner_iterator: "SeekableSizedIterable[T]", offset: int):
+    def __init__(self, inner_iterator: SeekableSizedIterable[T], offset: int):
         self._inner_iterator = inner_iterator
         self._offset = offset
 

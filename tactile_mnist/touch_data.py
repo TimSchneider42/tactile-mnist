@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import pickle
 import shutil
@@ -10,12 +12,8 @@ from pathlib import Path
 from tarfile import TarFile
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from typing import (
-    Tuple,
     List,
     Any,
-    Dict,
-    Union,
-    Optional,
     TypeVar,
     Generic,
     Sized,
@@ -55,17 +53,17 @@ class TouchMetadata(PartialDataPoint[DataPointType], Generic[DataPointType, Data
     label: int
     pos_in_cell: np.ndarray
     object_id: Any
-    round_id: Union[str, int]
+    round_id: str |  int
     touch_no: int
-    info: Dict[str, Any]
+    info: dict[str, Any]
 
-    SUPPORTED_FILE_FORMATS: ClassVar[Tuple[str, ...]] = ("pkl", "npz")
+    SUPPORTED_FILE_FORMATS: ClassVar[tuple[str, ...]] = ("pkl", "npz")
 
     @classmethod
     def store(
         cls,
         output_dir: Path,
-        data_points: Sequence["TouchMetadata"],
+        data_points: Sequence[TouchMetadata],
         format: Literal["pkl", "npz"] = "npz",
     ):
         if format == "pkl":
@@ -85,7 +83,7 @@ class TouchMetadata(PartialDataPoint[DataPointType], Generic[DataPointType, Data
             )
 
     def copy_data(
-        self, source: Union[Path, TarFile], destination: Union[Path, TarFile]
+        self, source: Path | TarFile, destination: Path | TarFile
     ):
         if isinstance(source, Path) and isinstance(destination, Path):
             shutil.copy2(source / self.data_filename, destination / self.data_filename)
@@ -100,7 +98,7 @@ class TouchMetadata(PartialDataPoint[DataPointType], Generic[DataPointType, Data
             )
 
     @contextmanager
-    def _ensure_extracted(self, data_source: Union[Path, FastTarFileReader]) -> Path:
+    def _ensure_extracted(self, data_source: Path | FastTarFileReader) -> Path:
         if isinstance(data_source, FastTarFileReader):
             temp_file = NamedTemporaryFile()
         else:
@@ -121,18 +119,18 @@ class TouchMetadata(PartialDataPoint[DataPointType], Generic[DataPointType, Data
         pass
 
     @abstractmethod
-    def load_data(self, data_source: Union[Path, FastTarFileReader]) -> DataType:
+    def load_data(self, data_source: Path | FastTarFileReader) -> DataType:
         pass
 
     @abstractmethod
     def from_data(self, data: DataType) -> DataPointType:
         pass
 
-    def load_full(self, data_source: Union[Path, FastTarFileReader]) -> DataPointType:
+    def load_full(self, data_source: Path | FastTarFileReader) -> DataPointType:
         return self.from_data(self.load_data(data_source))
 
     @staticmethod
-    def load(input_dir: Path) -> List["TouchMetadata"]:
+    def load(input_dir: Path) -> List[TouchMetadata]:
         pkl_file = input_dir / "metadata.pkl"
         if pkl_file.exists():
             with pkl_file.open("rb") as f:
@@ -175,7 +173,7 @@ class TouchSeqMetadata(TouchMetadata["TouchSeq", np.ndarray]):
     gel_position_cell_frame_seq: np.ndarray
     gel_orientation_cell_frame_seq: np.ndarray
 
-    def load_data(self, data_source: Union[Path, TarFile]) -> np.ndarray:
+    def load_data(self, data_source: Path | TarFile) -> np.ndarray:
         try:
             with self._ensure_extracted(data_source) as data_path:
                 if torch is None:
@@ -204,7 +202,7 @@ class TouchSeqMetadata(TouchMetadata["TouchSeq", np.ndarray]):
                 f"Failed to load datapoint {self.data_filename} from {data_source}."
             )
 
-    def from_data(self, data: np.ndarray) -> "TouchSeq":
+    def from_data(self, data: np.ndarray) -> TouchSeq:
         return TouchSeq(self, data)
 
     def _get_data_file_extension(self) -> str:
@@ -225,7 +223,7 @@ class TouchSingleMetadata(TouchMetadata["TouchSingle", bytes]):
     gel_position_cell_frame: np.ndarray
     gel_orientation_cell_frame: np.ndarray
 
-    def load_data(self, data_source: Union[Path, FastTarFileReader]) -> bytes:
+    def load_data(self, data_source: Path | FastTarFileReader) -> bytes:
         try:
             if isinstance(data_source, FastTarFileReader):
                 with data_source.extractfile(self.data_filename) as f:
@@ -238,7 +236,7 @@ class TouchSingleMetadata(TouchMetadata["TouchSingle", bytes]):
                 f"Failed to load data of datapoint {self.data_filename} from {data_source}."
             )
 
-    def from_data(self, data: bytes) -> "TouchSingle":
+    def from_data(self, data: bytes) -> TouchSingle:
         try:
             if torch is None:
                 img = cv2.cvtColor(
@@ -278,7 +276,7 @@ MetadataType = TypeVar("MetadataType", bound=TouchMetadata)
 class TouchData(Generic[MetadataType]):
     metadata: MetadataType
 
-    def save_non_metadata(self, destination: Union[Path, TarFile]):
+    def save_non_metadata(self, destination: Path | TarFile):
         if isinstance(destination, TarFile):
             with NamedTemporaryFile(suffix="." + self.metadata.data_file_suffix) as f:
                 path = Path(f.name)
@@ -366,11 +364,11 @@ class BaseTouchDataset(
                 dp.copy_data(self.load_full_kwargs[i]["data_source"], path)
 
     @property
-    def metadata(self) -> Tuple[MetadataType, ...]:
+    def metadata(self) -> tuple[MetadataType, ...]:
         return self.partial
 
     @cached_property
-    def round_ids(self) -> Tuple[np.ndarray, np.ndarray]:
+    def round_ids(self) -> tuple[np.ndarray, np.ndarray]:
         return np.array([md.round_id for md in self.metadata])
 
     @cached_property
@@ -378,15 +376,15 @@ class BaseTouchDataset(
         return np.unique(self.round_ids)
 
     @cached_property
-    def round_boundaries(self) -> Tuple[np.ndarray, np.ndarray]:
+    def round_boundaries(self) -> tuple[np.ndarray, np.ndarray]:
         boundaries = np.where(self.round_ids[:-1] != self.round_ids[1:])[0] + 1
         return np.concatenate([[0], boundaries, [len(self.round_ids)]])
 
     @cached_property
     def rounds(
         self,
-    ) -> Dict[
-        Union[str, int], "BaseTouchDataset[MetadataType, DataPointType, SubDatasetType]"
+    ) -> dict[
+        str | int, BaseTouchDataset[MetadataType, DataPointType, SubDatasetType]
     ]:
         return {
             self.round_ids[s]: self[s:e]
@@ -396,7 +394,7 @@ class BaseTouchDataset(
     @property
     def round_sequence(
         self,
-    ) -> Sequence["BaseTouchDataset[MetadataType, DataPointType, SubDatasetType]"]:
+    ) -> Sequence[BaseTouchDataset[MetadataType, DataPointType, SubDatasetType]]:
         return RoundSequence(self)
 
     @property
@@ -426,8 +424,8 @@ class LoadedTouchDataset(
     def __init__(
         self, path: Path, mode: Literal["in_place", "extract", "in_memory"] = "in_place"
     ):
-        self.__tarfile: Optional[TarFile] = None
-        self.__temp_dir: Optional[TemporaryDirectory] = None
+        self.__tarfile: TarFile | None = None
+        self.__temp_dir: TemporaryDirectory | None = None
         self.__path = path
 
         archive_path = path / "data.tar"
@@ -468,9 +466,9 @@ class LoadedTouchDataset(
     @classmethod
     def _instantiate(
         cls,
-        partial_data_points: Tuple[PartialDataPointType, ...],
-        load_full_kwargs: Tuple[Dict[str, Any], ...],
-        cached_get_item_func: Optional[Callable[[int, int], FullDataPointType]] = None,
+        partial_data_points: tuple[PartialDataPointType, ...],
+        load_full_kwargs: tuple[dict[str, Any], ...],
+        cached_get_item_func: Callable[[int, int], FullDataPointType] | None = None,
     ):
         return BaseTouchDataset(
             partial_data_points,
@@ -484,7 +482,7 @@ class TouchDataset(Sized, Generic[MetadataType, DataPointType]):
         self, path: Path, mode: Literal["in_place", "extract", "in_memory"] = "in_place"
     ):
         self.__path = path
-        self.__dataset: Optional[LoadedTouchDataset[MetadataType, DataPointType]] = None
+        self.__dataset: LoadedTouchDataset[MetadataType, DataPointType] | None = None
         self.__mode = mode
         with (path / "summary.json").open() as f:
             summary = json.load(f)
@@ -492,7 +490,7 @@ class TouchDataset(Sized, Generic[MetadataType, DataPointType]):
         self.__round_count: int = summary["round_count"]
         self.__labels: Set[Any] = set(summary["labels"])
 
-    def __enter__(self) -> "LoadedTouchDataset[MetadataType, DataPointType]":
+    def __enter__(self) -> LoadedTouchDataset[MetadataType, DataPointType]:
         self.__dataset = LoadedTouchDataset(self.__path, mode=self.__mode)
         return self.__dataset
 
@@ -522,7 +520,7 @@ class TouchDataset(Sized, Generic[MetadataType, DataPointType]):
     @staticmethod
     def load_all(
         path: Path, mode: Literal["in_place", "extract", "in_memory"] = "in_place"
-    ) -> List["TouchDataset"]:
+    ) -> List[TouchDataset]:
         return [
             TouchDataset(p, mode=mode)
             for p in path.glob("**/*")

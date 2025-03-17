@@ -1,4 +1,6 @@
-from typing import Dict, Union, Optional, Literal, Sequence, TYPE_CHECKING
+from __future__ import annotations
+
+from typing import Literal, Sequence, TYPE_CHECKING
 
 import numpy as np
 
@@ -10,21 +12,21 @@ if TYPE_CHECKING:
     import torch
     import jax
 
-    ObsType = Dict[str, Union[np.ndarray, torch.Tensor, jax.Array]]
-    ActType = Dict[str, np.ndarray]
+    ObsType = dict[str, np.ndarray | torch.Tensor | jax.Array]
+    ActType = dict[str, np.ndarray]
 
 
 def TactileClassificationEnv(
     dataset: MeshDataset,
     step_limit: int = 16,
     render_mode: Literal["rgb_array", "human"] = "rgb_array",
-    taxim_device: Optional[str] = None,
+    taxim_device: str | None = None,
     convert_image_to_numpy: bool = True,
     show_sensor_target_pos: bool = False,
     perturb_object_pose: bool = True,
     randomize_initial_object_pose: bool = True,
     randomize_initial_sensor_pose: bool = True,
-    sensor_output_size: Optional[Sequence[int]] = None,
+    sensor_output_size: Sequence[int] | None = None,
     depth_only: bool = False,
     allow_sensor_rotation: bool = True,
     sensor_backend: Literal["torch", "jax", "auto"] = "auto",
