@@ -7,7 +7,7 @@ ENVS=(
   Starstruck-v0
 )
 
-OUTPUT_DIR="$SCRIPT_DIR/../doc/img"
+OUTPUT_DIR="$SCRIPT_DIR/../doc/img/env"
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 for env in "${ENVS[@]}"; do
