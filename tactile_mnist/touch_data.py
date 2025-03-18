@@ -514,7 +514,7 @@ class TouchDataset(Sized, Generic[MetadataType, DataPointType]):
         return self.__mode
 
     @staticmethod
-    def load_all(
+    def open_all(
         path: Path, mode: Literal["in_place", "extract", "in_memory"] = "in_place"
     ) -> List[TouchDataset]:
         return [
