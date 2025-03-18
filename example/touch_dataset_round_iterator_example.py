@@ -6,7 +6,7 @@ from tactile_mnist import TouchDatasetRoundIterator, TouchDataset, get_resource
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-datasets = TouchDataset.load_all(
+datasets = TouchDataset.open_all(
     get_resource("remote:tactile_mnist-syn-single-t32-320x240-v0/train")
 )
 for round_data in TouchDatasetRoundIterator(

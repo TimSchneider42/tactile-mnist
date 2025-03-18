@@ -24,7 +24,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    for dataset in TouchDataset.load_all(get_resource(args.dataset)):
+    for dataset in TouchDataset.open_all(get_resource(args.dataset)):
         with dataset as dataset_loaded:
             data_idx = list(range(len(dataset_loaded)))
             if args.touch_only:
