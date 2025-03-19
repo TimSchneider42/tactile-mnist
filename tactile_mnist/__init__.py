@@ -55,32 +55,31 @@ def register_envs():
         for s in suffixes:
             gym.envs.registration.register(
                 id=f"TactileMNIST{s}-v0",
-                entry_point=lambda *args, **kwargs: TactileClassificationEnv(
-                    MeshDataset.load(get_remote_resource(f"mnist3d-v0/{split}")),
+                entry_point=lambda *args, _split=split, **kwargs: TactileClassificationEnv(
+                    MeshDataset.load(get_remote_resource(f"mnist3d-v0/{_split}")),
                     *args,
                     **kwargs,
                 ),
-                vector_entry_point=lambda *args, **kwargs: TactileClassificationVectorEnv(
-                    MeshDataset.load(get_remote_resource(f"mnist3d-v0/{split}")),
+                vector_entry_point=lambda *args, _split=split, **kwargs: TactileClassificationVectorEnv(
+                    MeshDataset.load(get_remote_resource(f"mnist3d-v0/{_split}")),
                     *args,
                     **kwargs,
                 ),
                 kwargs=dict(
                     sensor_output_size=(64, 64),
                     allow_sensor_rotation=False,
-                    step_limit=16,
                 ),
             )
 
             gym.envs.registration.register(
                 id=f"Starstruck{s}-v0",
-                entry_point=lambda *args, **kwargs: TactileClassificationEnv(
-                    MeshDataset.load(get_remote_resource(f"starstruck-v0/{split}")),
+                entry_point=lambda *args, _split=split, **kwargs: TactileClassificationEnv(
+                    MeshDataset.load(get_remote_resource(f"starstruck-v0/{_split}")),
                     *args,
                     **kwargs,
                 ),
-                vector_entry_point=lambda *args, **kwargs: TactileClassificationVectorEnv(
-                    MeshDataset.load(get_remote_resource(f"starstruck-v0/{split}")),
+                vector_entry_point=lambda *args, _split=split, **kwargs: TactileClassificationVectorEnv(
+                    MeshDataset.load(get_remote_resource(f"starstruck-v0/{_split}")),
                     *args,
                     **kwargs,
                 ),
