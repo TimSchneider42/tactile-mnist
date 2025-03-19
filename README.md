@@ -44,25 +44,27 @@ This package provides an easy way of loading and working with these datasets, as
 
 ## Simulated Active Tactile Perception Benchmark
 
-We provide [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for two active tactile perception environments: [TactileMNIST](doc/TactileMNIST.md) and [Starstruck](doc/Starstruck.md).
+This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for two active tactile perception environments: [TactileMNIST](doc/TactileMNIST.md) and [Starstruck](doc/Starstruck.md).
 In both environments, the agent must solve a perception problem by actively controlling a [GelSight Mini](https://www.gelsight.com/gelsightmini/) tactile sensor in a simulated environment.
 
-<table align="center" style="border-collapse: collapse; border: none;">
-    <tr style="border: none;">
-        <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="100%"/><br/>
-            <a href="doc/TactileMNIST.md">
-                TactileMNIST-v0
-            </a>
-        </td>
-        <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="100%"/><br/>
-            <a href="doc/Starstruck.md">
-                MNIST-v0
-            </a>
-        </td>
-    </tr>
-</table>
+<div align="center">
+    <table style="border-collapse: collapse; border: none;">
+        <tr style="border: none;">
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="200px"/><br/>
+                <a href="/TactileMNIST.md">
+                    TactileMNIST-v0
+                </a>
+            </td>
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="200px"/><br/>
+                <a href="Starstruck.md">
+                    Starstruck-v0
+                </a>
+            </td>
+        </tr>
+    </table>
+</div>
 
 The _TactileMNIST_ environment challenges the agent to find and classify a 3D MNIST model as quickly as possible.
 Aside of finding the object, the main challenge in the TactileMNIST environment is to learn contour following strategies to efficiently classify it once found.
