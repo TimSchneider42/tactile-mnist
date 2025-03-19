@@ -10,7 +10,7 @@ import ap_gym
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 # For the test dataset, use "TactileMNIST-test-v0"
-env = ap_gym.make("tactile_mnist:TactileMNIST-train-v0")
+env = ap_gym.make("tactile_mnist:TactileMNIST-v0")
 obs, _ = env.reset(seed=0)
 
 fig, ax = plt.subplots(1, 2)
