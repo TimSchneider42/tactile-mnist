@@ -526,7 +526,7 @@ class TactileClassificationVectorEnv(
             -(sensor_target_pos_rel**2) * self._action_regularization, axis=-1
         )
 
-        # Project everything back into unit circle
+        # Project everything back into unit sphere
         sensor_target_pos_rel_clipped = self._project_sphere(sensor_target_pos_rel)
         sensor_target_pos_rel_scaled = (
             sensor_target_pos_rel_clipped * self._max_distance_linear
