@@ -165,6 +165,7 @@ class TactileClassificationVectorEnv(
         action_regularization: float = 1e-3,
         max_tilt_angle: float = np.pi / 4,
         render_transparent_background: bool = False,
+        timeout_behavior: Literal["terminate", "truncate"] = "terminate",
     ):
         sensor_output_size = tuple(
             map(
@@ -175,6 +176,7 @@ class TactileClassificationVectorEnv(
             )
         )
         self.num_envs = num_envs
+        self._timeout_behavior = timeout_behavior
         self._sensor_output_hw = tuple(reversed(sensor_output_size))
         self._render_mode = render_mode
         self._depth_only = depth_only
@@ -229,8 +231,12 @@ class TactileClassificationVectorEnv(
             "sensor_img": ImageSpace(
                 sensor_output_size[0], sensor_output_size[1], 3, dtype=dt
             ),
-            "time_step": gym.spaces.Box(-np.ones((), dtype=dt), np.ones((), dtype=dt)),
         }
+
+        if timeout_behavior == "terminate":
+            single_observation_space["time_step"] = gym.spaces.Box(
+                -np.ones((), dtype=dt), np.ones((), dtype=dt)
+            )
 
         if allow_sensor_rotation:
             single_action_space["sensor_target_rot_rel"] = gym.spaces.Box(
@@ -408,10 +414,12 @@ class TactileClassificationVectorEnv(
         obs = {
             "sensor_pos": sensor_pos_normalized.astype(np.float32),
             "sensor_img": sensor_output,
-            "time_step": (self._current_step / self._step_limit * 2 - 1).astype(
-                np.float32
-            ),
         }
+
+        if self._timeout_behavior == "terminate":
+            obs["time_step"] = (self._current_step / self._step_limit * 2 - 1).astype(
+                np.float32
+            )
 
         if self._allow_sensor_rotation:
             obs["sensor_rot"] = self.rotation_to_feature(sensor_pose.rotation)
@@ -585,8 +593,13 @@ class TactileClassificationVectorEnv(
         # transfer_time = self._calculate_transfer_time(relative_sensor_pose)
 
         self._current_step[~self._prev_done] += 1
-        terminated = self._current_step >= self._step_limit
+        time_out = self._current_step >= self._step_limit
+        terminated = np.zeros(self.num_envs, dtype=np.bool_)
         truncated = np.zeros(self.num_envs, dtype=np.bool_)
+        if self._timeout_behavior == "terminate":
+            terminated = time_out
+        else:
+            truncated = time_out
 
         obs, info = self._get_obs_info(sensor_target_pose)
 
