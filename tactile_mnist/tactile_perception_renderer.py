@@ -143,7 +143,7 @@ def camera_frame_to_image(camera: PerspectiveCamera, pos: np.ndarray) -> np.ndar
     return pos[..., :2] * np.array([fx, fy]) / -pos[..., 2:3] + 0.5
 
 
-class TactileClassificationRenderer:
+class TactilePerceptionRenderer:
     def __init__(
         self,
         num_envs: int,
