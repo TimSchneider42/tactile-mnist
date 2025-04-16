@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tactile-mnist"
-version = "0.10.0"
+version = "0.11.0"
 description = "The Tactile MNIST benchmark for active tactile perception."
 readme = "README.md"
 authors = [
@@ -12,7 +12,7 @@ authors = [
 ]
 license = { text = "MIT" }
 dependencies = [
-    "ap_gym",
+    "ap_gym>=0.3.0",
     "filelock",
     "numpy",
     "transformation3d>=1.0.1",
