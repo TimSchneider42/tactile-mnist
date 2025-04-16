@@ -35,7 +35,7 @@ from tactile_mnist import (
     MeshDataset,
     GELSIGHT_GEL_THICKNESS_MM,
 )
-from .tactile_classification_renderer import TactileClassificationRenderer
+from .tactile_perception_renderer import TactilePerceptionRenderer
 from .util import OverridableStaticField, transformation_where
 
 try:
@@ -273,7 +273,7 @@ class TactileClassificationVectorEnv(
         self._current_step: np.ndarray | None = None
         self._last_sensor_output: np.ndarray | None = None
 
-        self._renderer = TactileClassificationRenderer(
+        self._renderer = TactilePerceptionRenderer(
             self.num_envs,
             (self._sensor.width, self._sensor.height),
             self._sensor.sensor_params.pixmm,
