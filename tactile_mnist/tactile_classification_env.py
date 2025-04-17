@@ -39,11 +39,11 @@ class TactileClassificationVectorEnv(
         else:
             assert len(config.dataset) == num_envs
             datasets = config.dataset
-        self._label_map = {
+        self.__label_map = {
             i: l
             for i, l in enumerate(sorted(set(chain(*(ds.labels for ds in datasets)))))
         }
-        self._inverse_label_map = {l: i for i, l in self._label_map.items()}
+        self.__inverse_label_map = {l: i for i, l in self.__label_map.items()}
         all_labels = {l for ds in datasets for l in ds.labels}
 
         super().__init__(
@@ -60,7 +60,7 @@ class TactileClassificationVectorEnv(
     def _get_prediction_targets(self) -> np.ndarray:
         return np.array(
             [
-                self._inverse_label_map[dp.metadata.label]
+                self.__inverse_label_map[dp.metadata.label]
                 for dp in self.current_data_points
             ]
         )
