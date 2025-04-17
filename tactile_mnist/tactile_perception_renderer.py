@@ -73,8 +73,9 @@ class BatchScene:
         self, batch_size: int, nodes: Iterable[MultiNode] = (), *args, **kwargs
     ):
         assert batch_size > 0
+        self._nodes = list(nodes)
         self._scenes = tuple(
-            Scene([n.nodes[i] for n in nodes], *args, **kwargs)
+            Scene([n.nodes[i] for n in self._nodes], *args, **kwargs)
             for i in range(batch_size)
         )
         if batch_size == 1:
@@ -82,6 +83,11 @@ class BatchScene:
             self._dummy_scene = Scene([Node(camera=PerspectiveCamera(yfov=np.pi / 4))])
         else:
             self._dummy_scene = None
+        self._visibility = {n: np.ones(len(n.nodes)) for n in self._nodes}
+        self._poses = {
+            n: Transformation.batch_concatenate([Transformation()] * len(n.nodes))
+            for n in self._nodes
+        }
 
     def render(
         self, renderer: OffscreenRenderer, flags=RenderFlags.NONE, seg_node_map=None
@@ -99,13 +105,44 @@ class BatchScene:
             return tuple(np.stack(t, axis=0) for t in zip(*res))
         return np.stack(res, axis=0)
 
-    def add_node(self, node: MultiNode):
-        for s, n in zip(self._scenes, node.nodes):
-            s.add_node(n)
+    def add_node(self, node: MultiNode, invisible: bool = False):
+        assert node not in self._nodes
+        if not invisible:
+            for s, n in zip(self._scenes, node.nodes):
+                s.add_node(n)
+        self._nodes.append(node)
+        self._visibility[node] = np.full(len(node.nodes), not invisible, dtype=np.bool_)
+        self._poses[node] = Transformation.batch_concatenate(
+            [Transformation()] * len(node.nodes)
+        )
 
     def remove_node(self, node: MultiNode):
-        for s, n in zip(self._scenes, node.nodes):
-            s.remove_node(n)
+        assert node in self._nodes
+        for s, n, v in zip(self._scenes, node.nodes, self._visibility[node]):
+            if v:
+                s.remove_node(n)
+        self._nodes.remove(node)
+        self._visibility.pop(node)
+        self._poses.pop(node)
+
+    def set_visibility(self, node: MultiNode, mask: Sequence[bool]):
+        assert node in self._nodes
+        assert len(mask) == len(node.nodes)
+        for i, (s, n, m) in enumerate(zip(self._scenes, node.nodes, mask)):
+            if self._visibility[node][i] and not m:
+                s.remove_node(n)
+            elif not self._visibility[node][i] and m:
+                s.add_node(n)
+                s.set_pose(n, self._poses[node][i].matrix)
+        self._visibility[node] = mask
+
+    def set_pose(self, node: MultiNode, pose: Transformation):
+        if pose.single:
+            pose = Transformation.batch_concatenate([pose] * len(node.nodes))
+        self._poses[node] = pose
+        for s, n, p, v in zip(self._scenes, node.nodes, pose, self._visibility[node]):
+            if v:
+                s.set_pose(n, p.matrix)
 
     def add(self, obj, name=None, pose=None, parent_node=None, parent_name=None):
         for s in self._scenes:
@@ -116,12 +153,6 @@ class BatchScene:
                 parent_node=parent_node,
                 parent_name=parent_name,
             )
-
-    def set_pose(self, node: MultiNode, pose: Transformation):
-        if pose.single:
-            pose = [pose] * len(node.nodes)
-        for s, n, p in zip(self._scenes, node.nodes, pose):
-            s.set_pose(n, p.matrix)
 
 
 def image_to_world_scale(
@@ -171,6 +202,9 @@ class TactilePerceptionRenderer:
 
         self._objects: tuple[MeshDataPoint] | None = None
         self._object_poses: Transformation = Transformation.batch_concatenate(
+            [Transformation()] * num_envs
+        )
+        self._shadow_object_poses: Transformation = Transformation.batch_concatenate(
             [Transformation()] * num_envs
         )
         self._show_sensor_target_pos = show_sensor_target_pos
@@ -283,7 +317,8 @@ class TactilePerceptionRenderer:
         )
         self._transparent_sensor_node.matrix = self.sensor_shadow_poses.matrix
 
-        self._camera_object_node: Node | None = None
+        self._camera_object_node: MultiNode | None = None
+        self._camera_shadow_object_node: MultiNode | None = None
         platform_node = Node(
             mesh=Mesh.from_trimesh(platform_mesh),
             matrix=self._platform_pose.matrix,
@@ -483,6 +518,23 @@ class TactilePerceptionRenderer:
             self._camera_scene.set_pose(self._camera_object_node, object_poses_world)
             self._sensor_scene.set_pose(self._sensor_object_node, object_poses_world)
 
+    def update_shadow_objects(
+        self,
+        new_shadow_object_poses: Transformation,
+        shadow_object_visible: Sequence[bool] | None = None,
+    ):
+        if shadow_object_visible is None:
+            shadow_object_visible = np.ones(self._num_envs, dtype=np.bool_)
+        self._shadow_object_poses = new_shadow_object_poses
+        shadow_object_poses_world = self._platform_pose * self._shadow_object_poses
+        with self._get_render_lock():
+            self._camera_scene.set_pose(
+                self._camera_shadow_object_node, shadow_object_poses_world
+            )
+            self._camera_scene.set_visibility(
+                self._camera_shadow_object_node, shadow_object_visible
+            )
+
     def close(self):
         if self._viewer is not None:
             with self._get_render_lock():
@@ -491,11 +543,13 @@ class TactilePerceptionRenderer:
     def _get_render_lock(self):
         return nullcontext() if self._viewer is None else self._viewer.render_lock
 
-    def _process_object_mesh(self, mesh: trimesh.Trimesh) -> trimesh.Trimesh:
+    def _process_object_mesh(
+        self, mesh: trimesh.Trimesh, alpha: float = 255
+    ) -> trimesh.Trimesh:
         mesh = mesh.copy()
         mesh.visual = trimesh.visual.TextureVisuals(
             material=PBRMaterial(
-                baseColorFactor=self._object_color,
+                baseColorFactor=self._object_color + (alpha,),
                 metallicFactor=0.1,
                 roughnessFactor=0.7,
             )
@@ -533,6 +587,10 @@ class TactilePerceptionRenderer:
         with self._get_render_lock():
             if self._camera_object_node is not None:
                 self._camera_scene.remove_node(self._camera_object_node)
+                self._camera_object_node = None
+            if self._camera_shadow_object_node is not None:
+                self._camera_scene.remove_node(self._camera_shadow_object_node)
+                self._camera_shadow_object_node = None
             self._camera_object_node = MultiNode(
                 self._num_envs,
                 mesh=[
@@ -542,6 +600,15 @@ class TactilePerceptionRenderer:
                 individual_args=True,
             )
             self._camera_scene.add_node(self._camera_object_node)
+            self._camera_shadow_object_node = MultiNode(
+                self._num_envs,
+                mesh=[
+                    Mesh.from_trimesh(self._process_object_mesh(mesh, alpha=100))
+                    for mesh in current_meshes
+                ],
+                individual_args=True,
+            )
+            self._camera_scene.add_node(self._camera_shadow_object_node, invisible=True)
             if self._sensor_object_node is not None:
                 self._sensor_scene.remove_node(self._sensor_object_node)
             self._sensor_object_node = MultiNode(
