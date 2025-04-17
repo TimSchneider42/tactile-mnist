@@ -26,7 +26,8 @@ from transformation import Transformation
 from trimesh.primitives import Box
 from trimesh.visual.material import PBRMaterial
 
-from tactile_mnist import CELL_SIZE, MeshDataPoint
+from tactile_mnist import CELL_SIZE
+from .mesh_dataset import MeshDataPoint
 from .util import transformation_where
 
 
@@ -157,6 +158,7 @@ class TactilePerceptionRenderer:
         platform_color: tuple[float | int, ...] = (0, 11, 51),
         show_tactile_image: bool = True,
         transparent_background: bool = False,
+        cell_size: Sequence[float] = tuple(CELL_SIZE),
     ):
         self._transparent_background = transparent_background
 
@@ -175,7 +177,7 @@ class TactilePerceptionRenderer:
         self._num_envs = num_envs
 
         self._platform_pose = Transformation()
-        platform_extents = np.concatenate([CELL_SIZE, [0.002]])
+        platform_extents = np.concatenate([cell_size, [0.002]])
         platform_mesh = Box(
             platform_extents, Transformation([0, 0, -platform_extents[-1] / 2]).matrix
         )
@@ -224,7 +226,8 @@ class TactilePerceptionRenderer:
         render_camera_target = self._platform_pose.translation + np.array(
             [-0.02, -0.02, 0.0]
         )
-        render_camera_pos = np.array([-0.1, -0.1, 0.1])
+        platform_diag = np.linalg.norm(platform_extents)
+        render_camera_pos = np.array([-0.6, -0.6, 0.6]) * platform_diag
         render_camera_z = render_camera_pos - render_camera_target
         render_camera_z /= np.linalg.norm(render_camera_z)
         render_camera_x = np.cross(render_camera_z, np.array([0.0, 0.0, 1.0]))
@@ -241,7 +244,7 @@ class TactilePerceptionRenderer:
 
         if show_tactile_image:
             self._render_camera_pose = self._render_camera_pose * Transformation(
-                [0.02, 0.02, 0.04]
+                [0.02, 0.02, 0.25 * platform_diag],
             )
 
         self._render_camera = PerspectiveCamera(

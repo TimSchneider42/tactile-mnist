@@ -4,7 +4,6 @@ import copy
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from functools import partial
-from itertools import chain
 from typing import (
     Any,
     Literal,
@@ -26,10 +25,8 @@ from transformation import Transformation
 import ap_gym
 from ap_gym import (
     ImageSpace,
-    ActivePerceptionVectorToSingleWrapper,
     ActivePerceptionVectorEnv,
     ActivePerceptionActionSpace,
-    CrossEntropyLossFn,
 )
 from ap_gym.types import PredType, PredTargetType
 from tactile_mnist import (
@@ -140,6 +137,7 @@ class TactilePerceptionConfig:
     show_sensor_target_pos: bool = False
     perturb_object_pose: bool = True
     randomize_initial_object_pose: bool = True
+    max_initial_angle_perturbation: float = np.pi
     sensor_output_size: Sequence[int] | None = None
     randomize_initial_sensor_pose: bool = True
     depth_only: bool = False
@@ -154,6 +152,8 @@ class TactilePerceptionConfig:
     max_tilt_angle: float = np.pi / 4
     render_transparent_background: bool = False
     timeout_behavior: Literal["terminate", "truncate"] = "terminate"
+    cell_size: tuple[float, float] = tuple(CELL_SIZE)
+    cell_margin: tuple[float, float] = tuple(CELL_MARGIN)
 
 
 class TactilePerceptionVectorEnv(
@@ -272,8 +272,20 @@ class TactilePerceptionVectorEnv(
             self.__current_sensor_pose_platform_frame
         )
         self.__sensor_pos_limits = (
-            np.concatenate([-CELL_SIZE / 2 + CELL_MARGIN, [0.0]]),
-            np.concatenate([CELL_SIZE / 2 - CELL_MARGIN, [0.02]]),
+            np.concatenate(
+                [
+                    -np.array(self.__config.cell_size) / 2
+                    + np.array(self.__config.cell_margin),
+                    [0.0],
+                ]
+            ),
+            np.concatenate(
+                [
+                    np.array(self.__config.cell_size) / 2
+                    - np.array(self.__config.cell_margin),
+                    [0.02],
+                ]
+            ),
         )
 
         self.__object_poses_platform_frame: Transformation | None = None
@@ -287,6 +299,7 @@ class TactilePerceptionVectorEnv(
             show_viewer=render_mode == "human",
             show_sensor_target_pos=self.__config.show_sensor_target_pos,
             transparent_background=self.__config.render_transparent_background,
+            cell_size=self.__config.cell_size,
         )
 
         # Calculate the maximum distance the sensor can travel in one step
@@ -356,30 +369,45 @@ class TactilePerceptionVectorEnv(
                     ]
                 )
                 if self.__config.randomize_initial_object_pose:
+                    rotation_perturbation_euler = self.np_random.uniform(
+                        low=-self.__config.max_initial_angle_perturbation,
+                        high=self.__config.max_initial_angle_perturbation,
+                        size=(1,),
+                    )
+                    rotation_perturbation = Rotation.from_euler(
+                        "xyz",
+                        np.concatenate(
+                            [
+                                np.zeros((2,), dtype=np.float32),
+                                rotation_perturbation_euler,
+                            ]
+                        ),
+                    )
                     xy_min = np.min(
-                        current_datapoints_lst[i].mesh.vertices[:, :2], axis=0
+                        rotation_perturbation.apply(
+                            current_datapoints_lst[i].mesh.vertices
+                        )[:, :2],
+                        axis=0,
                     )
                     xy_max = np.max(
-                        current_datapoints_lst[i].mesh.vertices[:, :2], axis=0
+                        rotation_perturbation.apply(
+                            current_datapoints_lst[i].mesh.vertices
+                        )[:, :2],
+                        axis=0,
                     )
                     margin = 0.01
-                    low = -CELL_SIZE / 2 + margin - xy_min
-                    high = CELL_SIZE / 2 - margin - xy_max
+                    low = -np.array(self.__config.cell_size) / 2 + margin - xy_min
+                    high = np.array(self.__config.cell_size) / 2 - margin - xy_max
                     conflict = low > high
                     low[conflict] = high[conflict] = ((low + high) / 2)[conflict]
                     translation_perturbation = self.np_random.uniform(
                         low=low, high=high
                     )
-                    rotation_perturbation = self.np_random.uniform(
-                        low=-np.pi / 8, high=np.pi / 8, size=(1,)
-                    )
-                    perturbation = Transformation.from_pos_euler(
+                    perturbation = Transformation(
                         np.concatenate(
                             [translation_perturbation, np.zeros((1,), dtype=np.float32)]
                         ),
-                        np.concatenate(
-                            [np.zeros((2,), dtype=np.float32), rotation_perturbation]
-                        ),
+                        rotation_perturbation,
                     )
                     initial_pose *= perturbation
                 object_poses_lst[i] = initial_pose

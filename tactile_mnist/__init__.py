@@ -86,6 +86,7 @@ def register_envs():
                 kwargs=dict(
                     sensor_output_size=(64, 64),
                     allow_sensor_rotation=False,
+                    max_initial_angle_perturbation=np.pi / 8,
                 ),
             )
 
