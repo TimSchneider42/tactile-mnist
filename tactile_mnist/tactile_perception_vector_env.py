@@ -54,8 +54,8 @@ except ImportError:
 
 if TYPE_CHECKING:
     ObsType = dict[str, np.ndarray | torch.Tensor | jax.Array]
-    ActType = dict[str, np.ndarray]
 
+ActType = dict[str, np.ndarray]
 ArrayType = TypeVar("ArrayType")
 
 
@@ -157,9 +157,7 @@ class TactilePerceptionConfig:
 
 
 class TactilePerceptionVectorEnv(
-    ActivePerceptionVectorEnv[
-        "ObsType", "ActType", PredType, PredTargetType, np.ndarray
-    ],
+    ActivePerceptionVectorEnv["ObsType", ActType, PredType, PredTargetType, np.ndarray],
     Generic[PredType, PredTargetType],
     ABC,
 ):
@@ -555,7 +553,7 @@ class TactilePerceptionVectorEnv(
 
     def _step(
         self,
-        action: "ActType",
+        action: ActType,
         prediction: np.ndarray,
     ):
         labels = self.__reset_partial(self.__prev_done)
@@ -748,3 +746,11 @@ class TactilePerceptionVectorEnv(
     @property
     def config(self) -> TactilePerceptionConfig:
         return self.__config
+
+    @property
+    def _prev_done(self) -> tuple[bool, ...]:
+        return tuple(self.__prev_done)
+
+    @property
+    def _renderer(self):
+        return self.__renderer

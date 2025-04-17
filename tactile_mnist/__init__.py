@@ -47,6 +47,13 @@ from .tactile_classification_env import (
     TactileClassificationEnv,
     TactileClassificationVectorEnv,
 )
+from .tactile_perception_vector_env import (
+    TactilePerceptionConfig,
+)
+from .tactile_pose_estimation_env import (
+    TactilePoseEstimationEnv,
+    TactilePoseEstimationVectorEnv,
+)
 
 
 def register_envs():
@@ -123,6 +130,41 @@ def register_envs():
                     step_limit=32,
                 ),
             )
+
+    gym.envs.registration.register(
+        id=f"Toolbox-v0",
+        entry_point=lambda *args, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+            TactilePoseEstimationEnv(
+                TactilePerceptionConfig(
+                    MeshDataset.load(
+                        get_remote_resource(f"wrench-v0"), cache_size="full"
+                    ),
+                    *args,
+                    **kwargs,
+                )
+            )
+        ),
+        vector_entry_point=lambda *args, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+            TactilePoseEstimationVectorEnv(
+                TactilePerceptionConfig(
+                    MeshDataset.load(
+                        get_remote_resource(f"wrench-v0"), cache_size="full"
+                    ),
+                    *args,
+                    **{k: v for k, v in kwargs.items() if k != "num_envs"},
+                ),
+                num_envs=kwargs["num_envs"],
+            ),
+        ),
+        kwargs=dict(
+            sensor_output_size=(64, 64),
+            allow_sensor_rotation=False,
+            step_limit=64,
+            cell_size=(0.3, 0.3),
+            max_tilt_angle=np.pi,
+            cell_margin=tuple(np.array([0.02, 0.02]) + GELSIGHT_DIMS / 2),
+        ),
+    )
 
 
 register_envs()
