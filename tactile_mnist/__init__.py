@@ -39,6 +39,10 @@ from .iterable_types import (
 )
 from .resource import Resource, get_resource, get_remote_resource
 from .constants import *
+from .tactile_perception_vector_env import (
+    TactilePerceptionVectorEnv,
+    TactilePerceptionConfig,
+)
 from .tactile_classification_env import (
     TactileClassificationEnv,
     TactileClassificationVectorEnv,
@@ -58,17 +62,26 @@ def register_envs():
                 id=f"TactileMNIST{s}-v0",
                 entry_point=lambda *args, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                     TactileClassificationEnv(
-                        MeshDataset.load(get_remote_resource(f"mnist3d-v0/{_split}")),
-                        *args,
-                        **kwargs,
+                        TactilePerceptionConfig(
+                            MeshDataset.load(
+                                get_remote_resource(f"mnist3d-v0/{_split}")
+                            ),
+                            *args,
+                            **kwargs,
+                        )
                     )
                 ),
                 vector_entry_point=lambda *args, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                     TactileClassificationVectorEnv(
-                        MeshDataset.load(get_remote_resource(f"mnist3d-v0/{_split}")),
-                        *args,
-                        **kwargs,
-                    )
+                        TactilePerceptionConfig(
+                            MeshDataset.load(
+                                get_remote_resource(f"mnist3d-v0/{_split}")
+                            ),
+                            *args,
+                            **{k: v for k, v in kwargs.items() if k != "num_envs"},
+                        ),
+                        num_envs=kwargs["num_envs"],
+                    ),
                 ),
                 kwargs=dict(
                     sensor_output_size=(64, 64),
@@ -80,21 +93,26 @@ def register_envs():
                 id=f"Starstruck{s}-v0",
                 entry_point=lambda *args, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                     TactileClassificationEnv(
-                        MeshDataset.load(
-                            get_remote_resource(f"starstruck-v0/{_split}")
-                        ),
-                        *args,
-                        **kwargs,
+                        TactilePerceptionConfig(
+                            MeshDataset.load(
+                                get_remote_resource(f"starstruck-v0/{_split}")
+                            ),
+                            *args,
+                            **kwargs,
+                        )
                     )
                 ),
                 vector_entry_point=lambda *args, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                     TactileClassificationVectorEnv(
-                        MeshDataset.load(
-                            get_remote_resource(f"starstruck-v0/{_split}")
+                        TactilePerceptionConfig(
+                            MeshDataset.load(
+                                get_remote_resource(f"starstruck-v0/{_split}")
+                            ),
+                            *args,
+                            **{k: v for k, v in kwargs.items() if k != "num_envs"},
                         ),
-                        *args,
-                        **kwargs,
-                    )
+                        num_envs=kwargs["num_envs"],
+                    ),
                 ),
                 kwargs=dict(
                     sensor_output_size=(64, 64),
