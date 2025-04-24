@@ -473,7 +473,7 @@ class TactilePerceptionRenderer:
             for i, t_img in enumerate(tactile_img):
                 tactile_img_scaled = np.array(
                     Image.fromarray((t_img * 255).astype(np.uint8))
-                    .resize(t_size)
+                    .resize(tuple(t_size))
                     .convert("RGBA")
                 )
                 img[
