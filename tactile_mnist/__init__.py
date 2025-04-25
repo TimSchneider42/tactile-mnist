@@ -60,6 +60,8 @@ def register_envs():
     import gymnasium as gym
     import ap_gym
 
+    # TODO: the termination behavior of all environments should probably be truncate
+
     for split in ["train", "test"]:
         suffixes = [f"-{split}"]
         if split == "train":
