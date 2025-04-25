@@ -171,6 +171,7 @@ def register_envs():
                 cell_size=(0.3, 0.3),
                 max_tilt_angle=np.pi,
                 cell_margin=tuple(np.array([0.02, 0.02]) + GELSIGHT_DIMS / 2),
+                timeout_behavior="truncate",
             ),
             frame_position_mode="model",
             frame_rotation_mode="model",
