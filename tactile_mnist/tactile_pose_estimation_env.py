@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import functools
+from collections import deque, defaultdict
 from functools import partial
 from typing import (
     Literal,
     TYPE_CHECKING,
+    Any,
 )
 
 import gymnasium as gym
@@ -16,6 +18,7 @@ from ap_gym import (
     ActivePerceptionVectorToSingleWrapper,
     MSELossFn,
 )
+from ap_gym.util import update_info_metrics_vec
 from tactile_mnist import MeshDataPoint
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
@@ -54,6 +57,15 @@ class TactilePoseEstimationVectorEnv(
             loss_fn=MSELossFn(),
             render_mode=render_mode,
         )
+        self.__metrics: dict[str, tuple[deque[float], ...]] | None = None
+
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any | None] = None
+    ) -> tuple[ObsType, dict[str, Any]]:
+        self.__metrics = defaultdict(
+            lambda: tuple(deque() for _ in range(self.num_envs))
+        )
+        return super().reset(seed=seed, options=options)
 
     def _step(
         self,
@@ -62,41 +74,82 @@ class TactilePoseEstimationVectorEnv(
     ):
         prev_done = np.array(self._prev_done)
 
-        object_frame_pos_2d = prediction[..., :2] * np.array(self.config.cell_size) / 2
         object_frames = Transformation.batch_concatenate(
             [self.__compute_object_frame_cached(dp) for dp in self.current_data_points]
         )
-        object_frames_world = self.current_object_poses_platform_frame * object_frames
-        object_frame_pos = np.concatenate(
-            [object_frame_pos_2d, object_frames_world.translation[..., 2:3]], axis=-1
+        pred_object_frame_pos_2d = (
+            prediction[..., :2] * np.array(self.config.cell_size) / 2
+        )
+        actual_object_frames_world = (
+            self.current_object_poses_platform_frame * object_frames
+        )
+        pred_object_frame_pos = np.concatenate(
+            [
+                pred_object_frame_pos_2d,
+                actual_object_frames_world.translation[..., 2:3],
+            ],
+            axis=-1,
         )
         x = prediction[..., 2].copy()
         y = prediction[..., 3].copy()
         x[np.abs(x) < 1e-5] = 1e-5
         y[np.abs(y) < 1e-5] = 1e-5
-        object_frame_rot_angle = np.arctan2(y, x)
-        object_frame_rot = Rotation.from_euler(
+        pred_object_frame_rot_angle = np.arctan2(y, x)
+        pred_object_frame_rot = Rotation.from_euler(
             "xyz",
             np.concatenate(
                 [
                     np.zeros((prediction.shape[0], 2)),
-                    object_frame_rot_angle[..., np.newaxis],
+                    pred_object_frame_rot_angle[..., np.newaxis],
                 ],
                 axis=-1,
             ),
         )
 
-        object_frame_pose = Transformation(object_frame_pos, object_frame_rot)
+        # Compute actual object frame pose
+        actual_object_frame_pos_2d = actual_object_frames_world.translation[..., :2]
+        actual_object_x_axis_2d = actual_object_frames_world.rotation.as_matrix()[
+            ..., :2, 0
+        ]
+        pred_object_x_axis_2d = np.stack([x, y], axis=-1)
 
-        res = super()._step(action, prediction)
+        linear_error = np.linalg.norm(
+            actual_object_frame_pos_2d - pred_object_frame_pos_2d, axis=-1
+        )
+        angular_error = np.arccos(
+            np.clip(
+                (actual_object_x_axis_2d * pred_object_x_axis_2d).sum(-1)
+                / (
+                    np.linalg.norm(actual_object_x_axis_2d, axis=-1)
+                    * np.linalg.norm(pred_object_x_axis_2d, axis=-1)
+                ),
+                -1,
+                1,
+            )
+        )
+
+        for i in range(self.num_envs):
+            if prev_done[i]:
+                self.__metrics["linear_error"][i].clear()
+                self.__metrics["angular_error"][i].clear()
+            else:
+                self.__metrics["linear_error"][i].append(linear_error[i])
+                self.__metrics["angular_error"][i].append(angular_error[i])
+
+        obs, action_reward, terminated, truncated, info, labels = super()._step(
+            action, prediction
+        )
 
         # Do that after the step as new objects might be loaded
         self._renderer.update_shadow_objects(
-            object_frame_pose,
+            Transformation(pred_object_frame_pos, pred_object_frame_rot),
             shadow_object_visible=~prev_done,
         )
 
-        return res
+        if np.any(terminated | truncated):
+            info = update_info_metrics_vec(info, self.__metrics, terminated | truncated)
+
+        return obs, action_reward, terminated, truncated, info, labels
 
     @staticmethod
     def __compute_object_frame(
