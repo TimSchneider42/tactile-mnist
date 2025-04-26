@@ -170,7 +170,7 @@ def register_envs():
                 sensor_output_size=(64, 64),
                 allow_sensor_rotation=False,
                 step_limit=64,
-                cell_size=(0.3, 0.3),
+                cell_size=(0.25, 0.25),
                 max_tilt_angle=np.pi,
                 cell_margin=tuple(np.array([0.02, 0.02]) + GELSIGHT_DIMS / 2),
                 timeout_behavior="truncate",
