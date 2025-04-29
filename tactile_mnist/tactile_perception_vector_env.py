@@ -30,7 +30,7 @@ from ap_gym import (
 )
 from ap_gym.types import PredType, PredTargetType
 from tactile_mnist import (
-    CELL_MARGIN,
+    CELL_PADDING,
     CELL_SIZE,
     GELSIGHT_IMAGE_SIZE_PX,
     MeshDataPoint,
@@ -153,7 +153,7 @@ class TactilePerceptionConfig:
     render_transparent_background: bool = False
     timeout_behavior: Literal["terminate", "truncate"] = "terminate"
     cell_size: tuple[float, float] = tuple(CELL_SIZE)
-    cell_margin: tuple[float, float] = tuple(CELL_MARGIN)
+    cell_padding: tuple[float, float] = tuple(CELL_PADDING)
 
 
 class TactilePerceptionVectorEnv(
@@ -273,14 +273,14 @@ class TactilePerceptionVectorEnv(
             np.concatenate(
                 [
                     -np.array(self.__config.cell_size) / 2
-                    + np.array(self.__config.cell_margin),
+                    + np.array(self.__config.cell_padding),
                     [0.0],
                 ]
             ),
             np.concatenate(
                 [
                     np.array(self.__config.cell_size) / 2
-                    - np.array(self.__config.cell_margin),
+                    - np.array(self.__config.cell_padding),
                     [0.02],
                 ]
             ),

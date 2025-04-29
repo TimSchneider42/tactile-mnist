@@ -24,7 +24,7 @@ from .data_loader import (
 from .mesh_dataset import MeshMetadata, MeshDataPoint, MeshDataset
 from .constants import (
     CELL_SIZE,
-    CELL_MARGIN,
+    CELL_PADDING,
     GRID_BORDER_THICKNESS,
     GELSIGHT_DIMS,
     GELSIGHT_GEL_THICKNESS_MM,
@@ -139,46 +139,47 @@ def register_envs():
                 ),
             )
 
-    gym.envs.registration.register(
-        id=f"Toolbox-v0",
-        entry_point=lambda *args, config, **kwargs: ap_gym.ActiveRegressionLogWrapper(
-            TactilePoseEstimationEnv(
-                TactilePerceptionConfig(
-                    MeshDataset.load(
-                        get_remote_resource(f"wrench-v0"), cache_size="full"
+    for size_name, size in [("", 0.3), ("-small", 0.25)]:
+        gym.envs.registration.register(
+            id=f"Toolbox{size_name}-v0",
+            entry_point=lambda *args, config, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+                TactilePoseEstimationEnv(
+                    TactilePerceptionConfig(
+                        MeshDataset.load(
+                            get_remote_resource(f"wrench-v0"), cache_size="full"
+                        ),
+                        *args,
+                        **config,
                     ),
-                    *args,
-                    **config,
-                ),
-                **kwargs,
-            )
-        ),
-        vector_entry_point=lambda *args, config, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
-            TactilePoseEstimationVectorEnv(
-                TactilePerceptionConfig(
-                    MeshDataset.load(
-                        get_remote_resource(f"wrench-v0"), cache_size="full"
+                    **kwargs,
+                )
+            ),
+            vector_entry_point=lambda *args, config, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+                TactilePoseEstimationVectorEnv(
+                    TactilePerceptionConfig(
+                        MeshDataset.load(
+                            get_remote_resource(f"wrench-v0"), cache_size="full"
+                        ),
+                        *args,
+                        **config,
                     ),
-                    *args,
-                    **config,
+                    **kwargs,
                 ),
-                **kwargs,
             ),
-        ),
-        kwargs=dict(
-            config=dict(
-                sensor_output_size=(64, 64),
-                allow_sensor_rotation=False,
-                step_limit=64,
-                cell_size=(0.25, 0.25),
-                max_tilt_angle=np.pi,
-                cell_margin=tuple(np.array([0.02, 0.02]) + GELSIGHT_DIMS / 2),
-                timeout_behavior="truncate",
+            kwargs=dict(
+                config=dict(
+                    sensor_output_size=(64, 64),
+                    allow_sensor_rotation=False,
+                    step_limit=64,
+                    cell_size=(size, size),
+                    max_tilt_angle=np.pi,
+                    cell_padding=tuple(np.array([0.02, 0.02]) + GELSIGHT_DIMS / 2),
+                    timeout_behavior="truncate",
+                ),
+                frame_position_mode="model",
+                frame_rotation_mode="model",
             ),
-            frame_position_mode="model",
-            frame_rotation_mode="model",
-        ),
-    )
+        )
 
 
 register_envs()
