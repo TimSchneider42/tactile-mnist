@@ -350,7 +350,9 @@ class TactilePerceptionVectorEnv(
                 options = {}
 
             datapoint_idx = list(options.get("datapoint_idx", [None] * self.num_envs))
-            initial_object_poses = list(options.get("initial_object_pose", [None] * self.num_envs))
+            initial_object_poses = list(
+                options.get("initial_object_pose", [None] * self.num_envs)
+            )
             current_datapoints_lst = list(self.__current_data_points)
             object_poses_lst = [Transformation() for _ in range(self.num_envs)]
             for i in np.where(mask)[0]:
@@ -407,7 +409,10 @@ class TactilePerceptionVectorEnv(
                         )
                         perturbation = Transformation(
                             np.concatenate(
-                                [translation_perturbation, np.zeros((1,), dtype=np.float32)]
+                                [
+                                    translation_perturbation,
+                                    np.zeros((1,), dtype=np.float32),
+                                ]
                             ),
                             rotation_perturbation,
                         )
@@ -468,9 +473,12 @@ class TactilePerceptionVectorEnv(
         labels = self.__reset_partial(
             np.ones(self.num_envs, dtype=np.bool_), options=options
         )
-        initial_sensor_target_poses = list(
-            options.get("initial_sensor_target_pose", [None] * self.num_envs)
-        )
+        if options is not None:
+            initial_sensor_target_poses = list(
+                options.get("initial_sensor_target_pose", [None] * self.num_envs)
+            )
+        else:
+            initial_sensor_target_poses = [None] * self.num_envs
         sensor_target_poses = [
             s if o is None else o
             for s, o in zip(
@@ -537,7 +545,8 @@ class TactilePerceptionVectorEnv(
         acceleration_time = np.minimum(max_velocity / acceleration, half_transfer_time)
         max_velocity_time = half_transfer_time - acceleration_time
         return (
-            max_velocity_time * max_velocity + 0.5 * acceleration * acceleration_time**2
+            max_velocity_time * max_velocity
+            + 0.5 * acceleration * acceleration_time**2
         )
 
     def __calculate_transfer_time(self, relative_pose: Transformation):
@@ -678,11 +687,14 @@ class TactilePerceptionVectorEnv(
                 [0, 0, rotation_perturbation],
             )
             self._set_object_poses(
-                self.__object_poses_platform_frame * perturbation, mask=mask)
+                self.__object_poses_platform_frame * perturbation, mask=mask
+            )
         self.__last_sensor_output = sensor_output
         return sensor_output, depth_output, self.__current_sensor_pose_platform_frame
 
-    def _set_object_poses(self, new_poses: Transformation, mask: Sequence[bool] | None = None):
+    def _set_object_poses(
+        self, new_poses: Transformation, mask: Sequence[bool] | None = None
+    ):
         self.__renderer.set_object_poses(new_poses, mask=mask)
 
     def touch(self, sensor_target_poses: Transformation):
