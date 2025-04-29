@@ -187,9 +187,11 @@ class TactilePerceptionVectorEnv(
         sensor_output_size = tuple(
             map(
                 int,
-                GELSIGHT_IMAGE_SIZE_PX
-                if self.__config.sensor_output_size is None
-                else self.__config.sensor_output_size,
+                (
+                    GELSIGHT_IMAGE_SIZE_PX
+                    if self.__config.sensor_output_size is None
+                    else self.__config.sensor_output_size
+                ),
             )
         )
         self.__sensor_output_hw = tuple(reversed(sensor_output_size))
@@ -348,6 +350,7 @@ class TactilePerceptionVectorEnv(
                 options = {}
 
             datapoint_idx = list(options.get("datapoint_idx", [None] * self.num_envs))
+            initial_object_poses = list(options.get("initial_object_pose", [None] * self.num_envs))
             current_datapoints_lst = list(self.__current_data_points)
             object_poses_lst = [Transformation() for _ in range(self.num_envs)]
             for i in np.where(mask)[0]:
@@ -357,58 +360,61 @@ class TactilePerceptionVectorEnv(
                     else datapoint_idx[i]
                 )
                 current_datapoints_lst[i] = self.__datasets[i][idx]
-                initial_pose = Transformation(
-                    [
-                        0,
-                        0,
-                        np.quantile(
-                            -current_datapoints_lst[i].mesh.vertices[:, 2], 0.9
-                        ),
-                    ]
-                )
-                if self.__config.randomize_initial_object_pose:
-                    rotation_perturbation_euler = self.np_random.uniform(
-                        low=-self.__config.max_initial_angle_perturbation,
-                        high=self.__config.max_initial_angle_perturbation,
-                        size=(1,),
+                if initial_object_poses[i] is None:
+                    initial_pose = Transformation(
+                        [
+                            0,
+                            0,
+                            np.quantile(
+                                -current_datapoints_lst[i].mesh.vertices[:, 2], 0.9
+                            ),
+                        ]
                     )
-                    rotation_perturbation = Rotation.from_euler(
-                        "xyz",
-                        np.concatenate(
-                            [
-                                np.zeros((2,), dtype=np.float32),
-                                rotation_perturbation_euler,
-                            ]
-                        ),
-                    )
-                    xy_min = np.min(
-                        rotation_perturbation.apply(
-                            current_datapoints_lst[i].mesh.vertices
-                        )[:, :2],
-                        axis=0,
-                    )
-                    xy_max = np.max(
-                        rotation_perturbation.apply(
-                            current_datapoints_lst[i].mesh.vertices
-                        )[:, :2],
-                        axis=0,
-                    )
-                    margin = 0.01
-                    low = -np.array(self.__config.cell_size) / 2 + margin - xy_min
-                    high = np.array(self.__config.cell_size) / 2 - margin - xy_max
-                    conflict = low > high
-                    low[conflict] = high[conflict] = ((low + high) / 2)[conflict]
-                    translation_perturbation = self.np_random.uniform(
-                        low=low, high=high
-                    )
-                    perturbation = Transformation(
-                        np.concatenate(
-                            [translation_perturbation, np.zeros((1,), dtype=np.float32)]
-                        ),
-                        rotation_perturbation,
-                    )
-                    initial_pose *= perturbation
-                object_poses_lst[i] = initial_pose
+                    if self.__config.randomize_initial_object_pose:
+                        rotation_perturbation_euler = self.np_random.uniform(
+                            low=-self.__config.max_initial_angle_perturbation,
+                            high=self.__config.max_initial_angle_perturbation,
+                            size=(1,),
+                        )
+                        rotation_perturbation = Rotation.from_euler(
+                            "xyz",
+                            np.concatenate(
+                                [
+                                    np.zeros((2,), dtype=np.float32),
+                                    rotation_perturbation_euler,
+                                ]
+                            ),
+                        )
+                        xy_min = np.min(
+                            rotation_perturbation.apply(
+                                current_datapoints_lst[i].mesh.vertices
+                            )[:, :2],
+                            axis=0,
+                        )
+                        xy_max = np.max(
+                            rotation_perturbation.apply(
+                                current_datapoints_lst[i].mesh.vertices
+                            )[:, :2],
+                            axis=0,
+                        )
+                        margin = 0.01
+                        low = -np.array(self.__config.cell_size) / 2 + margin - xy_min
+                        high = np.array(self.__config.cell_size) / 2 - margin - xy_max
+                        conflict = low > high
+                        low[conflict] = high[conflict] = ((low + high) / 2)[conflict]
+                        translation_perturbation = self.np_random.uniform(
+                            low=low, high=high
+                        )
+                        perturbation = Transformation(
+                            np.concatenate(
+                                [translation_perturbation, np.zeros((1,), dtype=np.float32)]
+                            ),
+                            rotation_perturbation,
+                        )
+                        initial_pose *= perturbation
+                    object_poses_lst[i] = initial_pose
+                else:
+                    object_poses_lst[i] = initial_object_poses[i]
 
             self.__current_data_points = tuple(current_datapoints_lst)
             assert all(dp is not None for dp in self.__current_data_points)
@@ -462,7 +468,16 @@ class TactilePerceptionVectorEnv(
         labels = self.__reset_partial(
             np.ones(self.num_envs, dtype=np.bool_), options=options
         )
-        sensor_target_poses = self.__sample_sensor_target_poses(self.num_envs)
+        initial_sensor_target_poses = list(
+            options.get("initial_sensor_target_pose", [None] * self.num_envs)
+        )
+        sensor_target_poses = [
+            s if o is None else o
+            for s, o in zip(
+                self.__sample_sensor_target_poses(self.num_envs),
+                initial_sensor_target_poses,
+            )
+        ]
         obs, info = self.__get_obs_info(
             Transformation.batch_concatenate(sensor_target_poses)
         )
@@ -522,8 +537,7 @@ class TactilePerceptionVectorEnv(
         acceleration_time = np.minimum(max_velocity / acceleration, half_transfer_time)
         max_velocity_time = half_transfer_time - acceleration_time
         return (
-            max_velocity_time * max_velocity
-            + 0.5 * acceleration * acceleration_time**2
+            max_velocity_time * max_velocity + 0.5 * acceleration * acceleration_time**2
         )
 
     def __calculate_transfer_time(self, relative_pose: Transformation):
@@ -543,13 +557,9 @@ class TactilePerceptionVectorEnv(
 
     @staticmethod
     def __project_sphere(x: np.ndarray, radius: float = 1.0) -> np.ndarray:
-        # We mask here to avoid the special case of 0 (or very low) magnitude
-        magnitude = np.linalg.norm(x, axis=-1)
-        mask = magnitude > radius
-        direction = x[mask] / magnitude[mask, None]
-        output = x.copy()
-        output[mask] = direction * radius
-        return output
+        magnitude = np.linalg.norm(x, axis=-1, keepdims=True)
+        direction = x / np.maximum(magnitude, radius)
+        return np.where(magnitude > radius, direction * radius, x)
 
     def _step(
         self,
@@ -667,11 +677,13 @@ class TactilePerceptionVectorEnv(
                 np.concatenate([translation_perturbation, [0]]),
                 [0, 0, rotation_perturbation],
             )
-            self.__renderer.set_object_poses(
-                self.__object_poses_platform_frame * perturbation, mask=mask
-            )
+            self._set_object_poses(
+                self.__object_poses_platform_frame * perturbation, mask=mask)
         self.__last_sensor_output = sensor_output
         return sensor_output, depth_output, self.__current_sensor_pose_platform_frame
+
+    def _set_object_poses(self, new_poses: Transformation, mask: Sequence[bool] | None = None):
+        self.__renderer.set_object_poses(new_poses, mask=mask)
 
     def touch(self, sensor_target_poses: Transformation):
         depth_gel_frame_shifted = self.__renderer.render_sensor_depths(
