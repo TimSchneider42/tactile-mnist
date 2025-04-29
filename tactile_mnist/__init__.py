@@ -175,7 +175,7 @@ def register_envs():
                     step_limit=64,
                     cell_size=(size, size),
                     max_tilt_angle=np.pi,
-                    cell_padding=tuple(np.array([0.02, 0.02]) + GELSIGHT_DIMS / 2),
+                    cell_padding=tuple(np.array([0.005, 0.005]) + GELSIGHT_DIMS / 2),
                 ),
                 frame_position_mode="model",
                 frame_rotation_mode="model",
