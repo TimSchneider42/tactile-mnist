@@ -151,7 +151,7 @@ class TactilePerceptionConfig:
     action_regularization: float = 1e-3
     max_tilt_angle: float = np.pi / 4
     render_transparent_background: bool = False
-    timeout_behavior: Literal["terminate", "truncate"] = "terminate"
+    timeout_behavior: Literal["terminate", "truncate"] = "truncate"
     cell_size: tuple[float, float] = tuple(CELL_SIZE)
     cell_padding: tuple[float, float] = tuple(CELL_PADDING)
 

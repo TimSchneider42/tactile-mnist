@@ -98,6 +98,7 @@ def register_envs():
                         sensor_output_size=(64, 64),
                         allow_sensor_rotation=False,
                         max_initial_angle_perturbation=np.pi / 8,
+                        timeout_behavior="terminate",
                     )
                 ),
             )
@@ -135,6 +136,7 @@ def register_envs():
                         randomize_initial_object_pose=False,
                         perturb_object_pose=False,
                         step_limit=32,
+                        timeout_behavior="terminate",
                     ),
                 ),
             )
@@ -174,7 +176,6 @@ def register_envs():
                     cell_size=(size, size),
                     max_tilt_angle=np.pi,
                     cell_padding=tuple(np.array([0.02, 0.02]) + GELSIGHT_DIMS / 2),
-                    timeout_behavior="truncate",
                 ),
                 frame_position_mode="model",
                 frame_rotation_mode="model",
