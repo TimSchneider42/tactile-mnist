@@ -268,7 +268,7 @@ class TactilePerceptionVectorEnv(
         self.__current_sensor_pose_platform_frame = Transformation.from_pos_euler(
             [[0.0, 0.0, 0.1]] * num_envs, [[0.0, np.pi, 0.0]] * num_envs
         )
-        self.__current_sensor_target_pose_platform_frame = (
+        self.__current_sensor_target_poses_platform_frame = (
             self.__current_sensor_pose_platform_frame
         )
         self.__sensor_pos_limits = (
@@ -424,12 +424,7 @@ class TactilePerceptionVectorEnv(
             self.__current_data_points = tuple(current_datapoints_lst)
             assert all(dp is not None for dp in self.__current_data_points)
             self.__renderer.objects = self.__current_data_points
-            self.__object_poses_platform_frame = Transformation.batch_concatenate(
-                object_poses_lst
-            )
-            self.__renderer.set_object_poses(
-                self.__object_poses_platform_frame, mask=mask
-            )
+            self._set_object_poses(Transformation.batch_concatenate(object_poses_lst))
             self.__current_step[mask] = np.zeros(np.sum(mask), dtype=np.float32)
 
         return self._get_prediction_targets()
@@ -664,8 +659,8 @@ class TactilePerceptionVectorEnv(
     ):
         if mask is None:
             mask = np.ones(self.num_envs, dtype=np.bool_)
-        self.__current_sensor_target_pose_platform_frame = transformation_where(
-            mask, sensor_target_pose, self.__current_sensor_target_pose_platform_frame
+        self.__current_sensor_target_poses_platform_frame = transformation_where(
+            mask, sensor_target_pose, self.__current_sensor_target_poses_platform_frame
         )
         sensor_output, depth_output, current_sensor_pose_platform_frame = self.touch(
             sensor_target_pose
@@ -677,7 +672,7 @@ class TactilePerceptionVectorEnv(
         )
         self.__renderer.sensor_poses = self.__current_sensor_pose_platform_frame
         self.__renderer.sensor_shadow_poses = (
-            self.__current_sensor_target_pose_platform_frame
+            self.__current_sensor_target_poses_platform_frame
         )
         if self.__config.perturb_object_pose:
             translation_perturbation = self.np_random.normal(scale=1e-3, size=2)
@@ -695,6 +690,14 @@ class TactilePerceptionVectorEnv(
     def _set_object_poses(
         self, new_poses: Transformation, mask: Sequence[bool] | None = None
     ):
+        if mask is None:
+            self.__object_poses_platform_frame = new_poses
+        else:
+            self.__object_poses_platform_frame = transformation_where(
+                mask,
+                new_poses,
+                self.__object_poses_platform_frame,
+            )
         self.__renderer.set_object_poses(new_poses, mask=mask)
 
     def touch(self, sensor_target_poses: Transformation):
@@ -756,6 +759,10 @@ class TactilePerceptionVectorEnv(
     @property
     def current_object_poses_platform_frame(self) -> Transformation:
         return self.__object_poses_platform_frame
+
+    @property
+    def current_sensor_target_poses_platform_frame(self) -> Transformation:
+        return self.__current_sensor_target_poses_platform_frame
 
     @property
     def spec(self) -> EnvSpec | None:
