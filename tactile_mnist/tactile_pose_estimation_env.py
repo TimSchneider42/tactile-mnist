@@ -40,6 +40,7 @@ class TactilePoseEstimationVectorEnv(
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         frame_position_mode: Literal["model", "inertia_frame"] = "model",
         frame_rotation_mode: Literal["model", "inertia_frame"] = "model",
+        renderer_show_shadow_objects: bool = True,
     ):
         self.__compute_object_frame_cached = functools.lru_cache(maxsize=num_envs)(
             partial(
@@ -58,6 +59,7 @@ class TactilePoseEstimationVectorEnv(
             render_mode=render_mode,
         )
         self.__metrics: dict[str, tuple[deque[float], ...]] | None = None
+        self.__renderer_show_shadow_objects = renderer_show_shadow_objects
 
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any | None] = None
@@ -140,11 +142,12 @@ class TactilePoseEstimationVectorEnv(
             action, prediction
         )
 
-        # Do that after the step as new objects might be loaded
-        self._renderer.update_shadow_objects(
-            Transformation(pred_object_frame_pos, pred_object_frame_rot),
-            shadow_object_visible=~prev_done,
-        )
+        if self.__renderer_show_shadow_objects:
+            # Do that after the step as new objects might be loaded
+            self._renderer.update_shadow_objects(
+                Transformation(pred_object_frame_pos, pred_object_frame_rot),
+                shadow_object_visible=~prev_done,
+            )
 
         if np.any(terminated | truncated):
             info = update_info_metrics_vec(info, self.__metrics, terminated | truncated)
@@ -214,6 +217,7 @@ def TactilePoseEstimationEnv(
     render_mode: Literal["rgb_array", "human"] = "rgb_array",
     frame_position_mode: Literal["model", "inertia_frame"] = "model",
     frame_rotation_mode: Literal["model", "inertia_frame"] = "model",
+    renderer_show_shadow_objects: bool = True,
 ) -> ActivePerceptionVectorToSingleWrapper["ObsType", ActType, np.ndarray, np.ndarray]:
     return ActivePerceptionVectorToSingleWrapper(
         TactilePoseEstimationVectorEnv(
@@ -222,5 +226,6 @@ def TactilePoseEstimationEnv(
             render_mode=render_mode,
             frame_position_mode=frame_position_mode,
             frame_rotation_mode=frame_rotation_mode,
+            renderer_show_shadow_objects=renderer_show_shadow_objects,
         )
     )
