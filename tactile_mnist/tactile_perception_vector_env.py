@@ -216,13 +216,13 @@ class TactilePerceptionVectorEnv(
         else:
             self.__backend = JaxBackend()
             # For some reason, JITing Taxim inside a host callback deadlocks, so we have to make sure it happens before
-            output = self.__sensor.render_direct(
+            self.__sensor.render_direct(
                 jnp.zeros(
-                    (self.num_envs, self.__sensor.height, self.__sensor.width),
+                    (self.num_envs, *self.__sensor_output_hw),
                     dtype=jnp.float32,
                 )
             )
-            self.__backend.scale_img(output, *self.__sensor_output_hw)
+            # self.__backend.scale_img(output, *self.__sensor_output_hw)
         self.__gel_thickness_mm = GELSIGHT_GEL_THICKNESS_MM
         self.__gel_penetration_depth_mm = self.__gel_thickness_mm / 2
         dt = np.float32
@@ -293,10 +293,15 @@ class TactilePerceptionVectorEnv(
         self.__current_step: np.ndarray | None = None
         self.__last_sensor_output: np.ndarray | None = None
 
+        new_pixmm = tuple(
+            np.array([self.__sensor.width, self.__sensor.height])
+            * np.array(self.__sensor.sensor_params.pixmm)
+            / np.array(sensor_output_size)
+        )
         self.__renderer = TactilePerceptionRenderer(
             self.num_envs,
-            (self.__sensor.width, self.__sensor.height),
-            self.__sensor.sensor_params.pixmm,
+            sensor_output_size,
+            new_pixmm,
             show_viewer=render_mode == "human",
             show_sensor_target_pos=self.__config.show_sensor_target_pos,
             transparent_background=self.__config.render_transparent_background,
@@ -719,32 +724,37 @@ class TactilePerceptionVectorEnv(
         )
         sensor_poses = sensor_target_poses * sensor_pose_target_frame
 
-        depth_mm = depth_gel_frame * 1000
-        depth_conv = self.__sensor.convert_height_map(depth_mm)
+        depth_conv = self.__sensor.convert_height_map(depth_gel_frame * 1000)
         if self.__depth_only:
             sensor_output = self.__backend.depth_map_to_img(
                 depth_conv, self.__gel_penetration_depth_mm, self.__gel_thickness_mm
             )
         else:
+            depth_gel_frame_shifted2 = self.__renderer.render_sensor_depths(
+                sensor_poses
+            )
             # Taxim expects the depth relative to the highest point of the gel
             sensor_output = self.__sensor.render_direct(
                 depth_conv - self.__gel_thickness_mm
             )
-        sensor_output_scaled = self.__backend.scale_img(
-            sensor_output, *self.__sensor_output_hw
-        )
 
         if self.__config.convert_image_to_numpy:
-            sensor_output = self.__sensor.img_to_numpy(sensor_output_scaled)
+            sensor_output = self.__sensor.img_to_numpy(sensor_output)
             depth_output = self.__backend.depth_map_to_numpy(depth_conv)
         else:
-            sensor_output = sensor_output_scaled
+            sensor_output = sensor_output
             depth_output = depth_conv
 
         return sensor_output, depth_output, sensor_poses
 
     def render(self) -> np.ndarray | None:
-        return self.__renderer.render_external_cameras(self.__last_sensor_output)
+        def sensor_render(depth: np.ndarray) -> np.ndarray:
+            depth = depth * 1000
+            if self.__depth_only:
+                return depth
+            return self.__sensor.render(depth - self.__gel_thickness_mm)
+
+        return self.__renderer.render_external_cameras(sensor_render)
 
     @property
     def render_mode(self):

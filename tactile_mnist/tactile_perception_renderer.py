@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import time
 from contextlib import nullcontext
+from dataclasses import dataclass
 from functools import partial
 from importlib.resources import files
-from typing import Sequence, Iterable
+from typing import Sequence, Iterable, Callable
 
 import numpy as np
 import trimesh
@@ -22,6 +23,7 @@ from pyrender import (
     DirectionalLight,
 )
 from scipy.spatial.transform import Rotation
+from taxim import TaximImpl
 from transformation import Transformation
 from trimesh.primitives import Box
 from trimesh.visual.material import PBRMaterial
@@ -175,12 +177,21 @@ def camera_frame_to_image(camera: PerspectiveCamera, pos: np.ndarray) -> np.ndar
     return pos[..., :2] * np.array([fx, fy]) / -pos[..., 2:3] + 0.5
 
 
+@dataclass
+class _SensorRenderer:
+    renderer: OffscreenRenderer
+    camera: OrthographicCamera
+    camera_node: MultiNode
+    scene: BatchScene
+    object_node: MultiNode | None = None
+
+
 class TactilePerceptionRenderer:
     def __init__(
         self,
         num_envs: int,
         depth_map_resolution: tuple[int, int],
-        depth_map_pixmm: float,
+        depth_map_pixmm: tuple[float, float] | float,
         external_camera_resolution: tuple[int, int] = (640, 480),
         show_viewer: bool = False,
         show_sensor_target_pos: bool = False,
@@ -192,6 +203,9 @@ class TactilePerceptionRenderer:
         cell_size: Sequence[float] = tuple(CELL_SIZE),
     ):
         self._transparent_background = transparent_background
+
+        if isinstance(depth_map_pixmm, float) or isinstance(depth_map_pixmm, int):
+            depth_map_pixmm = (depth_map_pixmm, depth_map_pixmm)
 
         self.sensor_shadow_poses: Transformation = Transformation.batch_concatenate(
             [Transformation()] * num_envs
@@ -221,9 +235,6 @@ class TactilePerceptionRenderer:
             )
         )
 
-        # Variables needed for depth map rendering
-        self._sensor_object_node = None
-
         # Set the camera really far away from the gel. That way we can use it to find the first contact point of the
         # sensor when it is approaching the target.
         self._camera_dist_to_gel = np.max(platform_extents) * 2
@@ -231,30 +242,38 @@ class TactilePerceptionRenderer:
             [0, 0, self._camera_dist_to_gel]
         )
 
-        self._sensor_renderer = OffscreenRenderer(*depth_map_resolution)
-
-        m_per_px = depth_map_pixmm / 1000
-        mag = np.array(depth_map_resolution) / 2 * m_per_px
-        self._sensor_surface_size = np.array(depth_map_resolution) * m_per_px
-
         Node = partial(MultiNode, batch_size=num_envs)
-        self._sensor_camera = OrthographicCamera(
-            xmag=mag[0], ymag=mag[1], znear=0.001, zfar=2 * self._camera_dist_to_gel
-        )
-        self._sensor_camera_node = Node(
-            camera=self._sensor_camera, matrix=Transformation().matrix
-        )
 
-        self._sensor_scene = BatchScene(
-            num_envs,
-            [
-                Node(
-                    mesh=Mesh.from_trimesh(platform_mesh),
-                    matrix=self._platform_pose.matrix,
-                    single_instance=True,
-                ),
-                self._sensor_camera_node,
-            ],
+        def mk_sensor_renderer(res: tuple[int, int], pixmm: tuple[float, float]):
+            sensor_renderer = OffscreenRenderer(*res)
+
+            m_per_px = np.array(pixmm) / 1000
+            mag = np.array(res) / 2 * m_per_px
+
+            sensor_camera = OrthographicCamera(
+                xmag=mag[0], ymag=mag[1], znear=0.001, zfar=2 * self._camera_dist_to_gel
+            )
+            sensor_camera_node = Node(
+                camera=sensor_camera, matrix=Transformation().matrix
+            )
+
+            sensor_scene = BatchScene(
+                num_envs,
+                [
+                    Node(
+                        mesh=Mesh.from_trimesh(platform_mesh),
+                        matrix=self._platform_pose.matrix,
+                        single_instance=True,
+                    ),
+                    sensor_camera_node,
+                ],
+            )
+            return _SensorRenderer(
+                sensor_renderer, sensor_camera, sensor_camera_node, sensor_scene
+            )
+
+        self.__observation_sensor_renderer = mk_sensor_renderer(
+            depth_map_resolution, depth_map_pixmm
         )
 
         render_camera_target = self._platform_pose.translation + np.array(
@@ -332,7 +351,10 @@ class TactilePerceptionRenderer:
         )
 
         tactile_screen_width_rel = 0.3
-        sensor_width_by_height = depth_map_resolution[0] / depth_map_resolution[1]
+        pixmm = np.array(depth_map_pixmm)
+        res = np.array(depth_map_resolution)
+        sensor_size_mm = res * pixmm
+        sensor_width_by_height = sensor_size_mm[0] / sensor_size_mm[1]
         tactile_screen_height_rel = tactile_screen_width_rel / (
             sensor_width_by_height / self._render_camera.aspectRatio
         )
@@ -343,6 +365,14 @@ class TactilePerceptionRenderer:
             np.array([0.98, 0.98]) - self._tactile_screen_size_rel / 2
         )
         self._show_tactile_image = show_tactile_image
+
+        tactile_screen_size_px = np.round(
+            self._tactile_screen_size_rel * np.array(external_camera_resolution)
+        ).astype(np.int_)
+        render_pixmm = sensor_size_mm / tactile_screen_size_px
+        self.__render_sensor_renderer = mk_sensor_renderer(
+            tactile_screen_size_px, render_pixmm
+        )
 
         screen_dist = 0.01
 
@@ -418,18 +448,17 @@ class TactilePerceptionRenderer:
         self._object_color = object_color
 
     def render_external_cameras(
-        self, tactile_img: np.ndarray | None = None
+        self, sensor_render_fn: Callable[[np.ndarray], np.ndarray]
     ) -> np.ndarray | None:
         if self._camera_renderer is None:
             return None
-        show_tactile_img = tactile_img is not None and self._show_tactile_image
         with self._get_render_lock():
             self._camera_scene.set_pose(self._sensor_node, self.sensor_poses)
             if self._show_sensor_target_pos:
                 self._camera_scene.set_pose(
                     self._transparent_sensor_node, self.sensor_shadow_poses
                 )
-            if show_tactile_img:
+            if self._show_tactile_image:
                 tactile_zoom_origins = (
                     self.sensor_poses * self._tactile_zoom_origin_sensor_frame
                 )
@@ -460,7 +489,11 @@ class TactilePerceptionRenderer:
             img = self._camera_scene.render(
                 self._camera_renderer, flags=RenderFlags.RGBA
             )[0]
-        if show_tactile_img:
+        if self._show_tactile_image:
+            tactile_img = sensor_render_fn(
+                self.__render_sensor_depths(self.__render_sensor_renderer)
+            )
+            t_size = np.flip(np.array(tactile_img.shape[1:3]))
             img_size = np.flip(np.array(img.shape[1:3]))
             target_pos_rel = np.array(
                 [
@@ -468,19 +501,17 @@ class TactilePerceptionRenderer:
                     1.0 - self._tactile_screen_pos_rel[1],
                 ]
             )
-            t_size = np.round(self._tactile_screen_size_rel * img_size).astype(np.int_)
             t_pos = np.round(target_pos_rel * img_size - t_size / 2).astype(np.int_)
-            for i, t_img in enumerate(tactile_img):
-                tactile_img_scaled = np.array(
-                    Image.fromarray((t_img * 255).astype(np.uint8))
-                    .resize(tuple(t_size))
-                    .convert("RGBA")
-                )
-                img[
-                    i,
-                    t_pos[1] : t_pos[1] + t_size[1],
-                    t_pos[0] : t_pos[0] + t_size[0],
-                ] = tactile_img_scaled
+            tactile_img = np.concatenate(
+                [tactile_img, np.ones((*tactile_img.shape[:3], 1))],
+                axis=-1,
+            )
+            tactile_img = (tactile_img * 255).astype(np.uint8)
+            img[
+                :,
+                t_pos[1] : t_pos[1] + t_size[1],
+                t_pos[0] : t_pos[0] + t_size[0],
+            ] = tactile_img
 
         if not self._transparent_background:
             alpha = img[..., 3:4] / 255
@@ -488,8 +519,10 @@ class TactilePerceptionRenderer:
 
         return img
 
-    def render_sensor_depths(
-        self, virtual_sensor_poses: Transformation | None = None
+    def __render_sensor_depths(
+        self,
+        sensor_renderer: _SensorRenderer,
+        virtual_sensor_poses: Transformation | None = None,
     ) -> np.ndarray:
         if virtual_sensor_poses is None:
             virtual_sensor_poses = self.sensor_poses
@@ -497,13 +530,23 @@ class TactilePerceptionRenderer:
             self._platform_pose * virtual_sensor_poses * self._camera_pose_sensor_frame
         )
         with self._get_render_lock():
-            self._sensor_scene.set_pose(self._sensor_camera_node, sensor_camera_pose)
-            depth_orig = self._sensor_scene.render(
-                self._sensor_renderer, flags=RenderFlags.DEPTH_ONLY
+            sensor_renderer.scene.set_pose(
+                sensor_renderer.camera_node, sensor_camera_pose
             )
-        depth = self._recover_depth_workaround(depth_orig)
-        depth_clipped = np.clip(depth, 0, self._sensor_camera.zfar)
+            depth_orig = sensor_renderer.scene.render(
+                sensor_renderer.renderer, flags=RenderFlags.DEPTH_ONLY
+            )
+        depth = self._recover_depth_workaround(sensor_renderer.camera, depth_orig)
+        depth_clipped = np.clip(depth, 0, sensor_renderer.camera.zfar)
         return depth_clipped - self._camera_dist_to_gel
+
+    def render_sensor_depths(
+        self, virtual_sensor_poses: Transformation | None = None
+    ) -> np.ndarray:
+        return self.__render_sensor_depths(
+            sensor_renderer=self.__observation_sensor_renderer,
+            virtual_sensor_poses=virtual_sensor_poses,
+        )
 
     def set_object_poses(
         self, new_object_poses: Transformation, mask: Sequence[bool] | None = None
@@ -516,7 +559,11 @@ class TactilePerceptionRenderer:
         object_poses_world = self._platform_pose * self._object_poses
         with self._get_render_lock():
             self._camera_scene.set_pose(self._camera_object_node, object_poses_world)
-            self._sensor_scene.set_pose(self._sensor_object_node, object_poses_world)
+            for renderer in [
+                self.__observation_sensor_renderer,
+                self.__render_sensor_renderer,
+            ]:
+                renderer.scene.set_pose(renderer.object_node, object_poses_world)
 
     def update_shadow_objects(
         self,
@@ -556,14 +603,17 @@ class TactilePerceptionRenderer:
         )
         return mesh
 
-    def _recover_depth_workaround(self, depth_orig: np.ndarray) -> np.ndarray:
+    @staticmethod
+    def _recover_depth_workaround(
+        camera: OrthographicCamera, depth_orig: np.ndarray
+    ) -> np.ndarray:
         """
         Workaround to fix broken depth recovery (https://github.com/mmatl/pyrender/issues/254)
         :param depth_orig: Original depth image as generated by pyrenderer.
         :return: Fixed depth image.
         """
-        f = self._sensor_camera.zfar
-        n = self._sensor_camera.znear
+        f = camera.zfar
+        n = camera.znear
         non_zero = depth_orig != 0
         depth_raw_non_zero = (f + n) / (f - n) - 2 * n * f / (
             (f - n) * depth_orig[non_zero]
@@ -609,11 +659,15 @@ class TactilePerceptionRenderer:
                 individual_args=True,
             )
             self._camera_scene.add_node(self._camera_shadow_object_node, invisible=True)
-            if self._sensor_object_node is not None:
-                self._sensor_scene.remove_node(self._sensor_object_node)
-            self._sensor_object_node = MultiNode(
-                self._num_envs,
-                mesh=[Mesh.from_trimesh(mesh) for mesh in current_meshes],
-                individual_args=True,
-            )
-            self._sensor_scene.add_node(self._sensor_object_node)
+            for renderer in [
+                self.__observation_sensor_renderer,
+                self.__render_sensor_renderer,
+            ]:
+                if renderer.object_node is not None:
+                    renderer.scene.remove_node(renderer.object_node)
+                renderer.object_node = MultiNode(
+                    self._num_envs,
+                    mesh=[Mesh.from_trimesh(mesh) for mesh in current_meshes],
+                    individual_args=True,
+                )
+                renderer.scene.add_node(renderer.object_node)

@@ -31,16 +31,16 @@ Homepage = "https://github.com/TimSchneider42/tactile-mnist"
 [project.optional-dependencies]
 examples = ["matplotlib"]
 torch = [
-    "taxim[torch]",
+    "taxim[torch]>=1.4.0",
     "torch",
     "torchvision"
 ]
 jax-cpu = [
-    "taxim[jax-cpu]",
+    "taxim[jax-cpu]>=1.4.0",
     "jax"
 ]
 jax = [
-    "taxim[jax]",
+    "taxim[jax]>=1.4.0",
     "jax[cuda12]"
 ]
 
