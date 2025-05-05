@@ -215,14 +215,6 @@ class TactilePerceptionVectorEnv(
             self.__backend = TorchBackend()
         else:
             self.__backend = JaxBackend()
-            # For some reason, JITing Taxim inside a host callback deadlocks, so we have to make sure it happens before
-            self.__sensor.render_direct(
-                jnp.zeros(
-                    (self.num_envs, *self.__sensor_output_hw),
-                    dtype=jnp.float32,
-                )
-            )
-            # self.__backend.scale_img(output, *self.__sensor_output_hw)
         self.__gel_thickness_mm = GELSIGHT_GEL_THICKNESS_MM
         self.__gel_penetration_depth_mm = self.__gel_thickness_mm / 2
         dt = np.float32
@@ -322,6 +314,11 @@ class TactilePerceptionVectorEnv(
         )
         self.__prev_done = None
         self.__spec: EnvSpec | None = None
+
+        if self.__sensor.backend_name == "jax":
+            # For some reason, JITing Taxim inside a host callback deadlocks, so we have to make sure it happens before
+            self.reset(seed=0)
+            self.render()
 
     def __sample_sensor_target_poses(self, count: int) -> List[Transformation]:
         sensor_poses = []
