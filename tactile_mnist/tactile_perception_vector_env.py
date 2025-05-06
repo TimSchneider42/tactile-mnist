@@ -727,9 +727,6 @@ class TactilePerceptionVectorEnv(
                 depth_conv, self.__gel_penetration_depth_mm, self.__gel_thickness_mm
             )
         else:
-            depth_gel_frame_shifted2 = self.__renderer.render_sensor_depths(
-                sensor_poses
-            )
             # Taxim expects the depth relative to the highest point of the gel
             sensor_output = self.__sensor.render_direct(
                 depth_conv - self.__gel_thickness_mm
