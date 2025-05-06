@@ -152,6 +152,7 @@ class TactilePerceptionConfig:
     max_tilt_angle: float = np.pi / 4
     render_transparent_background: bool = False
     renderer_show_tactile_image: bool = True
+    renderer_show_class_weights: bool = False
     timeout_behavior: Literal["terminate", "truncate"] = "truncate"
     cell_size: tuple[float, float] = tuple(CELL_SIZE)
     cell_padding: tuple[float, float] = tuple(CELL_PADDING)
@@ -283,7 +284,6 @@ class TactilePerceptionVectorEnv(
 
         self.__object_poses_platform_frame: Transformation | None = None
         self.__current_step: np.ndarray | None = None
-        self.__last_sensor_output: np.ndarray | None = None
 
         new_pixmm = tuple(
             np.array([self.__sensor.width, self.__sensor.height])
@@ -299,6 +299,7 @@ class TactilePerceptionVectorEnv(
             transparent_background=self.__config.render_transparent_background,
             cell_size=self.__config.cell_size,
             show_tactile_image=self.__config.renderer_show_tactile_image,
+            show_class_weights=self.__config.renderer_show_class_weights,
         )
 
         # Calculate the maximum distance the sensor can travel in one step
@@ -688,7 +689,6 @@ class TactilePerceptionVectorEnv(
             self._set_object_poses(
                 self.__object_poses_platform_frame * perturbation, mask=mask
             )
-        self.__last_sensor_output = sensor_output
         return sensor_output, depth_output, self.__current_sensor_pose_platform_frame
 
     def _set_object_poses(
