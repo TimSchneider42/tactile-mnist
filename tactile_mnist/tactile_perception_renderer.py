@@ -10,7 +10,7 @@ from typing import Sequence, Iterable, Callable
 import numpy as np
 import trimesh
 import trimesh.creation
-from PIL import Image
+from PIL import Image, ImageDraw
 from pyrender import (
     OffscreenRenderer,
     Node,
@@ -23,7 +23,6 @@ from pyrender import (
     DirectionalLight,
 )
 from scipy.spatial.transform import Rotation
-from taxim import TaximImpl
 from transformation import Transformation
 from trimesh.primitives import Box
 from trimesh.visual.material import PBRMaterial
@@ -198,7 +197,10 @@ class TactilePerceptionRenderer:
         object_color: tuple[float | int, ...] = (51, 0, 4),
         tactile_screen_zoom_color: tuple[float | int, ...] = (255, 100, 100, 160),
         platform_color: tuple[float | int, ...] = (0, 11, 51),
+        false_class_color: tuple[float | int, ...] = (34, 76, 132),
+        true_class_color: tuple[float | int, ...] = (138, 29, 50),
         show_tactile_image: bool = True,
+        show_class_weights: bool = False,
         transparent_background: bool = False,
         cell_size: Sequence[float] = tuple(CELL_SIZE),
     ):
@@ -223,6 +225,8 @@ class TactilePerceptionRenderer:
         )
         self._show_sensor_target_pos = show_sensor_target_pos
         self._num_envs = num_envs
+        self.__false_class_color = false_class_color
+        self.__true_class_color = true_class_color
 
         self._platform_pose = Transformation()
         platform_extents = np.concatenate([cell_size, [0.002]])
@@ -295,7 +299,7 @@ class TactilePerceptionRenderer:
 
         self._render_camera_pose = Transformation(render_camera_pos, render_camera_rot)
 
-        if show_tactile_image:
+        if show_tactile_image or show_class_weights:
             self._render_camera_pose = self._render_camera_pose * Transformation(
                 [0.02, 0.02, 0.25 * platform_diag],
             )
@@ -365,6 +369,15 @@ class TactilePerceptionRenderer:
             np.array([0.98, 0.98]) - self._tactile_screen_size_rel / 2
         )
         self._show_tactile_image = show_tactile_image
+
+        self.__class_weight_screen_size_rel = np.array([0.3, 0.3])
+        self.__class_weight_screen_pos_rel = np.array(
+            [
+                0.98 - self.__class_weight_screen_size_rel[0] / 2,
+                0.02 + self.__class_weight_screen_size_rel[1] / 2,
+            ]
+        )
+        self.__show_class_weights = show_class_weights
 
         tactile_screen_size_px = np.round(
             self._tactile_screen_size_rel * np.array(external_camera_resolution)
@@ -446,9 +459,12 @@ class TactilePerceptionRenderer:
             self._camera_renderer = OffscreenRenderer(*external_camera_resolution)
             self._viewer: Viewer | None = None
         self._object_color = object_color
+        self.class_weights: np.ndarray | None = None
+        self.target_class_idx: np.ndarray | None = None
 
     def render_external_cameras(
-        self, sensor_render_fn: Callable[[np.ndarray], np.ndarray]
+        self,
+        sensor_render_fn: Callable[[np.ndarray], np.ndarray],
     ) -> np.ndarray | None:
         if self._camera_renderer is None:
             return None
@@ -489,12 +505,13 @@ class TactilePerceptionRenderer:
             img = self._camera_scene.render(
                 self._camera_renderer, flags=RenderFlags.RGBA
             )[0]
+        img_size = np.flip(np.array(img.shape[1:3]))
+
         if self._show_tactile_image:
             tactile_img = sensor_render_fn(
                 self.__render_sensor_depths(self.__render_sensor_renderer)
             )
             t_size = np.flip(np.array(tactile_img.shape[1:3]))
-            img_size = np.flip(np.array(img.shape[1:3]))
             target_pos_rel = np.array(
                 [
                     self._tactile_screen_pos_rel[0],
@@ -512,6 +529,81 @@ class TactilePerceptionRenderer:
                 t_pos[1] : t_pos[1] + t_size[1],
                 t_pos[0] : t_pos[0] + t_size[0],
             ] = tactile_img
+
+        if self.__show_class_weights and self.class_weights is not None:
+            t_size = np.round(img_size * self.__class_weight_screen_size_rel).astype(
+                np.int_
+            )
+            target_pos_rel = np.array(
+                [
+                    self.__class_weight_screen_pos_rel[0],
+                    1.0 - self.__class_weight_screen_pos_rel[1],
+                ]
+            )
+            t_pos = np.round(target_pos_rel * img_size - t_size / 2).astype(np.int_)
+
+            line_thickness_rel = 0.01
+            line_thickness = line_thickness_rel * t_size[1]
+
+            n = self.class_weights.shape[1]
+            bar_margin = 0.1
+            max_bar_width_rel = 0.2
+            padding = 0.05
+            bar_width_rel = min(
+                max_bar_width_rel,
+                (1.0 - 2 * padding) / ((n - 1) * (1 + bar_margin) + 1),
+            )
+            bar_width = bar_width_rel * t_size[0]
+            bar_pos_x_rel = np.linspace(padding, 1 - padding, n)
+            line_pos_y = 0.99 * t_size[1] - line_thickness / 2
+
+            for i in range(img.shape[0]):
+                screen = Image.new("RGBA", tuple(t_size), (0, 0, 0, 0))
+                draw = ImageDraw.Draw(screen)
+
+                for j, (pos_x_rel_center, weight) in enumerate(
+                    zip(bar_pos_x_rel, self.class_weights[i])
+                ):
+                    bar_height_rel = (1.0 - 2 * padding) * weight
+                    pos_x_rel = pos_x_rel_center - 0.5 * bar_width_rel
+                    bar_height = bar_height_rel * t_size[1]
+                    pos_x = pos_x_rel * t_size[0]
+                    pos_y = line_pos_y - bar_height
+
+                    if (
+                        self.target_class_idx is not None
+                        and self.target_class_idx[i] == j
+                    ):
+                        color = self.__true_class_color
+                    else:
+                        color = self.__false_class_color
+
+                    draw.rectangle(
+                        [(pos_x, pos_y), (pos_x + bar_width, pos_y + bar_height)],
+                        fill=color,
+                    )
+
+                draw.line(
+                    [
+                        (0.01 * t_size[0], line_pos_y),
+                        (0.99 * t_size[0], line_pos_y),
+                    ],
+                    fill="black",
+                    width=int(round(line_thickness)),
+                )
+
+                screen_np = np.array(screen)
+                screen_alpha = screen_np[..., -1:] / 255
+
+                idx = (
+                    i,
+                    slice(t_pos[1], t_pos[1] + t_size[1]),
+                    slice(t_pos[0], t_pos[0] + t_size[0]),
+                )
+
+                img[idx] = (
+                    screen_np * screen_alpha + img[idx] * (1 - screen_alpha)
+                ).astype(np.int_)
 
         if not self._transparent_background:
             alpha = img[..., 3:4] / 255

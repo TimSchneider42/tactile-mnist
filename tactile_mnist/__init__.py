@@ -99,6 +99,7 @@ def register_envs():
                         allow_sensor_rotation=False,
                         max_initial_angle_perturbation=np.pi / 8,
                         timeout_behavior="terminate",
+                        renderer_show_class_weights=True,
                     )
                 ),
             )
@@ -137,6 +138,7 @@ def register_envs():
                         perturb_object_pose=False,
                         step_limit=32,
                         timeout_behavior="terminate",
+                        renderer_show_class_weights=True,
                     ),
                 ),
             )
