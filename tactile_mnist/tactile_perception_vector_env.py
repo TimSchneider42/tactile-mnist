@@ -153,6 +153,7 @@ class TactilePerceptionConfig:
     render_transparent_background: bool = False
     renderer_show_tactile_image: bool = True
     renderer_show_class_weights: bool = False
+    renderer_external_camera_resolution: tuple[int, int] = (640, 480)
     timeout_behavior: Literal["terminate", "truncate"] = "truncate"
     cell_size: tuple[float, float] = tuple(CELL_SIZE)
     cell_padding: tuple[float, float] = tuple(CELL_PADDING)
@@ -300,6 +301,7 @@ class TactilePerceptionVectorEnv(
             cell_size=self.__config.cell_size,
             show_tactile_image=self.__config.renderer_show_tactile_image,
             show_class_weights=self.__config.renderer_show_class_weights,
+            external_camera_resolution=self.__config.renderer_external_camera_resolution,
         )
 
         # Calculate the maximum distance the sensor can travel in one step
