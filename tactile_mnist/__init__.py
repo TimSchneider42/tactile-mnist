@@ -69,32 +69,34 @@ def register_envs():
         for s in suffixes:
             gym.envs.registration.register(
                 id=f"TactileMNIST{s}-v0",
-                entry_point=lambda *args, config, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
+                entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                     TactileClassificationEnv(
                         TactilePerceptionConfig(
                             MeshDataset.load(
                                 get_remote_resource(f"mnist3d-v0/{_split}")
                             ),
                             *args,
-                            **config,
+                            **default_config,
+                            **({} if config is None else config),
                         ),
                         **kwargs,
                     )
                 ),
-                vector_entry_point=lambda *args, config, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
+                vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                     TactileClassificationVectorEnv(
                         TactilePerceptionConfig(
                             MeshDataset.load(
                                 get_remote_resource(f"mnist3d-v0/{_split}")
                             ),
                             *args,
-                            **config,
+                            **default_config,
+                            **({} if config is None else config),
                         ),
                         **kwargs,
                     ),
                 ),
                 kwargs=dict(
-                    config=dict(
+                    default_config=dict(
                         sensor_output_size=(64, 64),
                         allow_sensor_rotation=False,
                         max_initial_angle_perturbation=np.pi / 8,
@@ -106,32 +108,34 @@ def register_envs():
 
             gym.envs.registration.register(
                 id=f"Starstruck{s}-v0",
-                entry_point=lambda *args, config, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
+                entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                     TactileClassificationEnv(
                         TactilePerceptionConfig(
                             MeshDataset.load(
                                 get_remote_resource(f"starstruck-v0/{_split}")
                             ),
                             *args,
-                            **config,
+                            **default_config,
+                            **({} if config is None else config),
                         ),
                         **kwargs,
                     )
                 ),
-                vector_entry_point=lambda *args, config, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
+                vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                     TactileClassificationVectorEnv(
                         TactilePerceptionConfig(
                             MeshDataset.load(
                                 get_remote_resource(f"starstruck-v0/{_split}")
                             ),
                             *args,
-                            **config,
+                            **default_config,
+                            **({} if config is None else config),
                         ),
                         **kwargs,
                     ),
                 ),
                 kwargs=dict(
-                    config=dict(
+                    default_config=dict(
                         sensor_output_size=(64, 64),
                         allow_sensor_rotation=False,
                         randomize_initial_object_pose=False,
@@ -146,32 +150,34 @@ def register_envs():
     for size_name, size in [("", 0.3), ("-small", 0.25)]:
         gym.envs.registration.register(
             id=f"Toolbox{size_name}-v0",
-            entry_point=lambda *args, config, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+            entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                 TactilePoseEstimationEnv(
                     TactilePerceptionConfig(
                         MeshDataset.load(
                             get_remote_resource(f"wrench-v0"), cache_size="full"
                         ),
                         *args,
-                        **config,
+                        **default_config,
+                        **({} if config is None else config),
                     ),
                     **kwargs,
                 )
             ),
-            vector_entry_point=lambda *args, config, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+            vector_entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
                 TactilePoseEstimationVectorEnv(
                     TactilePerceptionConfig(
                         MeshDataset.load(
                             get_remote_resource(f"wrench-v0"), cache_size="full"
                         ),
                         *args,
-                        **config,
+                        **default_config,
+                        **({} if config is None else config),
                     ),
                     **kwargs,
                 ),
             ),
             kwargs=dict(
-                config=dict(
+                default_config=dict(
                     sensor_output_size=(64, 64),
                     allow_sensor_rotation=False,
                     step_limit=64,
