@@ -46,29 +46,29 @@ class MultiNode:
         if single_instance:
             assert not individual_args
             node = Node(*args, **kwargs)
-            self._nodes = (node,) * batch_size
+            self.__nodes = (node,) * batch_size
         else:
             if individual_args:
-                self._nodes = tuple(
+                self.__nodes = tuple(
                     Node(*(a[i] for a in args), **{k: v[i] for k, v in kwargs.items()})
                     for i in range(batch_size)
                 )
             else:
-                self._nodes = tuple(Node(*args, **kwargs) for _ in range(batch_size))
+                self.__nodes = tuple(Node(*args, **kwargs) for _ in range(batch_size))
 
     def __getattr__(self, item):
-        return tuple(getattr(n, item) for n in self._nodes)
+        return tuple(getattr(n, item) for n in self.__nodes)
 
     def __setattr__(self, key, value):
-        if key == "_nodes":
+        if key == "_MultiNode__nodes":
             super().__setattr__(key, value)
         else:
-            for n, v in zip(self._nodes, value):
+            for n, v in zip(self.__nodes, value):
                 setattr(n, key, v)
 
     @property
     def nodes(self):
-        return self._nodes
+        return self.__nodes
 
 
 class BatchScene:
@@ -76,79 +76,81 @@ class BatchScene:
         self, batch_size: int, nodes: Iterable[MultiNode] = (), *args, **kwargs
     ):
         assert batch_size > 0
-        self._nodes = list(nodes)
-        self._scenes = tuple(
-            Scene([n.nodes[i] for n in self._nodes], *args, **kwargs)
+        self.__nodes = list(nodes)
+        self.__scenes = tuple(
+            Scene([n.nodes[i] for n in self.__nodes], *args, **kwargs)
             for i in range(batch_size)
         )
         if batch_size == 1:
             # See render method for explanation
-            self._dummy_scene = Scene([Node(camera=PerspectiveCamera(yfov=np.pi / 4))])
+            self.__dummy_scene = Scene([Node(camera=PerspectiveCamera(yfov=np.pi / 4))])
         else:
-            self._dummy_scene = None
-        self._visibility = {n: np.ones(len(n.nodes)) for n in self._nodes}
-        self._poses = {
+            self.__dummy_scene = None
+        self.__visibility = {n: np.ones(len(n.nodes)) for n in self.__nodes}
+        self.__poses = {
             n: Transformation.batch_concatenate([Transformation()] * len(n.nodes))
-            for n in self._nodes
+            for n in self.__nodes
         }
 
     def render(
         self, renderer: OffscreenRenderer, flags=RenderFlags.NONE, seg_node_map=None
     ):
-        if self._dummy_scene is not None:
+        if self.__dummy_scene is not None:
             # This is a workaround for a bug, where the renderer does not consider the updates to mesh vertices
             # if it does not render another scene in between (probably some caching issue). In case where there is
             # only one scene, we render a dummy scene.
-            renderer.render(self._dummy_scene, flags=RenderFlags.DEPTH_ONLY)
+            renderer.render(self.__dummy_scene, flags=RenderFlags.DEPTH_ONLY)
         res = [
             renderer.render(s, flags=flags, seg_node_map=seg_node_map)
-            for s in self._scenes
+            for s in self.__scenes
         ]
         if isinstance(res[0], tuple):
             return tuple(np.stack(t, axis=0) for t in zip(*res))
         return np.stack(res, axis=0)
 
     def add_node(self, node: MultiNode, invisible: bool = False):
-        assert node not in self._nodes
+        assert node not in self.__nodes
         if not invisible:
-            for s, n in zip(self._scenes, node.nodes):
+            for s, n in zip(self.__scenes, node.nodes):
                 s.add_node(n)
-        self._nodes.append(node)
-        self._visibility[node] = np.full(len(node.nodes), not invisible, dtype=np.bool_)
-        self._poses[node] = Transformation.batch_concatenate(
+        self.__nodes.append(node)
+        self.__visibility[node] = np.full(
+            len(node.nodes), not invisible, dtype=np.bool_
+        )
+        self.__poses[node] = Transformation.batch_concatenate(
             [Transformation()] * len(node.nodes)
         )
 
     def remove_node(self, node: MultiNode):
-        assert node in self._nodes
-        for s, n, v in zip(self._scenes, node.nodes, self._visibility[node]):
+        assert node in self.__nodes
+        for s, n, v in zip(self.__scenes, node.nodes, self.__visibility[node]):
             if v:
                 s.remove_node(n)
-        self._nodes.remove(node)
-        self._visibility.pop(node)
-        self._poses.pop(node)
+        self.__nodes.remove(node)
+        self.__visibility.pop(node)
+        self.__poses.pop(node)
 
     def set_visibility(self, node: MultiNode, mask: Sequence[bool]):
-        assert node in self._nodes
+        assert node in self.__nodes
         assert len(mask) == len(node.nodes)
-        for i, (s, n, m) in enumerate(zip(self._scenes, node.nodes, mask)):
-            if self._visibility[node][i] and not m:
+        for i, (s, n, m) in enumerate(zip(self.__scenes, node.nodes, mask)):
+            if self.__visibility[node][i] and not m:
                 s.remove_node(n)
-            elif not self._visibility[node][i] and m:
+            elif not self.__visibility[node][i] and m:
                 s.add_node(n)
-                s.set_pose(n, self._poses[node][i].matrix)
-        self._visibility[node] = mask
+                s.set_pose(n, self.__poses[node][i].matrix)
+        self.__visibility[node] = mask
 
     def set_pose(self, node: MultiNode, pose: Transformation):
         if pose.single:
             pose = Transformation.batch_concatenate([pose] * len(node.nodes))
-        self._poses[node] = pose
-        for s, n, p, v in zip(self._scenes, node.nodes, pose, self._visibility[node]):
+        self.__poses[node] = pose
+        for s, n, p, v in zip(self.__scenes, node.nodes, pose, self.__visibility[node]):
             if v:
                 s.set_pose(n, p.matrix)
 
     def add(self, obj, name=None, pose=None, parent_node=None, parent_name=None):
-        for s in self._scenes:
+        for s in self.__scenes:
             s.add(
                 obj,
                 name=name,
@@ -208,7 +210,7 @@ class TactilePerceptionRenderer:
         cell_size: Sequence[float] = tuple(CELL_SIZE),
     ):
         self.__tactile_renderer = tactile_renderer
-        self._transparent_background = transparent_background
+        self.__transparent_background = transparent_background
 
         if isinstance(depth_map_mm_per_pixel, float) or isinstance(
             depth_map_mm_per_pixel, int
@@ -222,19 +224,19 @@ class TactilePerceptionRenderer:
             [Transformation()] * num_envs
         )
 
-        self._num_envs = num_envs
-        self._objects: tuple[MeshDataPoint] | None = None
-        self._object_poses: Transformation = Transformation.batch_concatenate(
+        self.__num_envs = num_envs
+        self.__objects: tuple[MeshDataPoint] | None = None
+        self.__object_poses: Transformation = Transformation.batch_concatenate(
             [Transformation()] * num_envs
         )
-        self._shadow_object_poses: Transformation = Transformation.batch_concatenate(
+        self.__shadow_object_poses: Transformation = Transformation.batch_concatenate(
             [Transformation()] * num_envs
         )
-        self._show_sensor_target_pos = show_sensor_target_pos
+        self.__show_sensor_target_pos = show_sensor_target_pos
         self.__false_class_color = false_class_color
         self.__true_class_color = true_class_color
 
-        self._platform_pose = Transformation()
+        self.__platform_pose = Transformation()
         platform_extents = np.concatenate([cell_size, [0.002]])
         platform_mesh = Box(
             platform_extents, Transformation([0, 0, -platform_extents[-1] / 2]).matrix
@@ -247,9 +249,9 @@ class TactilePerceptionRenderer:
 
         # Set the camera really far away from the gel. That way we can use it to find the first contact point of the
         # sensor when it is approaching the target.
-        self._camera_dist_to_gel = np.max(platform_extents) * 2
-        self._camera_pose_sensor_frame = Transformation.from_pos_euler(
-            [0, 0, self._camera_dist_to_gel]
+        self.__camera_dist_to_gel = np.max(platform_extents) * 2
+        self.__camera_pose_sensor_frame = Transformation.from_pos_euler(
+            [0, 0, self.__camera_dist_to_gel]
         )
 
         Node = partial(MultiNode, batch_size=num_envs)
@@ -261,7 +263,10 @@ class TactilePerceptionRenderer:
             mag = np.array(res) / 2 * m_per_px
 
             sensor_camera = OrthographicCamera(
-                xmag=mag[0], ymag=mag[1], znear=0.001, zfar=2 * self._camera_dist_to_gel
+                xmag=mag[0],
+                ymag=mag[1],
+                znear=0.001,
+                zfar=2 * self.__camera_dist_to_gel,
             )
             sensor_camera_node = Node(
                 camera=sensor_camera, matrix=Transformation().matrix
@@ -272,7 +277,7 @@ class TactilePerceptionRenderer:
                 [
                     Node(
                         mesh=Mesh.from_trimesh(platform_mesh),
-                        matrix=self._platform_pose.matrix,
+                        matrix=self.__platform_pose.matrix,
                         single_instance=True,
                     ),
                     sensor_camera_node,
@@ -286,7 +291,7 @@ class TactilePerceptionRenderer:
             depth_map_resolution, depth_map_mm_per_pixel
         )
 
-        render_camera_target = self._platform_pose.translation + np.array(
+        render_camera_target = self.__platform_pose.translation + np.array(
             [-0.02, -0.02, 0.0]
         )
         platform_diag = np.linalg.norm(platform_extents)
@@ -303,21 +308,21 @@ class TactilePerceptionRenderer:
             np.stack([render_camera_x, render_camera_y, render_camera_z], axis=-1)
         )
 
-        self._render_camera_pose = Transformation(render_camera_pos, render_camera_rot)
+        self.__render_camera_pose = Transformation(render_camera_pos, render_camera_rot)
 
         if show_tactile_image or show_class_weights:
-            self._render_camera_pose = self._render_camera_pose * Transformation(
+            self.__render_camera_pose = self.__render_camera_pose * Transformation(
                 [0.02, 0.02, 0.25 * platform_diag],
             )
 
-        self._render_camera = PerspectiveCamera(
+        self.__render_camera = PerspectiveCamera(
             yfov=np.pi / 4,
             aspectRatio=external_camera_resolution[0] / external_camera_resolution[1],
             znear=0.005,
         )
         render_camera_node = Node(
-            camera=self._render_camera,
-            matrix=self._render_camera_pose.matrix,
+            camera=self.__render_camera,
+            matrix=self.__render_camera_pose.matrix,
             single_instance=True,
         )
 
@@ -327,35 +332,35 @@ class TactilePerceptionRenderer:
         sensor_meshes = [m for m in sensor_scene.geometry.values()]
         for g in sensor_meshes:
             g.visual.uv = None
-        self._sensor_mesh = trimesh.util.concatenate(sensor_meshes)
-        self._sensor_mesh.apply_transform(
+        self.__sensor_mesh = trimesh.util.concatenate(sensor_meshes)
+        self.__sensor_mesh.apply_transform(
             (
                 Transformation.from_pos_euler(euler_angles=[0, 0, np.pi / 2])
                 * Transformation.from_pos_euler(euler_angles=[np.pi, 0, 0])
             ).matrix
         )
 
-        self._sensor_node = Node(mesh=Mesh.from_trimesh(self._sensor_mesh))
-        self._sensor_node.matrix = self.sensor_poses.matrix
-        sensor_mesh_transparent = self._sensor_mesh.copy()
+        self.__sensor_node = Node(mesh=Mesh.from_trimesh(self.__sensor_mesh))
+        self.__sensor_node.matrix = self.sensor_poses.matrix
+        sensor_mesh_transparent = self.__sensor_mesh.copy()
         mesh_colors = np.array(sensor_mesh_transparent.visual.material.image)
         mesh_colors[..., 3] = 128
         sensor_mesh_transparent.visual.material.image = Image.fromarray(mesh_colors)
-        self._transparent_sensor_node = Node(
+        self.__transparent_sensor_node = Node(
             mesh=Mesh.from_trimesh(sensor_mesh_transparent)
         )
-        self._transparent_sensor_node.matrix = self.sensor_shadow_poses.matrix
+        self.__transparent_sensor_node.matrix = self.sensor_shadow_poses.matrix
 
-        self._camera_object_node: MultiNode | None = None
-        self._camera_shadow_object_node: MultiNode | None = None
+        self.__camera_object_node: MultiNode | None = None
+        self.__camera_shadow_object_node: MultiNode | None = None
         platform_node = Node(
             mesh=Mesh.from_trimesh(platform_mesh),
-            matrix=self._platform_pose.matrix,
+            matrix=self.__platform_pose.matrix,
             single_instance=True,
         )
-        self._camera_scene = BatchScene(
+        self.__camera_scene = BatchScene(
             num_envs,
-            [platform_node, self._sensor_node, render_camera_node],
+            [platform_node, self.__sensor_node, render_camera_node],
             ambient_light=np.array([0.4, 0.4, 0.4, 1.0]),
             bg_color=np.array([1.0, 1.0, 1.0, 0.0]),
         )
@@ -366,15 +371,15 @@ class TactilePerceptionRenderer:
         sensor_size_mm = res * mm_per_pixel
         sensor_width_by_height = sensor_size_mm[0] / sensor_size_mm[1]
         tactile_screen_width_rel = tactile_screen_height_rel * (
-            sensor_width_by_height / self._render_camera.aspectRatio
+            sensor_width_by_height / self.__render_camera.aspectRatio
         )
-        self._tactile_screen_size_rel = np.array(
+        self.__tactile_screen_size_rel = np.array(
             [tactile_screen_width_rel, tactile_screen_height_rel]
         )
-        self._tactile_screen_pos_rel = (
-            np.array([0.98, 0.98]) - self._tactile_screen_size_rel / 2
+        self.__tactile_screen_pos_rel = (
+            np.array([0.98, 0.98]) - self.__tactile_screen_size_rel / 2
         )
-        self._show_tactile_image = show_tactile_image
+        self.__show_tactile_image = show_tactile_image
 
         self.__class_weight_screen_size_rel = np.array([0.3, 0.3])
         self.__class_weight_screen_pos_rel = np.array(
@@ -387,7 +392,7 @@ class TactilePerceptionRenderer:
 
         self.__tactile_screen_size_px: tuple[int, int] = tuple(
             np.round(
-                self._tactile_screen_size_rel * np.array(external_camera_resolution)
+                self.__tactile_screen_size_rel * np.array(external_camera_resolution)
             ).astype(np.int_)
         )
         depth_map_size_px = np.array(
@@ -405,28 +410,28 @@ class TactilePerceptionRenderer:
         screen_pos_camera_frame = np.concatenate(
             [
                 image_to_camera_frame(
-                    self._render_camera, self._tactile_screen_pos_rel, screen_dist
+                    self.__render_camera, self.__tactile_screen_pos_rel, screen_dist
                 ),
                 [-screen_dist],
             ]
         )
         real_world_screen_size = image_to_world_scale(
-            self._render_camera, self._tactile_screen_size_rel, screen_dist
+            self.__render_camera, self.__tactile_screen_size_rel, screen_dist
         )
 
         screen_rot_camera_frame = Rotation.from_euler("xyz", [0, 0, 0])
-        screen_pose = self._render_camera_pose * Transformation(
+        screen_pose = self.__render_camera_pose * Transformation(
             screen_pos_camera_frame, screen_rot_camera_frame
         )
         screen_corners_screen_frame = np.array(
             [[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]]
         ) * np.concatenate([real_world_screen_size / 2, [0]])
-        self._screen_corners = screen_pose * screen_corners_screen_frame
-        self._projected_screen_corners = camera_frame_to_image(
-            self._render_camera, self._render_camera_pose.inv * self._screen_corners
+        self.__screen_corners = screen_pose * screen_corners_screen_frame
+        self.__projected_screen_corners = camera_frame_to_image(
+            self.__render_camera, self.__render_camera_pose.inv * self.__screen_corners
         )
-        self._tactile_zoom_origin_sensor_frame = np.array(
-            [0, 0, self._sensor_mesh.vertices[:, 2].max()]
+        self.__tactile_zoom_origin_sensor_frame = np.array(
+            [0, 0, self.__sensor_mesh.vertices[:, 2].max()]
         )
 
         if show_tactile_image:
@@ -446,58 +451,58 @@ class TactilePerceptionRenderer:
             plane.visual = trimesh.visual.TextureVisuals(
                 material=PBRMaterial(baseColorFactor=tactile_screen_zoom_color)
             )
-            self._tactile_screen_zoom = Node(
-                mesh=[Mesh.from_trimesh(plane) for _ in range(self._num_envs)],
+            self.__tactile_screen_zoom = Node(
+                mesh=[Mesh.from_trimesh(plane) for _ in range(self.__num_envs)],
                 individual_args=True,
             )
-            self._camera_scene.add_node(self._tactile_screen_zoom)
+            self.__camera_scene.add_node(self.__tactile_screen_zoom)
         else:
-            self._tactile_screen_zoom = None
+            self.__tactile_screen_zoom = None
 
-        if self._show_sensor_target_pos:
-            self._camera_scene.add_node(self._transparent_sensor_node)
+        if self.__show_sensor_target_pos:
+            self.__camera_scene.add_node(self.__transparent_sensor_node)
 
-        self._camera_scene.add(
+        self.__camera_scene.add(
             DirectionalLight(color=[1.0, 1.0, 1.0], intensity=5.0),
-            pose=self._render_camera_pose.matrix,
+            pose=self.__render_camera_pose.matrix,
         )
 
         if show_viewer:
-            self._viewer = Viewer(self._camera_scene, run_in_thread=True)
-            self._camera_renderer: OffscreenRenderer | None = None
+            self.__viewer = Viewer(self.__camera_scene, run_in_thread=True)
+            self.__camera_renderer: OffscreenRenderer | None = None
             # For some reason it is necessary to wait here
             time.sleep(0.5)
         else:
             # Variables needed for camera rendering
-            self._camera_renderer = OffscreenRenderer(*external_camera_resolution)
-            self._viewer: Viewer | None = None
-        self._object_color = object_color
+            self.__camera_renderer = OffscreenRenderer(*external_camera_resolution)
+            self.__viewer: Viewer | None = None
+        self.__object_color = object_color
         self.class_weights: np.ndarray | None = None
         self.target_class_idx: np.ndarray | None = None
 
     def render_external_cameras(
         self,
     ) -> np.ndarray | None:
-        if self._camera_renderer is None:
+        if self.__camera_renderer is None:
             return None
-        with self._get_render_lock():
-            self._camera_scene.set_pose(self._sensor_node, self.sensor_poses)
-            if self._show_sensor_target_pos:
-                self._camera_scene.set_pose(
-                    self._transparent_sensor_node, self.sensor_shadow_poses
+        with self.__get_render_lock():
+            self.__camera_scene.set_pose(self.__sensor_node, self.sensor_poses)
+            if self.__show_sensor_target_pos:
+                self.__camera_scene.set_pose(
+                    self.__transparent_sensor_node, self.sensor_shadow_poses
                 )
-            if self._show_tactile_image:
+            if self.__show_tactile_image:
                 tactile_zoom_origins = (
-                    self.sensor_poses * self._tactile_zoom_origin_sensor_frame
+                    self.sensor_poses * self.__tactile_zoom_origin_sensor_frame
                 )
                 tactile_zoom_origins_camera_frame = (
-                    self._render_camera_pose.inv * tactile_zoom_origins
+                    self.__render_camera_pose.inv * tactile_zoom_origins
                 )
                 projected_tactile_zoom_origins = camera_frame_to_image(
-                    self._render_camera, tactile_zoom_origins_camera_frame
+                    self.__render_camera, tactile_zoom_origins_camera_frame
                 )
                 projection_diffs = (
-                    self._projected_screen_corners[None]
+                    self.__projected_screen_corners[None]
                     - projected_tactile_zoom_origins[:, None]
                 )
                 angles = np.arctan2(
@@ -506,20 +511,20 @@ class TactilePerceptionRenderer:
                 corner_1_idx = np.argmin(angles, axis=1)
                 corner_2_idx = np.argmax(angles, axis=1)
                 for mesh, c1, c2, o in zip(
-                    self._tactile_screen_zoom.mesh,
+                    self.__tactile_screen_zoom.mesh,
                     corner_1_idx,
                     corner_2_idx,
                     tactile_zoom_origins,
                 ):
                     mesh.primitives[0].positions = np.stack(
-                        [self._screen_corners[c1], self._screen_corners[c2], o]
+                        [self.__screen_corners[c1], self.__screen_corners[c2], o]
                     )
-            img = self._camera_scene.render(
-                self._camera_renderer, flags=RenderFlags.RGBA
+            img = self.__camera_scene.render(
+                self.__camera_renderer, flags=RenderFlags.RGBA
             )[0]
         img_size = np.flip(np.array(img.shape[1:3]))
 
-        if self._show_tactile_image:
+        if self.__show_tactile_image:
             tactile_img = self.__tactile_renderer(
                 self.__render_sensor_depths(self.__render_sensor_renderer),
                 self.__tactile_screen_size_px,
@@ -529,8 +534,8 @@ class TactilePerceptionRenderer:
             t_size = np.flip(np.array(tactile_img.shape[1:3]))
             target_pos_rel = np.array(
                 [
-                    self._tactile_screen_pos_rel[0],
-                    1.0 - self._tactile_screen_pos_rel[1],
+                    self.__tactile_screen_pos_rel[0],
+                    1.0 - self.__tactile_screen_pos_rel[1],
                 ]
             )
             t_pos = np.round(target_pos_rel * img_size - t_size / 2).astype(np.int_)
@@ -620,7 +625,7 @@ class TactilePerceptionRenderer:
                     screen_np * screen_alpha + img[idx] * (1 - screen_alpha)
                 ).astype(np.int_)
 
-        if not self._transparent_background:
+        if not self.__transparent_background:
             alpha = img[..., 3:4] / 255
             img = (img[..., :3] * alpha + (1 - alpha) * 255).astype(np.uint8)
 
@@ -634,18 +639,20 @@ class TactilePerceptionRenderer:
         if virtual_sensor_poses is None:
             virtual_sensor_poses = self.sensor_poses
         sensor_camera_pose = (
-            self._platform_pose * virtual_sensor_poses * self._camera_pose_sensor_frame
+            self.__platform_pose
+            * virtual_sensor_poses
+            * self.__camera_pose_sensor_frame
         )
-        with self._get_render_lock():
+        with self.__get_render_lock():
             sensor_renderer.scene.set_pose(
                 sensor_renderer.camera_node, sensor_camera_pose
             )
             depth_orig = sensor_renderer.scene.render(
                 sensor_renderer.renderer, flags=RenderFlags.DEPTH_ONLY
             )
-        depth = self._recover_depth_workaround(sensor_renderer.camera, depth_orig)
+        depth = self.__recover_depth_workaround(sensor_renderer.camera, depth_orig)
         depth_clipped = np.clip(depth, 0, sensor_renderer.camera.zfar)
-        return depth_clipped - self._camera_dist_to_gel
+        return depth_clipped - self.__camera_dist_to_gel
 
     def render_sensor_depths(
         self, virtual_sensor_poses: Transformation | None = None
@@ -659,13 +666,13 @@ class TactilePerceptionRenderer:
         self, new_object_poses: Transformation, mask: Sequence[bool] | None = None
     ):
         if mask is None:
-            mask = np.ones(self._num_envs, dtype=np.bool_)
-        self._object_poses = transformation_where(
-            mask, new_object_poses, self._object_poses
+            mask = np.ones(self.__num_envs, dtype=np.bool_)
+        self.__object_poses = transformation_where(
+            mask, new_object_poses, self.__object_poses
         )
-        object_poses_world = self._platform_pose * self._object_poses
-        with self._get_render_lock():
-            self._camera_scene.set_pose(self._camera_object_node, object_poses_world)
+        object_poses_world = self.__platform_pose * self.__object_poses
+        with self.__get_render_lock():
+            self.__camera_scene.set_pose(self.__camera_object_node, object_poses_world)
             for renderer in [
                 self.__observation_sensor_renderer,
                 self.__render_sensor_renderer,
@@ -679,42 +686,42 @@ class TactilePerceptionRenderer:
         shadow_object_visible: Sequence[bool] | None = None,
     ):
         if shadow_object_visible is None:
-            shadow_object_visible = np.ones(self._num_envs, dtype=np.bool_)
-        self._shadow_object_poses = new_shadow_object_poses
-        shadow_object_poses_world = self._platform_pose * self._shadow_object_poses
-        with self._get_render_lock():
+            shadow_object_visible = np.ones(self.__num_envs, dtype=np.bool_)
+        self.__shadow_object_poses = new_shadow_object_poses
+        shadow_object_poses_world = self.__platform_pose * self.__shadow_object_poses
+        with self.__get_render_lock():
             if new_shadow_object_scales is not None:
                 for obj, node, scale in zip(
-                    self._objects,
-                    self._camera_shadow_object_node.nodes,
+                    self.__objects,
+                    self.__camera_shadow_object_node.nodes,
                     new_shadow_object_scales,
                 ):
                     c = obj.mesh.center_mass
                     node.mesh.primitives[0].positions[:] = (
                         obj.mesh.vertices - c
                     ) * scale + c
-            self._camera_scene.set_pose(
-                self._camera_shadow_object_node, shadow_object_poses_world
+            self.__camera_scene.set_pose(
+                self.__camera_shadow_object_node, shadow_object_poses_world
             )
-            self._camera_scene.set_visibility(
-                self._camera_shadow_object_node, shadow_object_visible
+            self.__camera_scene.set_visibility(
+                self.__camera_shadow_object_node, shadow_object_visible
             )
 
     def close(self):
-        if self._viewer is not None:
-            with self._get_render_lock():
-                self._viewer.close()
+        if self.__viewer is not None:
+            with self.__get_render_lock():
+                self.__viewer.close()
 
-    def _get_render_lock(self):
-        return nullcontext() if self._viewer is None else self._viewer.render_lock
+    def __get_render_lock(self):
+        return nullcontext() if self.__viewer is None else self.__viewer.render_lock
 
-    def _process_object_mesh(
+    def __process_object_mesh(
         self, mesh: trimesh.Trimesh, alpha: float = 255
     ) -> trimesh.Trimesh:
         mesh = mesh.copy()
         mesh.visual = trimesh.visual.TextureVisuals(
             material=PBRMaterial(
-                baseColorFactor=self._object_color + (alpha,),
+                baseColorFactor=self.__object_color + (alpha,),
                 metallicFactor=0.1,
                 roughnessFactor=0.7,
             )
@@ -722,7 +729,7 @@ class TactilePerceptionRenderer:
         return mesh
 
     @staticmethod
-    def _recover_depth_workaround(
+    def __recover_depth_workaround(
         camera: OrthographicCamera, depth_orig: np.ndarray
     ) -> np.ndarray:
         """
@@ -742,41 +749,43 @@ class TactilePerceptionRenderer:
 
     @property
     def objects(self) -> tuple[MeshDataPoint, ...]:
-        return self._objects
+        return self.__objects
 
     @objects.setter
     def objects(self, objects: Iterable[MeshDataPoint]):
         objects = tuple(objects)
-        assert len(objects) == self._num_envs
-        self._objects = objects
-        current_meshes = [dp.mesh.copy() for dp in self._objects]
+        assert len(objects) == self.__num_envs
+        self.__objects = objects
+        current_meshes = [dp.mesh.copy() for dp in self.__objects]
         for mesh in current_meshes:
             mesh.visual.vertex_colors = [50, 50, 50]
-        with self._get_render_lock():
-            if self._camera_object_node is not None:
-                self._camera_scene.remove_node(self._camera_object_node)
-                self._camera_object_node = None
-            if self._camera_shadow_object_node is not None:
-                self._camera_scene.remove_node(self._camera_shadow_object_node)
-                self._camera_shadow_object_node = None
-            self._camera_object_node = MultiNode(
-                self._num_envs,
+        with self.__get_render_lock():
+            if self.__camera_object_node is not None:
+                self.__camera_scene.remove_node(self.__camera_object_node)
+                self.__camera_object_node = None
+            if self.__camera_shadow_object_node is not None:
+                self.__camera_scene.remove_node(self.__camera_shadow_object_node)
+                self.__camera_shadow_object_node = None
+            self.__camera_object_node = MultiNode(
+                self.__num_envs,
                 mesh=[
-                    Mesh.from_trimesh(self._process_object_mesh(mesh))
+                    Mesh.from_trimesh(self.__process_object_mesh(mesh))
                     for mesh in current_meshes
                 ],
                 individual_args=True,
             )
-            self._camera_scene.add_node(self._camera_object_node)
-            self._camera_shadow_object_node = MultiNode(
-                self._num_envs,
+            self.__camera_scene.add_node(self.__camera_object_node)
+            self.__camera_shadow_object_node = MultiNode(
+                self.__num_envs,
                 mesh=[
-                    Mesh.from_trimesh(self._process_object_mesh(mesh, alpha=100))
+                    Mesh.from_trimesh(self.__process_object_mesh(mesh, alpha=100))
                     for mesh in current_meshes
                 ],
                 individual_args=True,
             )
-            self._camera_scene.add_node(self._camera_shadow_object_node, invisible=True)
+            self.__camera_scene.add_node(
+                self.__camera_shadow_object_node, invisible=True
+            )
             for renderer in [
                 self.__observation_sensor_renderer,
                 self.__render_sensor_renderer,
@@ -784,7 +793,7 @@ class TactilePerceptionRenderer:
                 if renderer.object_node is not None:
                     renderer.scene.remove_node(renderer.object_node)
                 renderer.object_node = MultiNode(
-                    self._num_envs,
+                    self.__num_envs,
                     mesh=[Mesh.from_trimesh(mesh) for mesh in current_meshes],
                     individual_args=True,
                 )
