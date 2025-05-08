@@ -3,6 +3,10 @@ from typing import Any, Iterable
 import gymnasium as gym
 
 import ap_gym
+from tactile_mnist.tactile_volume_estimation_env import (
+    TactileVolumeEstimationVectorEnv,
+    TactileVolumeEstimationEnv,
+)
 from .constants import *
 from .mesh_dataset import MeshDataset
 from .resource import get_remote_resource
@@ -63,6 +67,29 @@ def register_envs():
                         allow_sensor_rotation=False,
                         max_initial_angle_perturbation=np.pi / 8,
                         renderer_show_class_weights=True,
+                    )
+                ),
+            )
+
+            gym.envs.registration.register(
+                id=f"TactileMNISTVolume{s}-v0",
+                entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+                    TactileVolumeEstimationEnv(
+                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        **kwargs,
+                    )
+                ),
+                vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+                    TactileVolumeEstimationVectorEnv(
+                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        **kwargs,
+                    ),
+                ),
+                kwargs=dict(
+                    default_config=dict(
+                        sensor_output_size=(64, 64),
+                        allow_sensor_rotation=False,
+                        step_limit=32,
                     )
                 ),
             )
@@ -130,7 +157,6 @@ def register_envs():
                     allow_sensor_rotation=False,
                     step_limit=64,
                     cell_size=(size, size),
-                    max_tilt_angle=np.pi,
                     cell_padding=tuple(
                         np.array([0.005, 0.005]) + GELSIGHT_MINI_OUTER_SIZE / 2
                     ),
