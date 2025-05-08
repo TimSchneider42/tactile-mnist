@@ -51,13 +51,13 @@ In both environments, the agent must solve a perception problem by actively cont
     <table style="border-collapse: collapse; border: none;">
         <tr style="border: none;">
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="200px"/><br/>
+                <img src="doc/img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="200px"/><br/>
                 <a href="/TactileMNIST.md">
                     TactileMNIST-v0
                 </a>
             </td>
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="200px"/><br/>
+                <img src="doc/img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="200px"/><br/>
                 <a href="Starstruck.md">
                     Starstruck-v0
                 </a>
