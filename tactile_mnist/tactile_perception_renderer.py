@@ -5,7 +5,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from functools import partial
 from importlib.resources import files
-from typing import Sequence, Iterable, Callable
+from typing import Sequence, Iterable
 
 import numpy as np
 import trimesh
@@ -222,6 +222,7 @@ class TactilePerceptionRenderer:
             [Transformation()] * num_envs
         )
 
+        self._num_envs = num_envs
         self._objects: tuple[MeshDataPoint] | None = None
         self._object_poses: Transformation = Transformation.batch_concatenate(
             [Transformation()] * num_envs
@@ -230,7 +231,6 @@ class TactilePerceptionRenderer:
             [Transformation()] * num_envs
         )
         self._show_sensor_target_pos = show_sensor_target_pos
-        self._num_envs = num_envs
         self.__false_class_color = false_class_color
         self.__true_class_color = true_class_color
 
@@ -675,6 +675,7 @@ class TactilePerceptionRenderer:
     def update_shadow_objects(
         self,
         new_shadow_object_poses: Transformation,
+        new_shadow_object_scales: Sequence[float] | None = None,
         shadow_object_visible: Sequence[bool] | None = None,
     ):
         if shadow_object_visible is None:
@@ -682,6 +683,16 @@ class TactilePerceptionRenderer:
         self._shadow_object_poses = new_shadow_object_poses
         shadow_object_poses_world = self._platform_pose * self._shadow_object_poses
         with self._get_render_lock():
+            if new_shadow_object_scales is not None:
+                for obj, node, scale in zip(
+                    self._objects,
+                    self._camera_shadow_object_node.nodes,
+                    new_shadow_object_scales,
+                ):
+                    c = obj.mesh.center_mass
+                    node.mesh.primitives[0].positions[:] = (
+                        obj.mesh.vertices - c
+                    ) * scale + c
             self._camera_scene.set_pose(
                 self._camera_shadow_object_node, shadow_object_poses_world
             )
