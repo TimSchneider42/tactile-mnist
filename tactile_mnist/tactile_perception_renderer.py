@@ -354,12 +354,12 @@ class TactilePerceptionRenderer:
             bg_color=np.array([1.0, 1.0, 1.0, 0.0]),
         )
 
-        tactile_screen_width_rel = 0.3
+        tactile_screen_height_rel = 0.3
         pixmm = np.array(depth_map_pixmm)
         res = np.array(depth_map_resolution)
         sensor_size_mm = res * pixmm
         sensor_width_by_height = sensor_size_mm[0] / sensor_size_mm[1]
-        tactile_screen_height_rel = tactile_screen_width_rel / (
+        tactile_screen_width_rel = tactile_screen_height_rel * (
             sensor_width_by_height / self._render_camera.aspectRatio
         )
         self._tactile_screen_size_rel = np.array(
