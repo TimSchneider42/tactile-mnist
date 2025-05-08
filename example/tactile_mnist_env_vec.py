@@ -21,7 +21,7 @@ img_plot = [
 camera_plot = [ax.imshow(img) for img, ax in zip(env.render(), axes[1])]
 plt.show(block=False)
 
-terminated = np.zeros(env.num_envs, dtype=bool)
+truncated = np.zeros(env.num_envs, dtype=bool)
 for s in range(100):
     # Generate a circle trajectory
     angles = (
@@ -37,12 +37,12 @@ for s in range(100):
             "prediction": env.prediction_space.sample(),
         }
 
-        obs, _, terminated, _, info = env.step(action)
+        obs, _, _, truncated, info = env.step(action)
         camera_img = env.render()
         for i in range(env.num_envs):
             img_plot[i].set_data(obs["sensor_img"][i])
             camera_plot[i].set_data(camera_img[i])
         plt.pause(1 / env.metadata["render_fps"])
-    assert np.all(terminated)
+    assert np.all(truncated)
     # This will trigger the reset of the environments
-    obs, _, terminated, _, _ = env.step(env.action_space.sample())
+    obs, _, _, truncated, _ = env.step(env.action_space.sample())

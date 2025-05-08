@@ -60,8 +60,6 @@ def register_envs():
     import gymnasium as gym
     import ap_gym
 
-    # TODO: the termination behavior of all environments should probably be truncate
-
     for split in ["train", "test"]:
         suffixes = [f"-{split}"]
         if split == "train":
@@ -100,7 +98,6 @@ def register_envs():
                         sensor_output_size=(64, 64),
                         allow_sensor_rotation=False,
                         max_initial_angle_perturbation=np.pi / 8,
-                        timeout_behavior="terminate",
                         renderer_show_class_weights=True,
                     )
                 ),
@@ -141,7 +138,6 @@ def register_envs():
                         randomize_initial_object_pose=False,
                         perturb_object_pose=False,
                         step_limit=32,
-                        timeout_behavior="terminate",
                         renderer_show_class_weights=True,
                     ),
                 ),
