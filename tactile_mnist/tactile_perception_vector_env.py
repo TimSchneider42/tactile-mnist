@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
-from functools import partial
 from typing import (
     Any,
     Literal,
@@ -19,7 +18,6 @@ import numpy as np
 from gymnasium.envs.registration import EnvSpec
 from gymnasium.vector.utils import batch_space
 from scipy.spatial.transform import Rotation
-from taxim import Taxim, CALIB_GELSIGHT_MINI
 from transformation import Transformation
 
 import ap_gym
@@ -32,107 +30,30 @@ from ap_gym.types import PredType, PredTargetType
 from tactile_mnist import (
     CELL_PADDING,
     CELL_SIZE,
-    GELSIGHT_IMAGE_SIZE_PX,
+    GELSIGHT_MINI_IMAGE_SIZE_PX,
     MeshDataPoint,
     MeshDataset,
-    GELSIGHT_GEL_THICKNESS_MM,
+    GELSIGHT_MINI_GEL_THICKNESS_MM,
+    GELSIGHT_MINI_SENSOR_SURFACE_SIZE,
 )
 from .tactile_perception_renderer import TactilePerceptionRenderer
+from .tactile_renderer import mk_tactile_renderer
 from .util import OverridableStaticField, transformation_where
 
-try:
-    import torch
-    import torchvision
-except ImportError:
-    torch = torchvision = None
-
-try:
-    import jax
-    import jax.numpy as jnp
-except ImportError:
-    jax = jnp = None
-
 if TYPE_CHECKING:
+    import jax
+    import torch
+
     ObsType = dict[str, np.ndarray | torch.Tensor | jax.Array]
 
 ActType = dict[str, np.ndarray]
 ArrayType = TypeVar("ArrayType")
 
 
-class Backend(ABC, Generic[ArrayType]):
-    @abstractmethod
-    def depth_map_to_numpy(self, depth_map: ArrayType) -> np.ndarray:
-        pass
-
-    @abstractmethod
-    def depth_map_to_img(
-        self, depth_map: ArrayType, min_depth: float, max_depth: float
-    ) -> ArrayType:
-        pass
-
-    @abstractmethod
-    def scale_img(self, img: ArrayType, height: int, width: int) -> ArrayType:
-        pass
-
-
-if torch is not None:
-
-    class TorchBackend(Backend[torch.Tensor]):
-        def depth_map_to_numpy(self, depth_map: torch.Tensor) -> np.ndarray:
-            return depth_map.cpu().numpy()
-
-        def depth_map_to_img(
-            self, depth_map: ArrayType, min_depth: float, max_depth: float
-        ) -> torch.Tensor:
-            depth_img = (torch.clip(depth_map, min_depth, max_depth) - min_depth) / (
-                max_depth - min_depth
-            )
-            return torch.broadcast_to(depth_img[None], (3, *depth_img.shape))
-
-        def scale_img(self, img: torch.Tensor, height: int, width: int) -> torch.Tensor:
-            return torchvision.transforms.functional.resize(
-                img,
-                (height, width),
-                torchvision.transforms.InterpolationMode.BICUBIC,
-                antialias=True,
-            ).clip(0, 1)
-
-else:
-    TorchBackend = None
-
-if jax is not None:
-
-    class JaxBackend(Backend[jax.Array]):
-        def depth_map_to_numpy(self, depth_map: jax.Array) -> np.ndarray:
-            return np.array(depth_map)
-
-        # Make min_depth and max_depth static as they do not change between calls
-        @partial(jax.jit, static_argnames=("self", "min_depth", "max_depth"))
-        def depth_map_to_img(
-            self, depth_map: ArrayType, min_depth: float, max_depth: float
-        ) -> jax.Array:
-            depth_img = (jnp.clip(depth_map, min_depth, max_depth) - min_depth) / (
-                max_depth - min_depth
-            )
-            return jnp.broadcast_to(depth_img[None], (*depth_img.shape, 3))
-
-        # Make height and width static as they do not change between calls
-        @partial(jax.jit, static_argnames=("self", "height", "width"))
-        def scale_img(self, img: jax.Array, height: int, width: int) -> jax.Array:
-            shape = img.shape[:-3] + (height, width, 3)
-            return jax.image.resize(img, shape, method="bicubic", antialias=True).clip(
-                0, 1
-            )
-
-else:
-    JaxBackend = None
-
-
 @dataclass(frozen=True)
 class TactilePerceptionConfig:
     dataset: MeshDataset | Sequence[MeshDataset]
     step_limit: int = 16
-    taxim_device: str | None = None
     convert_image_to_numpy: bool = True
     show_sensor_target_pos: bool = False
     perturb_object_pose: bool = True
@@ -140,9 +61,11 @@ class TactilePerceptionConfig:
     max_initial_angle_perturbation: float = np.pi
     sensor_output_size: Sequence[int] | None = None
     randomize_initial_sensor_pose: bool = True
-    depth_only: bool = False
     allow_sensor_rotation: bool = True
-    sensor_backend: Literal["torch", "jax", "auto"] = "auto"
+    sensor_backend: Literal["torch", "jax", "numpy", "auto"] = "auto"
+    sensor_type: Literal["taxim", "depth"] = "taxim"
+    sensor_device: str | None = None
+    sensor_device_index: int = 0
     linear_velocity: float = 0.2
     angular_velocity: float = np.pi / 2
     linear_acceleration: float = 4.0
@@ -191,15 +114,14 @@ class TactilePerceptionVectorEnv(
             map(
                 int,
                 (
-                    GELSIGHT_IMAGE_SIZE_PX
+                    GELSIGHT_MINI_IMAGE_SIZE_PX
                     if self.__config.sensor_output_size is None
                     else self.__config.sensor_output_size
                 ),
             )
         )
-        self.__sensor_output_hw = tuple(reversed(sensor_output_size))
+        self.__sensor_output_size = sensor_output_size
         self.__render_mode = render_mode
-        self.__depth_only = self.__config.depth_only
         self.__transfer_timedelta_s = self.__config.transfer_timedelta_s
         if isinstance(self.__config.dataset, MeshDataset):
             self.__datasets = [self.__config.dataset] * num_envs
@@ -207,18 +129,13 @@ class TactilePerceptionVectorEnv(
             assert len(self.__config.dataset) == num_envs
             self.__datasets = self.__config.dataset
         self.__current_data_points: tuple[MeshDataPoint] | None = None
-        self.__sensor = Taxim(
-            calib_folder=CALIB_GELSIGHT_MINI,
-            device=self.__config.taxim_device,
-            params={"simulator": {"contact_scale": 0.6}},
+        self.__sensor = mk_tactile_renderer(
+            renderer_type=self.__config.sensor_type,
             backend=self.__config.sensor_backend,
+            device=self.__config.sensor_device,
+            device_index=self.__config.sensor_device_index,
         )
-        if self.__sensor.backend_name == "torch":
-            self.__backend = TorchBackend()
-        else:
-            self.__backend = JaxBackend()
-        self.__gel_thickness_mm = GELSIGHT_GEL_THICKNESS_MM
-        self.__gel_penetration_depth_mm = self.__gel_thickness_mm / 2
+        self.__gel_penetration_depth_mm = GELSIGHT_MINI_GEL_THICKNESS_MM / 2
         dt = np.float32
         single_action_space = {
             # Target position of the sensor
@@ -229,7 +146,10 @@ class TactilePerceptionVectorEnv(
         single_observation_space = {
             "sensor_pos": gym.spaces.Box(-np.ones(3, dtype=dt), np.ones(3, dtype=dt)),
             "sensor_img": ImageSpace(
-                sensor_output_size[0], sensor_output_size[1], 3, dtype=dt
+                sensor_output_size[0],
+                sensor_output_size[1],
+                self.__sensor.channels,
+                dtype=dt,
             ),
         }
 
@@ -286,15 +206,15 @@ class TactilePerceptionVectorEnv(
         self.__object_poses_platform_frame: Transformation | None = None
         self.__current_step: np.ndarray | None = None
 
-        new_pixmm = tuple(
-            np.array([self.__sensor.width, self.__sensor.height])
-            * np.array(self.__sensor.sensor_params.pixmm)
-            / np.array(sensor_output_size)
+        depth_map_size = self.__sensor.get_desired_depth_map_size(sensor_output_size)
+        mm_per_pixel = tuple(
+            GELSIGHT_MINI_SENSOR_SURFACE_SIZE / np.array(depth_map_size) * 1000
         )
         self.__renderer = TactilePerceptionRenderer(
             self.num_envs,
-            sensor_output_size,
-            new_pixmm,
+            self.__sensor,
+            depth_map_size,
+            mm_per_pixel,
             show_viewer=render_mode == "human",
             show_sensor_target_pos=self.__config.show_sensor_target_pos,
             transparent_background=self.__config.render_transparent_background,
@@ -723,34 +643,20 @@ class TactilePerceptionVectorEnv(
         )
         sensor_poses = sensor_target_poses * sensor_pose_target_frame
 
-        depth_conv = self.__sensor.convert_height_map(depth_gel_frame * 1000)
-        if self.__depth_only:
-            sensor_output = self.__backend.depth_map_to_img(
-                depth_conv, self.__gel_penetration_depth_mm, self.__gel_thickness_mm
-            )
-        else:
-            # Taxim expects the depth relative to the highest point of the gel
-            sensor_output = self.__sensor.render_direct(
-                depth_conv - self.__gel_thickness_mm
-            )
-
         if self.__config.convert_image_to_numpy:
-            sensor_output = self.__sensor.img_to_numpy(sensor_output)
-            depth_output = self.__backend.depth_map_to_numpy(depth_conv)
+            sensor_output = self.__sensor(depth_gel_frame, self.__sensor_output_size)
+            depth_output = depth_gel_frame
         else:
-            sensor_output = sensor_output
-            depth_output = depth_conv
+            res = self.__sensor.render_direct(
+                depth_gel_frame, self.__sensor_output_size
+            )
+            sensor_output = res.tactile_image
+            depth_output = res.depth_map
 
         return sensor_output, depth_output, sensor_poses
 
     def render(self) -> np.ndarray | None:
-        def sensor_render(depth: np.ndarray) -> np.ndarray:
-            depth = depth * 1000
-            if self.__depth_only:
-                return depth
-            return self.__sensor.render(depth - self.__gel_thickness_mm)
-
-        return self.__renderer.render_external_cameras(sensor_render)
+        return self.__renderer.render_external_cameras()
 
     @property
     def render_mode(self):
