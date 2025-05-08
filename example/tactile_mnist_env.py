@@ -27,17 +27,17 @@ for _ in range(100):
         [np.cos(angles), np.sin(angles), np.zeros_like(angles)], axis=-1
     )
 
-    terminated = False
+    truncated = False
     for p in target_trajectory:
         action = {
             "action": {"sensor_target_pos_rel": p - obs["sensor_pos"]},
             "prediction": env.prediction_space.sample(),
         }
 
-        obs, _, terminated, _, info = env.step(action)
+        obs, _, _, truncated, info = env.step(action)
         camera_img = env.render()
         img_plot.set_data(obs["sensor_img"])
         camera_plot.set_data(camera_img)
         plt.pause(1 / env.metadata["render_fps"])
-    assert terminated
+    assert truncated
     obs, _ = env.reset()
