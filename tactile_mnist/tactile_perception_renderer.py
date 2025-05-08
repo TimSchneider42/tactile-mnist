@@ -28,6 +28,8 @@ from trimesh.primitives import Box
 from trimesh.visual.material import PBRMaterial
 
 from tactile_mnist import CELL_SIZE
+from tactile_mnist.colormap import viridis_colormap
+from tactile_mnist.tactile_renderer import TactileRenderer
 from .mesh_dataset import MeshDataPoint
 from .util import transformation_where
 
@@ -189,8 +191,9 @@ class TactilePerceptionRenderer:
     def __init__(
         self,
         num_envs: int,
+        tactile_renderer: TactileRenderer,
         depth_map_resolution: tuple[int, int],
-        depth_map_pixmm: tuple[float, float] | float,
+        depth_map_mm_per_pixel: tuple[float, float] | float,
         external_camera_resolution: tuple[int, int] = (640, 480),
         show_viewer: bool = False,
         show_sensor_target_pos: bool = False,
@@ -204,10 +207,13 @@ class TactilePerceptionRenderer:
         transparent_background: bool = False,
         cell_size: Sequence[float] = tuple(CELL_SIZE),
     ):
+        self.__tactile_renderer = tactile_renderer
         self._transparent_background = transparent_background
 
-        if isinstance(depth_map_pixmm, float) or isinstance(depth_map_pixmm, int):
-            depth_map_pixmm = (depth_map_pixmm, depth_map_pixmm)
+        if isinstance(depth_map_mm_per_pixel, float) or isinstance(
+            depth_map_mm_per_pixel, int
+        ):
+            depth_map_mm_per_pixel = (depth_map_mm_per_pixel, depth_map_mm_per_pixel)
 
         self.sensor_shadow_poses: Transformation = Transformation.batch_concatenate(
             [Transformation()] * num_envs
@@ -277,7 +283,7 @@ class TactilePerceptionRenderer:
             )
 
         self.__observation_sensor_renderer = mk_sensor_renderer(
-            depth_map_resolution, depth_map_pixmm
+            depth_map_resolution, depth_map_mm_per_pixel
         )
 
         render_camera_target = self._platform_pose.translation + np.array(
@@ -355,9 +361,9 @@ class TactilePerceptionRenderer:
         )
 
         tactile_screen_height_rel = 0.3
-        pixmm = np.array(depth_map_pixmm)
+        mm_per_pixel = np.array(depth_map_mm_per_pixel)
         res = np.array(depth_map_resolution)
-        sensor_size_mm = res * pixmm
+        sensor_size_mm = res * mm_per_pixel
         sensor_width_by_height = sensor_size_mm[0] / sensor_size_mm[1]
         tactile_screen_width_rel = tactile_screen_height_rel * (
             sensor_width_by_height / self._render_camera.aspectRatio
@@ -379,12 +385,19 @@ class TactilePerceptionRenderer:
         )
         self.__show_class_weights = show_class_weights
 
-        tactile_screen_size_px = np.round(
-            self._tactile_screen_size_rel * np.array(external_camera_resolution)
-        ).astype(np.int_)
-        render_pixmm = sensor_size_mm / tactile_screen_size_px
+        self.__tactile_screen_size_px: tuple[int, int] = tuple(
+            np.round(
+                self._tactile_screen_size_rel * np.array(external_camera_resolution)
+            ).astype(np.int_)
+        )
+        depth_map_size_px = np.array(
+            self.__tactile_renderer.get_desired_depth_map_size(
+                self.__tactile_screen_size_px
+            )
+        )
+        render_pixmm = sensor_size_mm / depth_map_size_px
         self.__render_sensor_renderer = mk_sensor_renderer(
-            tactile_screen_size_px, render_pixmm
+            tuple(depth_map_size_px), tuple(render_pixmm)
         )
 
         screen_dist = 0.01
@@ -464,7 +477,6 @@ class TactilePerceptionRenderer:
 
     def render_external_cameras(
         self,
-        sensor_render_fn: Callable[[np.ndarray], np.ndarray],
     ) -> np.ndarray | None:
         if self._camera_renderer is None:
             return None
@@ -508,9 +520,12 @@ class TactilePerceptionRenderer:
         img_size = np.flip(np.array(img.shape[1:3]))
 
         if self._show_tactile_image:
-            tactile_img = sensor_render_fn(
-                self.__render_sensor_depths(self.__render_sensor_renderer)
+            tactile_img = self.__tactile_renderer(
+                self.__render_sensor_depths(self.__render_sensor_renderer),
+                self.__tactile_screen_size_px,
             )
+            if tactile_img.shape[-1] == 1:
+                tactile_img = viridis_colormap(tactile_img[..., 0])
             t_size = np.flip(np.array(tactile_img.shape[1:3]))
             target_pos_rel = np.array(
                 [

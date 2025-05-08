@@ -26,9 +26,9 @@ from .constants import (
     CELL_SIZE,
     CELL_PADDING,
     GRID_BORDER_THICKNESS,
-    GELSIGHT_DIMS,
-    GELSIGHT_GEL_THICKNESS_MM,
-    GELSIGHT_IMAGE_SIZE_PX,
+    GELSIGHT_MINI_OUTER_SIZE,
+    GELSIGHT_MINI_GEL_THICKNESS_MM,
+    GELSIGHT_MINI_IMAGE_SIZE_PX,
 )
 from .dataset import PartialDataPoint, Dataset
 from .iterable_types import (
@@ -179,7 +179,9 @@ def register_envs():
                     step_limit=64,
                     cell_size=(size, size),
                     max_tilt_angle=np.pi,
-                    cell_padding=tuple(np.array([0.005, 0.005]) + GELSIGHT_DIMS / 2),
+                    cell_padding=tuple(
+                        np.array([0.005, 0.005]) + GELSIGHT_MINI_OUTER_SIZE / 2
+                    ),
                 ),
                 frame_position_mode="model",
                 frame_rotation_mode="model",
