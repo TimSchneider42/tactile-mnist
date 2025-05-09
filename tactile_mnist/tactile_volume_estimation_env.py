@@ -67,7 +67,8 @@ class TactileVolumeEstimationVectorEnv(
             # Do that after the step as new objects might be loaded
             self._renderer.update_shadow_objects(
                 self.current_object_poses_platform_frame,
-                new_shadow_object_scales=prediction / np.maximum(labels, 1e-4),
+                new_shadow_object_scales=np.maximum(prediction, 0)
+                / np.maximum(labels, 1e-4),
                 shadow_object_visible=~np.array(self._prev_done),
             )
 
