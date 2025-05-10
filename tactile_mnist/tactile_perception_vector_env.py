@@ -77,7 +77,7 @@ class TactilePerceptionConfig:
     renderer_show_tactile_image: bool = True
     renderer_show_class_weights: bool = False
     renderer_external_camera_resolution: tuple[int, int] = (640, 480)
-    timeout_behavior: Literal["terminate", "truncate"] = "truncate"
+    timeout_behavior: Literal["terminate", "truncate"] = "terminate"
     cell_size: tuple[float, float] = tuple(CELL_SIZE)
     cell_padding: tuple[float, float] = tuple(CELL_PADDING)
 
