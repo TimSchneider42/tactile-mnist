@@ -29,6 +29,9 @@ from .constants import (
     GELSIGHT_MINI_OUTER_SIZE,
     GELSIGHT_MINI_GEL_THICKNESS_MM,
     GELSIGHT_MINI_IMAGE_SIZE_PX,
+    GELSIGHT_MINI_SENSOR_SURFACE_SIZE,
+    CACHE_BASE_DIR,
+    GEL_PENETRATION_DEPTH_MM,
 )
 from .dataset import PartialDataPoint, Dataset
 from .iterable_types import (
