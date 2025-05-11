@@ -35,6 +35,7 @@ from tactile_mnist import (
     MeshDataset,
     GELSIGHT_MINI_GEL_THICKNESS_MM,
     GELSIGHT_MINI_SENSOR_SURFACE_SIZE,
+    GEL_PENETRATION_DEPTH_MM,
 )
 from .tactile_perception_renderer import TactilePerceptionRenderer
 from .tactile_renderer import mk_tactile_renderer
@@ -135,7 +136,6 @@ class TactilePerceptionVectorEnv(
             device=self.__config.sensor_device,
             device_index=self.__config.sensor_device_index,
         )
-        self.__gel_penetration_depth_mm = GELSIGHT_MINI_GEL_THICKNESS_MM / 2
         dt = np.float32
         single_action_space = {
             # Target position of the sensor
@@ -630,7 +630,7 @@ class TactilePerceptionVectorEnv(
         depth_gel_frame_shifted = self.__renderer.render_sensor_depths(
             sensor_target_poses
         )
-        offset = self.__gel_penetration_depth_mm / 1000 - np.min(
+        offset = GEL_PENETRATION_DEPTH_MM / 1000 - np.min(
             depth_gel_frame_shifted, axis=(-1, -2)
         )
         depth_gel_frame = depth_gel_frame_shifted + offset[:, None, None]

@@ -72,6 +72,31 @@ def register_envs():
             )
 
             gym.envs.registration.register(
+                id=f"TactileMNIST-CycleGAN{s}-v0",
+                entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
+                    TactileClassificationEnv(
+                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        **kwargs,
+                    )
+                ),
+                vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
+                    TactileClassificationVectorEnv(
+                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        **kwargs,
+                    ),
+                ),
+                kwargs=dict(
+                    default_config=dict(
+                        sensor_output_size=(64, 64),
+                        allow_sensor_rotation=False,
+                        max_initial_angle_perturbation=np.pi / 8,
+                        renderer_show_class_weights=True,
+                        sensor_type="cycle_gan",
+                    )
+                ),
+            )
+
+            gym.envs.registration.register(
                 id=f"TactileMNISTVolume{s}-v0",
                 entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                     TactileVolumeEstimationEnv(

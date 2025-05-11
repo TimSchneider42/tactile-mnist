@@ -9,7 +9,7 @@ import ap_gym
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-# For the test dataset, use "tactile_mnist:TactileMNIST-test-v0"
+# For the test dataset, use "TactileMNIST-test-v0", or for the CycleGAN variant use "TactileMNIST-CycleGAN-v0"
 env = ap_gym.make_vec("tactile_mnist:TactileMNIST-v0", num_envs=4)
 obs, _ = env.reset(seed=0)
 

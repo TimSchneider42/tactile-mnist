@@ -24,6 +24,7 @@ _TACTILE_RENDERERS_STR = {
     "torch": {
         "depth": ("depth_renderer_torch", "DepthRendererTorch"),
         "taxim": ("taxim_renderer_torch", "TaximRendererTorch"),
+        "cycle_gan": ("cycle_gan_renderer_torch", "CycleGANRendererTorch"),
     },
 }
 
@@ -115,7 +116,7 @@ DEVICE_PREFERENCE_ORDER["depth"] = (Device("cpu"), Device("cuda"))
 
 
 def resolve_backend_and_device(
-    renderer_type: Literal["depth", "taxim"],
+    renderer_type: Literal["depth", "taxim", "cycle_gan"],
     backend: Literal["jax", "torch", "numpy", "auto"],
     device: Device | None = None,
 ) -> tuple[Literal["jax", "torch", "numpy"], Device]:
@@ -175,7 +176,7 @@ def resolve_backend_and_device(
 
 
 def mk_tactile_renderer(
-    renderer_type: Literal["depth", "taxim"],
+    renderer_type: Literal["depth", "taxim", "cycle_gan"],
     backend: Literal["jax", "torch", "numpy", "auto"],
     device: str | None = None,
     device_index: int = 0,

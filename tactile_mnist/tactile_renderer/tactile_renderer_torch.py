@@ -15,7 +15,11 @@ class TactileRendererTorch(TactileRenderer[torch.Tensor], ABC):
             else:
                 torch.device("cpu")
         else:
-            self.__torch_device = torch.device(str(device))
+            if device.platform == "cpu":
+                # If we pass the index here, checkpoint loading stops working
+                self.__torch_device = torch.device("cpu")
+            else:
+                self.__torch_device = torch.device(str(device))
         super().__init__(
             device=Device(self.__torch_device.type, self.__torch_device.index),
             backend_name="torch",
