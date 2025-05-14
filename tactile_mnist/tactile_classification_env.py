@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from itertools import chain
 from typing import (
     Literal,
     TYPE_CHECKING,
@@ -41,20 +40,17 @@ class TactileClassificationVectorEnv(
         else:
             assert len(config.dataset) == num_envs
             datasets = config.dataset
-        self.__label_map = {
-            i: l
-            for i, l in enumerate(sorted(set(chain(*(ds.labels for ds in datasets)))))
-        }
-        self.__inverse_label_map = {l: i for i, l in self.__label_map.items()}
-        all_labels = {l for ds in datasets for l in ds.labels}
+        assert all(ds.label_names == datasets[0].label_names for ds in datasets)
 
         super().__init__(
             config,
             num_envs,
             single_prediction_space=gym.spaces.Box(
-                -np.inf, np.inf, shape=(len(all_labels),)
+                -np.inf, np.inf, shape=(len(datasets[0].label_names),)
             ),
-            single_prediction_target_space=gym.spaces.Discrete(len(all_labels)),
+            single_prediction_target_space=gym.spaces.Discrete(
+                len(datasets[0].label_names)
+            ),
             loss_fn=CrossEntropyLossFn(),
             render_mode=render_mode,
         )
@@ -83,12 +79,7 @@ class TactileClassificationVectorEnv(
         return obs, action_reward, terminated, truncated, info, labels
 
     def _get_prediction_targets(self) -> np.ndarray:
-        return np.array(
-            [
-                self.__inverse_label_map[dp.metadata.label]
-                for dp in self.current_data_points
-            ]
-        )
+        return np.array([dp.label for dp in self.current_data_points])
 
 
 def TactileClassificationEnv(

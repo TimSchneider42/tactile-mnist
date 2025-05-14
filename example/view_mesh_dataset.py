@@ -2,7 +2,9 @@
 
 import argparse
 
-from tactile_mnist import MeshDataset, get_resource
+from datasets import load_dataset
+
+from tactile_mnist import MeshDataset
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -10,8 +12,8 @@ if __name__ == "__main__":
         "-d",
         "--dataset",
         type=str,
-        default="remote:mnist3d-v0/train",
-        help="Path or resource specification of the mesh dataset.",
+        default="TimSchneider42/tactile-mnist-mnist3d",
+        help="Name or path of the dataset to load.",
     )
     parser.add_argument(
         "-l",
@@ -21,13 +23,20 @@ if __name__ == "__main__":
         choices=range(10),
         help="Label to show examples for.",
     )
+    parser.add_argument(
+        "-s",
+        "--split",
+        type=str,
+        default="train",
+        help="Split of the dataset to load.",
+    )
     args = parser.parse_args()
 
-    dataset = MeshDataset.load(get_resource(args.dataset))
+    dataset = MeshDataset(load_dataset(args.dataset, split=args.split))
 
     if args.label is not None:
         dataset = dataset.filter_labels(args.label)
 
     for data_point in dataset:
-        print(f"Datapoint {data_point.metadata.id}")
+        print(f"Datapoint {data_point.id}")
         data_point.mesh.show()  # data_point.mesh is a trimesh.Trimesh object

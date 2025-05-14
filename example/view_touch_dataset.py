@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-
 import argparse
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+from datasets import load_dataset
 
-from tactile_mnist import TouchDataset, get_resource, TouchSingle, TouchSeq
+from tactile_mnist import TouchSingle, TouchSingleDataset, TouchSeqDataset
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -13,52 +14,66 @@ if __name__ == "__main__":
         "-d",
         "--dataset",
         type=str,
-        default="remote:tactile_mnist-real-seq-t256-320x240-v0/train",
-        help="Path or resource specification of the mesh dataset.",
+        default="TimSchneider42/tactile-mnist-touch-real-seq-t256-320x240",
+        help="Name or path of the dataset to load.",
     )
     parser.add_argument(
-        "-t",
-        "--touch-only",
-        action="store_true",
-        help="Skip images in which the robot was not in contact with the object.",
+        "-s",
+        "--split",
+        type=str,
+        default="train",
+        help="Split of the dataset to load.",
+    )
+    parser.add_argument(
+        "-c",
+        "--contact-threshold",
+        type=float,
+        default=0.006,
+        help="This value defines a threshold for the height of the gel on the platform. If the gel was lower than this "
+        "value, we assume that no contact with the object happened and skip the respective data point.",
     )
     args = parser.parse_args()
 
-    for dataset in TouchDataset.open_all(get_resource(args.dataset)):
-        with dataset as dataset_loaded:
-            data_idx = list(range(len(dataset_loaded)))
-            if args.touch_only:
-                min_depths = np.array(
-                    [
-                        np.min(
-                            dataset_loaded.metadata[i].gel_position_cell_frame_seq[:, 2]
-                        )
-                        for i in data_idx
-                    ]
-                )
-                min_min_depth = np.min(min_depths)
-                max_min_depth = np.max(min_depths)
-                touch_thresh = min_min_depth + 0.4 * (max_min_depth - min_min_depth)
-                data_idx = np.argwhere(min_depths > touch_thresh).flatten()
-                dataset_loaded = dataset_loaded[data_idx]
-            dp0 = dataset_loaded[0]
-            if isinstance(dp0, TouchSingle):
-                img_plot = plt.imshow(np.zeros_like(dp0.sensor_image))
-            else:
+    hf_dataset = load_dataset(args.dataset, split=args.split, streaming=True)
+    if "sensor_image" in hf_dataset.column_names:
+        dataset = TouchSingleDataset(hf_dataset)
+    else:
+        dataset = TouchSeqDataset(hf_dataset)
+    img_plot = None
+    for data_point in dataset:
+        print(f"Round {data_point.id} on object {data_point.object_id}")
+        if isinstance(data_point, TouchSingle):
+            if img_plot is None:
+                img_plot = plt.imshow(np.zeros_like(data_point.sensor_image[0]))
+            num_touches = len(data_point.gel_pose_cell_frame)
+        else:
+            if img_plot is None:
+                video_reader = data_point.sensor_video[0]
                 img_plot = plt.imshow(
-                    np.zeros_like(dataset_loaded[0].sensor_image_seq[0])
+                    np.zeros_like(next(video_reader)["data"].permute(1, 2, 0).numpy())
                 )
-            plt.show(block=False)
-            for data_point in dataset_loaded:
+                video_reader.seek(0)
+            num_touches = len(data_point.gel_pose_cell_frame_seq)
+        for i in range(num_touches):
+            if isinstance(data_point, TouchSingle):
+                touch_height = data_point.gel_pose_cell_frame[i].translation[2]
+            else:
+                touch_height = min(
+                    t.translation[2] for t in data_point.gel_pose_cell_frame_seq[i]
+                )
+            if touch_height < args.contact_threshold:
                 print(
-                    f"Round {data_point.metadata.round_id}, touch {data_point.metadata.touch_no} on object "
-                    f"{data_point.metadata.object_id}"
+                    f"  Skipping touch {i + 1: 3d}/{num_touches} because of no contact."
                 )
-                if isinstance(data_point, TouchSingle):
-                    img_plot.set_data(data_point.sensor_image)
-                else:
-                    assert isinstance(data_point, TouchSeq)
-                    for img in data_point.sensor_image_seq:
-                        img_plot.set_data(img)
-                        plt.pause(1 / 25)
-                plt.pause(1.0)
+                continue
+            print(f"  Touch {i + 1: 3d}/{num_touches}")
+            if isinstance(data_point, TouchSingle):
+                img_plot.set_data(data_point.sensor_image[i])
+            else:
+                offset = None
+                for frame in data_point.sensor_video[i]:
+                    if offset is None:
+                        offset = time.time() - frame["pts"]
+                    img_plot.set_data(frame["data"].permute(1, 2, 0).numpy())
+                    plt.pause(max(0.001, frame["pts"] + offset - time.time()))
+            plt.pause(1.0)

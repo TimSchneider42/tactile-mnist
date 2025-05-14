@@ -1,6 +1,7 @@
 from typing import Any, Iterable
 
 import gymnasium as gym
+from datasets import load_dataset
 
 import ap_gym
 from tactile_mnist.tactile_volume_estimation_env import (
@@ -9,7 +10,6 @@ from tactile_mnist.tactile_volume_estimation_env import (
 )
 from .constants import *
 from .mesh_dataset import MeshDataset
-from .resource import get_remote_resource
 from .tactile_classification_env import (
     TactileClassificationEnv,
     TactileClassificationVectorEnv,
@@ -25,14 +25,15 @@ from .tactile_pose_estimation_env import (
 
 def mk_config(
     dataset_name: str,
+    split: str,
     args: Iterable[Any],
     default_config: dict[str, Any],
     config: dict[str, Any] | None = None,
     mesh_dataset_config: dict[str, Any] | None = None,
 ):
     return TactilePerceptionConfig(
-        MeshDataset.load(
-            get_remote_resource(dataset_name),
+        MeshDataset(
+            load_dataset(f"TimSchneider42/tactile-mnist-{dataset_name}", split=split),
             **({} if mesh_dataset_config is None else mesh_dataset_config),
         ),
         *args,
@@ -51,13 +52,13 @@ def register_envs():
                 id=f"TactileMNIST{s}-v0",
                 entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                     TactileClassificationEnv(
-                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        mk_config("mnist3d", _split, args, default_config, config),
                         **kwargs,
                     )
                 ),
                 vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                     TactileClassificationVectorEnv(
-                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        mk_config("mnist3d", _split, args, default_config, config),
                         **kwargs,
                     ),
                 ),
@@ -75,13 +76,13 @@ def register_envs():
                 id=f"TactileMNIST-CycleGAN{s}-v0",
                 entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                     TactileClassificationEnv(
-                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        mk_config("mnist3d", _split, args, default_config, config),
                         **kwargs,
                     )
                 ),
                 vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                     TactileClassificationVectorEnv(
-                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        mk_config("mnist3d", _split, args, default_config, config),
                         **kwargs,
                     ),
                 ),
@@ -100,13 +101,13 @@ def register_envs():
                 id=f"TactileMNISTVolume{s}-v0",
                 entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                     TactileVolumeEstimationEnv(
-                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        mk_config("mnist3d", _split, args, default_config, config),
                         **kwargs,
                     )
                 ),
                 vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
                     TactileVolumeEstimationVectorEnv(
-                        mk_config(f"mnist3d-v0/{_split}", args, default_config, config),
+                        mk_config("mnist3d", _split, args, default_config, config),
                         **kwargs,
                     ),
                 ),
@@ -123,17 +124,13 @@ def register_envs():
                 id=f"Starstruck{s}-v0",
                 entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                     TactileClassificationEnv(
-                        mk_config(
-                            f"starstruck-v0/{_split}", args, default_config, config
-                        ),
+                        mk_config("starstruck", _split, args, default_config, config),
                         **kwargs,
                     )
                 ),
                 vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                     TactileClassificationVectorEnv(
-                        mk_config(
-                            f"starstruck-v0/{_split}", args, default_config, config
-                        ),
+                        mk_config("starstruck", _split, args, default_config, config),
                         **kwargs,
                     ),
                 ),
@@ -155,7 +152,7 @@ def register_envs():
             entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                 TactilePoseEstimationEnv(
                     mk_config(
-                        f"wrench-v0",
+                        f"wrench",
                         args,
                         default_config,
                         config,
@@ -167,7 +164,7 @@ def register_envs():
             vector_entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
                 TactilePoseEstimationVectorEnv(
                     mk_config(
-                        f"wrench-v0",
+                        f"wrench",
                         args,
                         default_config,
                         config,
