@@ -574,7 +574,9 @@ class TactilePerceptionRenderer:
                 (1.0 - 2 * padding) / ((n - 1) * (1 + bar_margin) + 1),
             )
             bar_width = bar_width_rel * t_size[0]
-            bar_pos_x_rel = np.linspace(padding, 1 - padding, n)
+            bar_pos_x_rel = np.linspace(
+                padding + bar_width_rel / 2, 1 - padding - bar_width_rel / 2, n
+            )
             line_pos_y = 0.99 * t_size[1] - line_thickness / 2
 
             for i in range(img.shape[0]):
