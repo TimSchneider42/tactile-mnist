@@ -644,7 +644,9 @@ class TactilePerceptionVectorEnv(
         sensor_poses = sensor_target_poses * sensor_pose_target_frame
 
         if self.__config.convert_image_to_numpy:
-            sensor_output = self.__sensor(depth_gel_frame, self.__sensor_output_size)
+            sensor_output = self.__sensor(
+                depth_gel_frame, self.__sensor_output_size
+            ).astype(np.float32)
             depth_output = depth_gel_frame
         else:
             res = self.__sensor.render_direct(
