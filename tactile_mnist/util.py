@@ -50,12 +50,10 @@ class OverridableStaticField(Generic[InstanceType, StaticType, DynamicType]):
         return self
 
     @overload
-    def __get__(self, instance: InstanceType, owner: Any) -> DynamicType:
-        ...
+    def __get__(self, instance: InstanceType, owner: Any) -> DynamicType: ...
 
     @overload
-    def __get__(self, instance: None, owner: Any) -> StaticType:
-        ...
+    def __get__(self, instance: None, owner: Any) -> StaticType: ...
 
     def __get__(self, instance: InstanceType | None = None, owner: Any = None):
         if self._dynamic_value_fn is None or instance is None:

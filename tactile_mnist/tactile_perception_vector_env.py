@@ -467,8 +467,7 @@ class TactilePerceptionVectorEnv(
         acceleration_time = np.minimum(max_velocity / acceleration, half_transfer_time)
         max_velocity_time = half_transfer_time - acceleration_time
         return (
-            max_velocity_time * max_velocity
-            + 0.5 * acceleration * acceleration_time**2
+            max_velocity_time * max_velocity + 0.5 * acceleration * acceleration_time**2
         )
 
     def __calculate_transfer_time(self, relative_pose: Transformation):

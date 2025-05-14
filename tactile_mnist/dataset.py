@@ -39,14 +39,12 @@ class Dataset(Sequence[DataPointType], Generic[DataPointType, SelfType], ABC):
         pass
 
     @overload
-    def __getitem__(self, index: int) -> DataPointType:
-        ...
+    def __getitem__(self, index: int) -> DataPointType: ...
 
     @overload
     def __getitem__(
         self, index: slice | list[int] | list[bool] | np.ndarray
-    ) -> SelfType:
-        ...
+    ) -> SelfType: ...
 
     def __getitem__(self, index: int | slice | list[int] | list[bool]):
         if isinstance(index, slice):
