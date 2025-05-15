@@ -8,11 +8,10 @@ Refer to the [tactile classification environments overview](TactileClassificatio
 |                              |                                         |
 |------------------------------|-----------------------------------------|
 | **Environment ID**           | Starstruck-v0                           |
-| **Dataset**                  | [Starstruck](datasets.md#starstruck-v0) |
+| **Dataset**                  | [Starstruck](datasets.md#starstruck) |
 | **Number of classes**        | 3                                       |
 | **Step limit**               | 32                                      |
 | **Sensor rotation**          | disabled                                |
-| **Tactile image size**       | 64x64                                   |
 | **Object pose perturbation** | disabled                                |
 
 ## Description
@@ -38,7 +37,9 @@ envs = ap_gym.make_vec("Starstruck-v0", num_envs=4)
 
 ## Variants
 
-| Environment ID      | Description                                                     | Preview                                                                            |
-|---------------------|-----------------------------------------------------------------|------------------------------------------------------------------------------------|
-| Starstruck-train-v0 | Alias for Starstruck-v0.                                        | <img src="img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="200px"/>           |
-| Starstruck-test-v0  | Uses the test split of _Starstruck_ instead of the train split. | <img src="img/env/Starstruck-test-v0.gif" alt="Starstruck-test-v0" width="200px"/> |
+| Environment ID            | Description                                                                                         | Preview                                                                                        |
+|---------------------------|-----------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| Starstruck-train-v0       | Alias for Starstruck-v0.                                                                            | <img src="img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="200px"/>                       |
+| Starstruck-test-v0        | Uses the test split of _Starstruck_ instead of the train split.                                     | <img src="img/env/Starstruck-test-v0.gif" alt="Starstruck-test-v0" width="200px"/>             |
+| Starstruck-Depth-train-v0 | Uses a depth image instead of rendering tactile images.                                             | <img src="img/env/Starstruck-Depth-v0.gif" alt="Starstruck-Depth-v0" width="200px"/>           |
+| Starstruck-Depth-test-v0  | Same as Starstruck-Depth-train-v0 but uses the test split of _MNIST 3D_ instead of the train split. | <img src="img/env/Starstruck-Depth-test-v0.gif" alt="Starstruck-Depth-test-v0" width="200px"/> |

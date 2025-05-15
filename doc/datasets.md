@@ -1,3 +1,5 @@
+from datasets import load_dataset
+
 # Datasets
 
 This package provides the following datasets:
@@ -10,24 +12,25 @@ This package provides the following datasets:
     2. **Real Tactile MNIST**: a dataset of real tactile images of 3D printed _MNIST 3D_ digits collected with a Franka robot.
     3. **Synthetic Tactile Starstruck**: a dataset of synthetic tactile images generated from the _Starstruck_ dataset with the [Taxim simulator](https://arxiv.org/abs/2109.04027).
 
-All data can be found [https://archimedes.ias.informatik.tu-darmstadt.de/s/EiFPmyqa34DLF8S](here), though this package will download and cache the required files automatically when needed.
+All data is hosted on [Huggingface](https://huggingface.co/TimSchneider42), though this package will download and cache the required files automatically when needed.
 
 ## 3D Mesh Datasets
 
 The _MNIST 3D_ and _Starstruck_ datasets can be accessed by creating an instance of `MeshDataset`:
 
 ```python
-from tactile_mnist import MeshDataset, get_resource
+from datasets import load_dataset
+from tactile_mnist import MeshDataset
 
-mnist_3d_dataset = MeshDataset.load(get_resource("remote:mnist3d-v0/train"))
-starstruck_dataset = MeshDataset.load(get_resource("remote:starstruck-v0/train"))
+mnist_3d_dataset = MeshDataset(load_dataset("TimSchneider42/tactile-mnist-mnist3d", split="train"))
+starstruck_dataset = MeshDataset(load_dataset("TimSchneider42/tactile-mnist-starstruck", split="train"))
 ```
 
 Next to the `train` split, the `test`, `holdout`, `printed_train`, and `printed_test` splits are also available for _MNIST 3D_.
 The latter two contain meshes of the digits that were 3D printed and used to collect the _Real Tactile MNIST_ dataset.
 A detailed list of available datasets can be found in the [Available 3D Mesh Datasets](#available-3d-mesh-datasets) section.
 
-`MeshDataset` is indexable and loads meshes lazily, so it does not require much memory.
+`MeshDataset` is indexable and loads data points lazily, so it does not require much memory.
 For example, to get the first data point in the dataset:
 
 ```python
@@ -36,16 +39,30 @@ data_point = mnist_3d_dataset[0]
 
 Each data point has the following fields:
 
+- `id`: the ID of the data point (from the original high resolution MNIST dataset).
+- `label`: the label of the data point (0-9).
 - `mesh`: a `trimesh.Trimesh` object containing the mesh of the digit.
-- `metadata`: metadata of the data point
-    - `id`: the ID of the data point (from the original high resolution MNIST dataset).
-    - `label`: the label of the data point (0-9).
 
-`MeshDataset` is also iterable, so you can use it in a for loop:
+Datapoints itself also load their fields lazily, so metadata can be accessed without having to load the mesh.
 
 ```python
+# This does not load the mesh of datapoint 0
+mnist_3d_dataset[0].id
+
+# Here it gets loaded on the fly and cached for future use
+mnist_3d_dataset[0].mesh
+```
+
+`MeshDataset` also supports streaming:
+
+```python
+from datasets import load_dataset
+from tactile_mnist import MeshDataset
+
+mnist_3d_dataset = MeshDataset(load_dataset("TimSchneider42/tactile-mnist-mnist3d", split="train", streaming=True))
+
 for data_point in mnist_3d_dataset:
-    print(f"Datapoint {data_point.metadata.id}")
+    print(f"Datapoint {data_point.id}")
     data_point.mesh.show()  # data_point.mesh is a trimesh.Trimesh object
 ```
 
@@ -56,7 +73,7 @@ Check out the [Advanced Dataset Usage](#advanced-dataset-usage) section for a co
 
 Currently, the following 3D mesh datasets are available:
 
-#### mnist3d-v0
+#### MNIST 3D
 
 <p align="center">
   <img src="img/tactile_mnist_0.png" alt="MNIST 3D models" width="24%"/>
@@ -67,15 +84,17 @@ Currently, the following 3D mesh datasets are available:
 
 3D models generated from a [high-resolution version of the MNIST dataset](https://arxiv.org/abs/2011.07946).
 
-| Split           | Description                                                                                                                                                                                   |
-|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `train`         | Training split of *mnist3d*.                                                                                                                                                                  |
-| `test`          | Test split of *mnist3d*.                                                                                                                                                                      |
-| `printed_train` | Training split of the digits that were 3D printed and used to collect the *Real Tactile MNIST* dataset. Corresponds to the touch data in *tactile_mnist-real-[seq/single]-t256-...-v0/train*. |
-| `printed_test`  | Test split of the digits that were 3D printed and used to collect the *Real Tactile MNIST* dataset. Corresponds to the touch data in *tactile_mnist-real-[seq/single]-t256-...-v0/test*.      |
-| `holdout`       | Holdout split of *mnist3d*.                                                                                                                                                                   |
+| Split           | Description                                                                                                                                                                                      |
+|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `train`         | Training split of *mnist3d*.                                                                                                                                                                     |
+| `test`          | Test split of *mnist3d*.                                                                                                                                                                         |
+| `printed_train` | Training split of the digits that were 3D printed and used to collect the *Real Tactile MNIST* dataset. Corresponds to the touch data in *tactile-mnist-touch-real-[seq/single]-t256-.../train*. |
+| `printed_test`  | Test split of the digits that were 3D printed and used to collect the *Real Tactile MNIST* dataset. Corresponds to the touch data in *tactile-mnist-touch-real-[seq/single]-t256-.../test*.      |
+| `holdout`       | Holdout split of *mnist3d*.                                                                                                                                                                      |
 
-#### starstruck-v0
+Available on Huggingface: [TimSchneider42/tactile-mnist-mnist3d](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-mnist3d).
+
+#### Starstruck
 
 <p align="center">
   <img src="img/starstruck_0.png" alt="Starstruck models" width="24%"/>
@@ -86,67 +105,37 @@ Currently, the following 3D mesh datasets are available:
 
 A dataset in which the number of stars in a scene must be counted (3 classes, 1–3 stars per scene).
 
-| Split   | Description                        |
-|---------|------------------------------------|
-| `train` | Training split of *starstruck-v0*. |
-| `test`  | Test split of *starstruck-v0*.     |
+| Split   | Description                     |
+|---------|---------------------------------|
+| `train` | Training split of *starstruck*. |
+| `test`  | Test split of *starstruck*.     |
 
-To access the datasets, you can use the `MeshDataset` class:
-
-```python
-from tactile_mnist import MeshDataset, get_resource
-
-dataset = MeshDataset.load(get_resource("remote:DATASET_NAME/SPLIT_NAME"))
-# e.g. dataset = MeshDataset.load(get_resource("remote:mnist3d-v0/train"))
-```
+Available on Huggingface: [TimSchneider42/tactile-mnist-starstruck](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-starstruck).
 
 ## Touch datasets
 
-To access the touch datasets, you can use the `TouchDataset` class:
+To access the touch datasets, you can use the `TouchSingleDataset` and `TouchSeqDataset` classes:
 
 ```python
-from tactile_mnist import TouchDataset, get_resource
+from datasets import load_dataset
+from tactile_mnist import TouchSingleDataset, TouchSeqDataset
 
-dataset = TouchDataset(
-    get_resource("remote:tactile_mnist-real-single-t256-320x240-v0/train")
+# For datasets of the "single" type (i.e., dataset that contain a single image per touch), use TouchSingleDataset
+dataset_single = TouchSingleDataset(
+    load_dataset("TimSchneider42/tactile-mnist-touch-real-single-t256-320x240", split="train")
+)
+# For datasets of the "seq" type (i.e., dataset that contain a video per touch), use TouchSeqDataset
+dataset_seq = TouchSeqDataset(
+    load_dataset("TimSchneider42/tactile-mnist-touch-real-seq-t256-320x240", split="train")
 )
 
-with dataset as loaded_dataset:
-    # Do something with the dataset
-    data_point = loaded_dataset[0]
+# Do something with the datasets
+data_point_single = dataset_single[0]
+data_point_seq = dataset_seq[0]
 ```
 
-The context manager (`with dataset as loaded_dataset`) loads the dataset's metadata, while the memory intensive images in the dataset are by default loaded lazily once they are indexed.
-If you wish to trade memory efficiency for performance, you can instruct `TouchDataset` to load the full data points into memory instead:
-
-```python
-dataset = TouchDataset(
-    get_resource("remote:tactile_mnist-real-single-t256-320x240-v0/train"),
-    mode="in_memory",
-)
-```
-
-Loading full data points into memory requires much more space, but can yield substantial speed-ups, especially if you are using HDDs or plan to request data points more than once.
-
-Note, that some datasets are stored in chunks to save memory.
-In this case, use `TouchDataset.open_all` to load all chunks of a dataset:
-
-```python
-from tactile_mnist import TouchDataset, get_resource
-
-dataset_chunks = TouchDataset.open_all(
-    get_resource("remote:tactile_mnist-syn-single-t32-320x240-v0/train")
-)
-
-for dataset_chunk in dataset_chunks:
-    with dataset_chunk as loaded_dataset_chunk:
-        # Do something with the dataset
-        data_point = loaded_dataset_chunk[0]
-```
-
-`TouchDataset.open_all` does not yet load the dataset into memory, so it is safe to use with large datasets.
-Only when you use the `with` statement, the dataset is loaded into memory.
-Also note, that `TouchDataset.open_all` can also be safely used with non-chunked datasets, as it will simply return a list with a single dataset.
+Both `TouchSingleDataset` and `TouchSeqDataset` work exactly like `MeshDataset`, in that they load lazily, are indexable, and support streaming.
+For more details on how to use them, refer to the [Advanced Dataset Usage](#advanced-dataset-usage) section.
 
 See [Available Touch Datasets](#available-touch-datasets) for a list of available touch datasets.
 For a more complete example of how to use the touch datasets, refer to [example/view_touch_dataset.py](example/view_touch_dataset.py).
@@ -154,108 +143,54 @@ For a more complete example of how to use the touch datasets, refer to [example/
 ### Datapoint Structure
 
 Tactile MNIST contains two types of touch datasets: _image sequence_ (_seq_) datasets and _single image_ (_single_) datasets.
-In _image sequence_ datasets, each data point is a short video sequence of the sensor being pressed in the object, while _single image_ data points contain just a single snapshot of a touch.
+In both cases, a data point refers to a number of $T$ touches conducted on a single object.
+$T$ is denoted in the name of the dataset (e.g. `tactile-mnist-touch-real-single-t256-320x240` contains 256 touches per round).
+Here, a round is defined as a sequence of touches on the same object, during which the object might move due to the touches but is otherwise not externally influenced.
+A touch is a single press with the robot's end effector on the object.
+In _image sequence_ datasets, each touch of the data point is a short video sequence of the sensor being pressed in the object, while _single image_ data points contain just a single snapshot of each touch.
+
 Depending on the type of dataset (_seq_ or _single_), the data points have different fields:
 
-**_seq_ datasets**: each data point is a sequence of tactile images, from the moment the robot starts pressing down on
-the digit until it has retracted its end effector again.
+**_seq_ datasets**: each data point has a list of video sequences of tactile images, from the moment the robot starts pressing down on the digit until it has retracted its end effector again.
 
-- `sensor_image_seq`: `np.ndarray` containing a sequence of tactile images (shape N x 240 x 320 x 3, where N is the
-  sequence length).
-- `metadata`: metadata of the data point
-    - `label`: the label of the data point (0-9).
-    - `pos_in_cell`: the intended 2D position of the touch in the cell frame (in meters).
-    - `object_id`: the ID of the data point (from the original high resolution MNIST dataset).
-    - `round_id`: the ID of the round in which the data point was collected.
-    - `touch_no`: the ID of the touch in the round.
-    - `info`: additional information about the data point (e.g. the ID of the gel used to collect it).
-    - `touch_start_time_rel`: time stamp of the first registered contact with the object (in seconds).
-    - `touch_end_time_rel`: time stamp of the last registered contact with the object (in seconds).
-    - `time_stamp_rel_seq`: time stamps of the individual frames in the sequence (in seconds).
-    - `gel_position_cell_frame_seq`: full actual 3D position of the gel in the cell frame for each frame in the sequence (in
-      meters).
-    - `gel_orientation_cell_frame_seq`: full actual 3D orientation of the gel in the cell frame for each frame in the
-      sequence (as a quaternion; x, y, z, w).
+- `id`: The ID of this data point.
+- `label`: The label of the data point (0-9).
+- `object_id`: The ID of the data point (from the original high resolution MNIST dataset).
+- `info`: Additional information about the data point (e.g. the ID of the gel used to collect it).
+- `pos_in_cell`: $T \times 2$ `np.ndarray` of the intended 2D position of each touch in the cell frame (in meters).
+- `video_length_frames`: List of length $T$ with the number of frames in the video (=N).
+- `time_stamp_rel_seq`: List of length $T$ of lists of length $N_i$ of the time stamps of the individual frames in the sequence, relative to the start of the sequence as `datetime.timedelta`. This information should be similar to the timing information in the `sensor_video` field, but it was taken from the system clock in the exact moment the frame was retrieved.
+- `touch_start_time_rel`: List of length $T$ of the time stamp of the first registered contact with the object (in seconds).
+- `touch_end_time_rel`: List of length $T$ of the time stam of the last registered contact with the object (in seconds).
+- `gel_pose_cell_frame_seq`: List of length $T$ of lists of length $N_i$ of the full actual 3D pose of the gel in the cell frame for each frame in the sequence as `transformation.Transformation`.
+- `sensor_video`: List of length $T$ of `torchvision.io.VideoReader`, each containing a video sequence of tactile images of length $N_i$.
 
 **_single_ datasets**: each data point is a single tactile image, extracted from the corresponding _seq_ dataset by `touch_dataset/touch_dataset_to_single.py`.
 
-- `sensor_image`: `np.ndarray` containing a single tactile image (shape 240 x 320 x 3).
-- `metadata`: metadata of the data point
-    - `label`: the label of the data point (0-9).
-    - `pos_in_cell`: the intended 2D position of the touch in the cell frame (in meters).
-    - `object_id`: the ID of the data point (from the original high resolution MNIST dataset).
-    - `round_id`: the ID of the round in which the data point was collected.
-    - `touch_no`: the ID of the touch in the round.
-    - `info`: additional information about the data point (e.g. the ID of the gel used to collect it).
-    - `gel_position_cell_frame`: full actual 3D position of the gel in the cell frame (in meters).
-    - `gel_orientation_cell_frame`: full actual 3D orientation of the gel in the cell frame (as a quaternion; x, y, z, w).
-
-Here, a round is defined as a sequence of touches on the same object, during which the object might move due to the touches but is otherwise not externally influenced.
-A touch is a single press with the robot's end effector on the object.
+- `id`: The ID of this data point.
+- `label`: The label of the data point (0-9).
+- `object_id`: The ID of the data point (from the original high resolution MNIST dataset).
+- `info`: Additional information about the data point (e.g. the ID of the gel used to collect it).
+- `pos_in_cell`: $T \times 2$ `np.ndarray` of the intended 2D position of each touch in the cell frame (in meters).
+- `gel_pose_cell_frame`: List of length $T$ of the full actual 3D pose of the gel in the cell frame at touch time as `transformation.Transformation`.
+- `sensor_image`: `np.ndarray` containing the tactile image of the touch.
 
 The coordinate frame of each cell is in its center, with the x-axis pointing to the right of the robot, the y-axis pointing away from the robot, and the z-axis pointing up, orthogonal to the cell surface.
-
-### Using Tactile MNIST datasets
-
-For training, it might be necessary to group the touches by round.
-To do this, you can use the `BaseTouchDataset.rounds` property, which returns a dictionary mapping from round IDs to a dataset of touches in that round.
-
-```python
-with dataset as loaded_dataset:
-    for round_id, round_data in loaded_dataset.rounds:
-        # round_data is a touch dataset
-
-        # Iterate over the touches in the round
-        for touch in round_data:
-            # Do something with the touch
-            pass
-```
-
-We also provide a `TouchDatasetRoundIterator` class, which can be used to iterate over the rounds in multiple datasets.
-
-```python
-from tactile_mnist import TouchDatasetRoundIterator, TouchDataset, get_resource
-
-dataset_chunks = TouchDataset.open_all(
-    get_resource("remote:tactile_mnist-real-single-t256-320x240-v0/train")
-)
-for round_data in TouchDatasetRoundIterator(
-        dataset_chunks, dataset_prefetch_count=1, shuffle=True
-):
-    # round_data is a touch dataset
-    # Iterate over the touches in the round
-    for touch in round_data:
-        # Do something with the touch
-        pass
-```
-
-`TouchDatasetRoundIterator` takes care of loading and unloading datasets and supports both shuffling and thread-based prefetching of datasets.
-A full example of how to use `TouchDatasetRoundIterator` can be found in [example/touch_dataset_round_iterator.py](example/touch_dataset_round_iterator.py).
 
 ### Available Touch Datasets
 
 This package provides three classes of touch datasets: [Real Tactile MNIST](#real-tactile-mnist), [Synthetic Tactile MNIST](#synthetic-tactile-mnist), and [Synthetic Tactile Starstruck](#synthetic-tactile-starstruck).
 Each class contains multiple datasets and each dataset has a training (`train`) and test (`test`) split.
 
-| Name                                           | 3D Model Dataset | Type     | # Rounds         | # Touches / Round | Sensor Resolution | Description                                                                                                                                                                                                    | Preview                                                                                                                                    |
-|------------------------------------------------|------------------|----------|------------------|-------------------|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| `tactile_mnist-real-seq-t256-320x240-v0`       | `mnist3d-v0`     | _seq_    | 500 / 100        | 256               | 320 x 240         | Real tactile images of 3D printed _MNIST 3D_ digits collected with a Franka robot. The `train` and `test` splits of this dataset corresponds to the `printed_train` and `printed_test` splits of _mnist3d-v0_. | <img src="img/tactile_mnist-real-seq-t256-320x240-v0.gif" alt="tactile_mnist-real-seq-t256-320x240-v0 preview" width="200px">              |
-| `tactile_mnist-real-single-t256-320x240-v0`    | `mnist3d-v0`     | _single_ | 500 / 100        | 256               | 320 x 240         | _Single_ version of `tactile_mnist-real-seq-t256-320x240-v0`                                                                                                                                                   | <img src="img/tactile_mnist-real-single-t256-320x240-v0.jpeg" alt="tactile_mnist-real-single-t256-320x240-v0 preview" width="200px">       |
-| `tactile_mnist-real-single-t256-64x64-v0`      | `mnist3d-v0`     | _single_ | 500 / 100        | 256               | 64 x 64           | `tactile_mnist-real-single-t256-320x240-v0` scaled to a 64x64 resolution.                                                                                                                                      | <img src="img/tactile_mnist-real-single-t256-64x64-v0.jpeg" alt="tactile_mnist-real-single-t256-64x64-v0 preview" width="200px">           |
-| `tactile_mnist-syn-single-t32-320x240-v0`      | `mnist3d-v0`     | _single_ | 193,280 / 16,000 | 32                | 320 x 240         | Synthetic tactile images generated from the _MNIST 3D_ dataset with the Taxim simulator.                                                                                                                       | <img src="img/tactile_mnist-syn-single-t32-320x240-v0.jpeg" alt="tactile_mnist-syn-single-t32-320x240-v0 preview" width="200px">           |
-| `tactile_mnist-syn-single-t32-64x64-v0`        | `mnist3d-v0`     | _single_ | 193,280 / 16,000 | 32                | 64 x 64           | `tactile_mnist-syn-single-t32-320x240-v0` scaled to a 64x64 resolution.                                                                                                                                        | <img src="img/tactile_mnist-syn-single-t32-64x64-v0.jpeg" alt="tactile_mnist-syn-single-t32-64x64-v0 preview" width="200px">               |
-| `tactile_starstruck-syn-single-t32-320x240-v0` | `starstruck-v0`  | _single_ | 16,000 / 1,600   | 32                | 320 x 240         | Synthetic tactile images generated from the _Starstruck_ dataset with the Taxim simulator.                                                                                                                     | <img src="img/tactile_starstruck-syn-single-t32-320x240-v0.jpeg" alt="tactile_starstruck-syn-single-t32-320x240-v0 preview" width="200px"> |
-| `tactile_starstruck-syn-single-t32-64x64-v0`   | `starstruck-v0`  | _single_ | 16,000 / 1,600   | 32                | 64 x 64           | `tactile_starstruck-syn-single-t32-320x240-v0` scaled to a 64x64 resolution.                                                                                                                                   | <img src="img/tactile_starstruck-syn-single-t32-64x64-v0.jpeg" alt="tactile_starstruck-syn-single-t32-64x64-v0 preview" width="200px">     |
-
-To access the datasets, you can use the `TouchDataset` class:
-
-```python
-from tactile_mnist import TouchDataset, get_resource
-
-dataset_chunks = TouchDataset.open_all(
-    get_resource("remote:DATASET_NAME/SPLIT_NAME")
-)
-```
+| Name                                                                                                                                                          | 3D Model Dataset | Type     | # Rounds         | # Touches / Round | Sensor Resolution | Description                                                                                                                                                                                                | Preview                                                                                                                                                      |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------|----------|------------------|-------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [tactile-mnist-touch-real-seq-t256-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-seq-t256-320x240)                         | MNIST 3D         | _seq_    | 500 / 100        | 256               | 320 x 240         | Real tactile images of 3D printed _MNIST 3D_ digits collected with a Franka robot. The `train` and `test` splits of this dataset corresponds to the `printed_train` and `printed_test` splits of MNIST 3D. | <img src="img/tactile-mnist-touch-real-seq-t256-320x240.gif" alt="tactile-mnist-touch-real-seq-t256-320x240 preview" width="200px">                          |
+| [tactile-mnist-touch-real-single-t256-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-single-t256-320x240)                   | MNIST 3D         | _single_ | 500 / 100        | 256               | 320 x 240         | _Single_ version of `tactile-mnist-touch-real-seq-t256-320x240`                                                                                                                                            | <img src="img/tactile-mnist-touch-real-single-t256-320x240.jpeg" alt="tactile-mnist-touch-real-single-t256-320x240 preview" width="200px">                   |
+| [tactile-mnist-touch-real-single-t256-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-single-t256-64x64)                       | MNIST 3D         | _single_ | 500 / 100        | 256               | 64 x 64           | `tactile-mnist-touch-real-single-t256-320x240` scaled to a 64x64 resolution.                                                                                                                               | <img src="img/tactile-mnist-touch-real-single-t256-64x64.jpeg" alt="tactile-mnist-touch-real-single-t256-64x64 preview" width="200px">                       |
+| [tactile-mnist-touch-syn-single-t32-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-syn-single-t32-320x240)                       | MNIST 3D         | _single_ | 193,280 / 16,000 | 32                | 320 x 240         | Synthetic tactile images generated from the _MNIST 3D_ dataset with the Taxim simulator.                                                                                                                   | <img src="img/tactile-mnist-touch-syn-single-t32-320x240.jpeg" alt="tactile-mnist-touch-syn-single-t32-320x240 preview" width="200px">                       |
+| [tactile-mnist-touch-syn-single-t32-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-syn-single-t32-64x64)                           | MNIST 3D         | _single_ | 193,280 / 16,000 | 32                | 64 x 64           | `tactile-mnist-touch-syn-single-t32-320x240` scaled to a 64x64 resolution.                                                                                                                                 | <img src="img/tactile-mnist-touch-syn-single-t32-64x64.jpeg" alt="tactile-mnist-touch-syn-single-t32-64x64 preview" width="200px">                           |
+| [tactile-mnist-touch-starstruck-syn-single-t32-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-starstruck-syn-single-t32-320x240) | Starstruck       | _single_ | 16,000 / 1,600   | 32                | 320 x 240         | Synthetic tactile images generated from the _Starstruck_ dataset with the Taxim simulator.                                                                                                                 | <img src="img/tactile-mnist-touch-starstruck-syn-single-t32-320x240.jpeg" alt="tactile-mnist-touch-starstruck-syn-single-t32-320x240 preview" width="200px"> |
+| [tactile-mnist-touch-starstruck-syn-single-t32-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-starstruck-syn-single-t32-64x64)     | Starstruck       | _single_ | 16,000 / 1,600   | 32                | 64 x 64           | `tactile-mnist-touch-starstruck-syn-single-t32-320x240` scaled to a 64x64 resolution.                                                                                                                      | <img src="img/tactile-mnist-touch-starstruck-syn-single-t32-64x64.jpeg" alt="tactile-mnist-touch-starstruck-syn-single-t32-64x64 preview" width="200px">     |
 
 For details about the data collection procedure see the [Data Collection](#data-collection) section.
 
@@ -280,8 +215,10 @@ Touch positions were sampled uniformly from 2D cell coordinates, while the orien
 
 ## Advanced Dataset Usage
 
-`MeshDataset` and `LoadedTouchDataset` inherit from `Dataset`, which provides some useful functionality for working
+`MeshDataset`, `TouchSingleDataset`, and `TouchSeqDataset` inherit from `Dataset`, which provides some useful functionality for working
 with the datasets.
+Crucially, all fields are loaded lazily and cached, so you can use the datasets without worrying about memory usage.
+The caches are cleared once the garbage collection cleans up the respective datapoint instance.
 
 ### Indexing
 
@@ -337,15 +274,4 @@ concatenated_dataset = Dataset.concatenate(dataset_1, dataset_2, dataset_3)
 
 # Or (equivalent but less efficient):
 concatenated_dataset = dataset_1 + dataset_2 + dataset_3
-```
-
-### Viewing datapoint metadata without loading them
-
-You can view the metadata of data points without loading them fully using the `Dataset.partial` property:
-
-```python
-dp_metadata = dataset.partial[0]
-
-# Equivalent to, but much more efficient than:
-dp_metadata = dataset[0].metadata
 ```
