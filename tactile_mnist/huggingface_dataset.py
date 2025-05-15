@@ -117,12 +117,17 @@ class HuggingfaceDataset(
         )
 
     def __iter__(self) -> Iterable[DataPointType]:
-        for dp in self.__huggingface_dataset:
-            yield self._get_data_point_type()(
-                lambda col, _dp=dp: [{col: _dp[col]}],
-                self.__huggingface_dataset.column_names,
-                0,
-            )
+        if isinstance(self.__huggingface_dataset, datasets.Dataset):
+            # It is more efficient to iterate by index if we are not streaming
+            yield from super().__iter__()
+        else:
+            # Streaming mode
+            for dp in self.__huggingface_dataset:
+                yield self._get_data_point_type()(
+                    lambda col, _dp=dp: [{col: _dp[col]}],
+                    self.__huggingface_dataset.column_names,
+                    0,
+                )
 
     @abstractmethod
     def _get_data_point_type(self) -> type[DataPointType]:
