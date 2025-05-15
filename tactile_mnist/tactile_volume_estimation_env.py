@@ -98,19 +98,19 @@ class TactileVolumeEstimationVectorEnv(
         action: dict[str, np.ndarray],
         prediction: np.ndarray,
     ):
-        relative_error = np.maximum(prediction, 0) / np.maximum(
-            self._get_prediction_targets(), 1e-4
+        target_volume = self.__get_object_volumes()
+        predicted_volume = prediction * self.__std_volume + self.__mean_volume
+        relative_error = np.maximum(predicted_volume, 0) / np.maximum(
+            target_volume, 1e-10
         )
+        abs_error = np.abs(predicted_volume - target_volume)
 
         for i in range(self.num_envs):
             if self._prev_done[i]:
                 self.__metrics["abs_error_cm3"][i].clear()
                 self.__metrics["rel_error"][i].clear()
             else:
-                self.__metrics["abs_error_cm3"][i].append(
-                    (relative_error[i] * self.__std_volume + self.__mean_volume)
-                    * 100**3
-                )
+                self.__metrics["abs_error_cm3"][i].append(abs_error[i] * 100**3)
                 self.__metrics["rel_error"][i].append(relative_error[i])
 
         obs, action_reward, terminated, truncated, info, labels = super()._step(
@@ -130,15 +130,16 @@ class TactileVolumeEstimationVectorEnv(
 
         return obs, action_reward, terminated, truncated, info, labels
 
-    def __compute_object_volume(self, dp: MeshDataPoint) -> float:
-        return (dp.mesh.volume - self.__mean_volume) / self.__std_volume
+    @staticmethod
+    def __compute_object_volume(dp: MeshDataPoint) -> float:
+        return dp.mesh.volume
 
     def _get_prediction_targets(self) -> np.ndarray:
+        return (self.__get_object_volumes() - self.__mean_volume) / self.__std_volume
+
+    def __get_object_volumes(self) -> np.ndarray:
         return np.array(
-            [
-                self.__compute_object_volume_cached(dp)
-                for dp in self.current_data_points
-            ],
+            [self.__compute_object_volume(dp) for dp in self.current_data_points],
             dtype=np.float32,
         )[..., None]
 
