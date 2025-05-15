@@ -3,25 +3,25 @@
 <table style="border-collapse: collapse; border: none;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="200px"/><br/>
+            <img src="doc/img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="20%"/><br/>
             <a href="/TactileMNIST.md">
                 TactileMNIST-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="200px"/><br/>
+            <img src="doc/img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="20%"/><br/>
             <a href="Starstruck.md">
                 Starstruck-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/Toolbox-v0.gif" alt="Toolbox-v0" width="200px"/><br/>
+            <img src="doc/img/env/Toolbox-v0.gif" alt="Toolbox-v0" width="20%"/><br/>
             <a href="Toolbox.md">
                 Toolbox-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/TactileMNISTVolume-v0.gif" alt="TactileMNISTVolume-v0" width="200px"/><br/>
+            <img src="doc/img/env/TactileMNISTVolume-v0.gif" alt="TactileMNISTVolume-v0" width="20%"/><br/>
             <a href="TactileMNISTVolume.md">
                 TactileMNISTVolume-v0
             </a>
