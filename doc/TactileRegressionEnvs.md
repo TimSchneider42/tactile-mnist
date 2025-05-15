@@ -53,15 +53,12 @@ where $N \in \mathbb{N}$ is the number of dimensions of the predicted value.
 
 ## Prediction Space
 
-The prediction is an $N$-element `np.ndarray` containing the logits of the agent's prediction w.r.t. the class label.
-
-## Prediction Target Space
-
-The prediction target is also an $N$-element `np.ndarray` containing the logits of the agent's prediction w.r.t. the class label.
+The prediction is an $N$-element `np.ndarray` containing the current prediction of the agent.
+The agent's objective is to approximate the prediction target as closely as possible.
 
 ## Overview of Implemented Environments
 
-| Environment ID                                 | Dataset                            | N | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                 |
-|------------------------------------------------|------------------------------------|---|------------|-----------------|--------------------------|-------------------------------------------------------------|
-| [Toolbox-v0](Toolbox.md)                       |                                    | 3 | 64         | disabled        | enabled                  | Estimate the pose of a tool.                                |
+| Environment ID                                 | Dataset                          | N | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                 |
+|------------------------------------------------|----------------------------------|---|------------|-----------------|--------------------------|-------------------------------------------------------------|
+| [Toolbox-v0](Toolbox.md)                       |                                  | 4 | 64         | disabled        | enabled                  | Estimate the pose of a tool.                                |
 | [TactileMNISTVolume-v0](TactileMNISTVolume.md) | [MNIST 3D](datasets.md#mnist-3d) | 1 | 32         | disabled        | enabled                  | Estimate the volume of objects from the _MNIST 3D_ dataset. |

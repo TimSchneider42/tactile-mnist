@@ -21,6 +21,17 @@ Aside of finding the object, the main challenge in the TactileMNISTVolume enviro
 Object pose perturbation is enabled, meaning that the object shifts around slightly while being touched.
 This requires the agent to use robust strategies that are invariant to small shifts in the object's pose.
 
+## Prediction Target Space
+
+The prediction target is a 1-element `np.ndarray` containing the volume of the object.
+We normalize the object volumes to have a mean of 0 and a standard deviation of 1 across the training set.
+In case of MNIST 3D, the normalization parameters are as follows:
+- Mean: 4.659 cm$^3$
+- Standard Deviation: 2.870 cm$^3$
+
+Note that when running the environment for the first time, computing these values from the training dataset might take some time.
+However, this is only done once and the values are cached for future runs.
+
 ## Example Usage
 
 ```python
