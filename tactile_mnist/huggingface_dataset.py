@@ -27,7 +27,8 @@ except ImportError:
 class HuggingfaceDatapoint:
     def __init__(
         self,
-        get_columns_fn: Callable[[tuple[str]], datasets.Dataset],
+        get_columns_fn: Callable[[str], datasets.Dataset],
+        column_names: Iterable[str],
         index: int,
     ):
         annotations = {}
@@ -36,11 +37,26 @@ class HuggingfaceDatapoint:
             annotations.update(getattr(base, "__annotations__", {}))
             conversion_fns.update(getattr(base, "__dict__", {}))
         self.__fields = {k: v for k, v in annotations.items()}
+        self.__column_names = tuple(column_names)
         self.__annotations = annotations
         self.__conversion_fns = conversion_fns
         self.__fetch_value_cached = lru_cache(maxsize=None)(self.__fetch_value)
         self.__get_columns_fn = get_columns_fn
         self.__index = index
+
+    @staticmethod
+    def __unflatten_dict(d: dict[str, Any]) -> dict[str, Any]:
+        result = {}
+        for k, v in d.items():
+            keys = k.split(".")
+            current = result
+            for key in keys[:-1]:
+                if key not in current:
+                    current[key] = {}
+                assert isinstance(current, dict)
+                current = current[key]
+            current[keys[-1]] = v
+        return result
 
     def __fetch_value(self, item: str):
         if item not in self.__annotations:
@@ -50,11 +66,20 @@ class HuggingfaceDatapoint:
         item_type = self.__annotations[item]
         if inspect.isclass(item_type) and issubclass(item_type, HuggingfaceDatapoint):
             value = item_type(
-                get_columns_fn=lambda col: self.__get_columns_fn((item,) + col),
+                get_columns_fn=lambda col: self.__get_columns_fn(f"{item}.{col}"),
                 index=self.__index,
             )
         else:
-            value = self.__get_columns_fn((item,))[self.__index][item]
+            if item in self.__column_names:
+                value = self.__get_columns_fn(item)[self.__index][item]
+            else:
+                value = self.__unflatten_dict(
+                    {
+                        k[len(item) + 1 :]: self.__get_columns_fn(k)[self.__index][k]
+                        for k in self.__column_names
+                        if k.startswith(f"{item}.")
+                    }
+                )
         if item in self.__conversion_fns:
             if "datapoint" in inspect.signature(self.__conversion_fns[item]).parameters:
                 value = self.__conversion_fns[item](value, datapoint=self)
@@ -92,21 +117,21 @@ class HuggingfaceDataset(
         )
 
     def __iter__(self) -> Iterable[DataPointType]:
-        def get_columns_fn(col: tuple[str, ...], dp: dict[str, Any]):
-            current = dp
-            for c in col:
-                current = current[c]
-            return [{col[-1]: current}]
-
         for dp in self.__huggingface_dataset:
-            yield self._get_data_point_type()(partial(get_columns_fn, dp=dp), 0)
+            yield self._get_data_point_type()(
+                lambda col, _dp=dp: [{col: _dp[col]}],
+                self.__huggingface_dataset.column_names,
+                0,
+            )
 
     @abstractmethod
     def _get_data_point_type(self) -> type[DataPointType]:
         pass
 
     def _get_item(self, index: int) -> DataPointType:
-        return self._get_data_point_type()(self.__get_columns_fn_cached, index)
+        return self._get_data_point_type()(
+            self.__get_columns_fn_cached, self.__huggingface_dataset.column_names, index
+        )
 
     def _select(self, indices: np.ndarray) -> SelfType:
         return type(self)(
