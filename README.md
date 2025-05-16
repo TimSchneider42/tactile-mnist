@@ -4,25 +4,25 @@
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
             <img src="doc/img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="180px"/><br/>
-            <a href="doc/env/TactileMNIST.md">
+            <a href="doc/TactileMNIST.md">
                 TactileMNIST-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="doc/img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="180px"/><br/>
-            <a href="doc/env/Starstruck.md">
+            <a href="doc/Starstruck.md">
                 Starstruck-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="doc/img/env/Toolbox-v0.gif" alt="Toolbox-v0" width="180px"/><br/>
-            <a href="doc/env/Toolbox.md">
+            <a href="doc/Toolbox.md">
                 Toolbox-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="doc/img/env/TactileMNISTVolume-v0.gif" alt="TactileMNISTVolume-v0" width="180px"/><br/>
-            <a href="doc/env/TactileMNISTVolume.md">
+            <a href="doc/TactileMNISTVolume.md">
                 TactileMNISTVolume-v0
             </a>
         </td>
