@@ -22,6 +22,7 @@ class Dataset(Sequence[DataPointType], Generic[DataPointType, SelfType], ABC):
         self,
         cache_size: int | Literal["full"] = 0,
     ):
+        self.__cache_size = cache_size
         if cache_size == "full":
             cache_size = None
         self.__cached_get_item_func = lru_cache(cache_size)(self._get_item)
@@ -69,3 +70,7 @@ class Dataset(Sequence[DataPointType], Generic[DataPointType, SelfType], ABC):
 
     def __len__(self) -> int:
         return self._get_length()
+
+    @property
+    def cache_size(self) -> int | Literal["full"]:
+        return self.__cache_size

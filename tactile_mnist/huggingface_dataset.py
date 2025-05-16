@@ -140,7 +140,7 @@ class HuggingfaceDataset(
 
     def _select(self, indices: np.ndarray) -> SelfType:
         return type(self)(
-            self.__huggingface_dataset.select(indices), self._get_data_point_type()
+            self.__huggingface_dataset.select(indices), cache_size=self.cache_size
         )
 
     def _get_length(self) -> int:
