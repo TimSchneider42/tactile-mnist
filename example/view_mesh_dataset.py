@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import random
 
 from datasets import load_dataset
 
@@ -37,6 +38,8 @@ if __name__ == "__main__":
     if args.label is not None:
         dataset = dataset.filter_labels(args.label)
 
-    for data_point in dataset:
-        print(f"Datapoint {data_point.id}")
-        data_point.mesh.show()  # data_point.mesh is a trimesh.Trimesh object
+    idx = list(range(len(dataset)))
+    random.shuffle(idx)
+    for i in idx:
+        print(f"Datapoint {dataset[i].id}")
+        dataset[i].mesh.show()  # data_point.mesh is a trimesh.Trimesh object
