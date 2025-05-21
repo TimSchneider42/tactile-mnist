@@ -121,7 +121,7 @@ The reward at each timestep is a sum of:
 
 The tactile sensor starts at a randomly sampled pose in the workspace.
 Specifically, the position is uniformly randomly samples from $[-1, 1]^2 \times [0]$.
-For the orientation, if enabled, we sample a polar angle $\theta$ uniformly from $[0, \texttt{max_tilt_angle}]$, an azimuthal angle $\phi$ from $[-\pi, \pi]$, and a $z$-axis rotation angle $\psi$ from $[-\pi, \pi]$.
+For the orientation, if enabled, we sample a polar angle $\theta$ uniformly from $[0, \texttt{max\\_tilt\\_angle}]$, an azimuthal angle $\phi$ from $[-\pi, \pi]$, and a $z$-axis rotation angle $\psi$ from $[-\pi, \pi]$.
 Then, we construct a rotation from the resulting euler angles.
 
 ## Episode End
