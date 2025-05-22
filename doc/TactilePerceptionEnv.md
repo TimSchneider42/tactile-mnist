@@ -176,5 +176,5 @@ A full example can be found in [example/tactile_mnist_env.py](example/tactile_mn
 
 ## Types of Tactile Perception Environments
 
-There are currently two types of tactile perception environments: [Tactile Classification Environments](TactileClassificationEnv.md) and [Tactile Regression Environments](TactileRegressionEnvs.md).
+There are currently two types of tactile perception environments: [Tactile Classification Environments](TactileClassificationEnv.md) and [Tactile Regression Environments](TactileRegressionEnv.md).
 Check out their respective documentations for more details.
