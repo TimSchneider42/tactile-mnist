@@ -17,7 +17,7 @@ Refer to the [tactile regression environments overview](TactileRegressionEnv.md)
 ## Description
 
 In the TactileMNISTVolume environment, the agent's objective is to estimate the volume of 3D models of handwritten digits by touch alone.
-Aside of finding the object, the main challenge in the TactileMNISTVolume environment is to learn contour following strategies to efficiently explore it once found.
+aside from finding the object, the main challenge in the TactileMNISTVolume environment is to learn contour following strategies to efficiently explore it once found.
 Object pose perturbation is enabled, meaning that the object shifts around slightly while being touched.
 This requires the agent to use robust strategies that are invariant to small shifts in the object's pose.
 

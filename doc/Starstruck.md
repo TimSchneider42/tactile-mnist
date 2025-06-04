@@ -17,7 +17,7 @@ Refer to the [tactile classification environments overview](TactileClassificatio
 ## Description
 
 In the _Starstruck_ environment, the agent must count the number of stars in a scene cluttered with other objects.
-Since all stars look the same, distinguishing stars from the other objects is rather straightforward.
+Since all stars look the same, distinguishing stars from other objects is rather straightforward.
 Instead, the main challenge posed in this environment is to learn an effective search strategy to systematically cover as much space as possible.
 
 ## Example Usage

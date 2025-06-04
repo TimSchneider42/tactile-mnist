@@ -70,7 +70,7 @@ This package provides [ap_gym](https://github.com/TimSchneider42/active-percepti
 In all environments, the agent must solve a perception problem by actively controlling a [GelSight Mini](https://www.gelsight.com/gelsightmini/) tactile sensor in a simulated environment.
 
 The _TactileMNIST_ environment challenges the agent to find and classify a 3D MNIST model as quickly as possible.
-Aside of finding the object, the main challenge in the TactileMNIST environment is to learn contour following strategies to efficiently classify it once found.
+aside from finding the object, the main challenge in the TactileMNIST environment is to learn contour following strategies to efficiently classify it once found.
 
 In the _Starstruck_ environment, the agent must count the number of stars in a scene cluttered with other objects.
 Since all stars look the same, distinguishing stars from other objects is rather straightforward.

@@ -17,7 +17,7 @@ Refer to the [tactile classification environments overview](TactileClassificatio
 ## Description
 
 In the TactileMNIST environment, the agent's objective is to classify 3D models of handwritten digits by touch alone.
-Aside of finding the object, the main challenge in the TactileMNIST environment is to learn contour following strategies to efficiently classify it once found.
+aside from finding the object, the main challenge in the TactileMNIST environment is to learn contour following strategies to efficiently classify it once found.
 Object pose perturbation is enabled, meaning that the object shifts around slightly while being touched.
 This requires the agent to use robust strategies that are invariant to small shifts in the object's pose.
 
