@@ -1,5 +1,3 @@
-from datasets import load_dataset
-
 # Datasets
 
 This package provides the following datasets:
