@@ -54,9 +54,7 @@ class Dataset(Sequence[DataPointType], Generic[DataPointType, SelfType], ABC):
             indices = np.asarray(index)
             if indices.dtype == bool:
                 indices = np.where(indices)[0]
-            output = self._select(indices)
-            output.__cached_get_item_func = self.__cached_get_item_func
-            return output
+            return self._select(indices)
         else:
             index = int(index)
             if -len(self) <= index < len(self):
