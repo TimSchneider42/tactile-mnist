@@ -107,7 +107,7 @@ class HuggingfaceDataset(
 ):
     def __init__(
         self,
-        huggingface_dataset: datasets.Dataset,
+        huggingface_dataset: datasets.Dataset | datasets.IterableDataset,
         cache_size: int | Literal["full"] = 0,
     ):
         super().__init__(cache_size=cache_size)
