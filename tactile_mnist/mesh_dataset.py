@@ -1,17 +1,24 @@
 from __future__ import annotations
 
-import trimesh
+from abc import ABC
+from typing import TypeVar, Generic
+
 from trimesh import Trimesh
 
-from .huggingface_dataset import HuggingfaceDataset, HuggingfaceDatapoint, DataPointType
+from .huggingface_dataset import HuggingfaceDataset, HuggingfaceDatapoint
 
 
 class MeshDataPoint(HuggingfaceDatapoint):
-    id: int
+    id: int | str
     label: int
-    mesh: Trimesh = lambda d: trimesh.Trimesh(vertices=d["vertices"], faces=d["faces"])
+    mesh: Trimesh
 
 
-class MeshDataset(HuggingfaceDataset[MeshDataPoint, "MeshDataset"]):
-    def _get_data_point_type(self) -> type[DataPointType]:
-        return MeshDataPoint
+DatapointType = TypeVar("DatapointType", bound=MeshDataPoint)
+SelfType = TypeVar("SelfType", bound="MeshDataset")
+
+
+class MeshDataset(
+    HuggingfaceDataset[MeshDataPoint, SelfType], Generic[DatapointType, SelfType], ABC
+):
+    pass

@@ -20,8 +20,8 @@ The _MNIST 3D_ and _Starstruck_ datasets can be accessed by creating an instance
 from datasets import load_dataset
 from tactile_mnist import MeshDataset
 
-mnist_3d_dataset = MeshDataset(load_dataset("TimSchneider42/tactile-mnist-mnist3d", split="train"))
-starstruck_dataset = MeshDataset(load_dataset("TimSchneider42/tactile-mnist-starstruck", split="train"))
+mnist_3d_dataset = SimpleMeshDataset(load_dataset("TimSchneider42/tactile-mnist-mnist3d", split="train"))
+starstruck_dataset = SimpleMeshDataset(load_dataset("TimSchneider42/tactile-mnist-starstruck", split="train"))
 ```
 
 Next to the `train` split, the `test`, `holdout`, `printed_train`, and `printed_test` splits are also available for _MNIST 3D_.
@@ -57,7 +57,7 @@ mnist_3d_dataset[0].mesh
 from datasets import load_dataset
 from tactile_mnist import MeshDataset
 
-mnist_3d_dataset = MeshDataset(load_dataset("TimSchneider42/tactile-mnist-mnist3d", split="train", streaming=True))
+mnist_3d_dataset = SimpleMeshDataset(load_dataset("TimSchneider42/tactile-mnist-mnist3d", split="train", streaming=True))
 
 for data_point in mnist_3d_dataset:
     print(f"Datapoint {data_point.id}")

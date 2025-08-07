@@ -9,7 +9,7 @@ from tactile_mnist.tactile_volume_estimation_env import (
     TactileVolumeEstimationEnv,
 )
 from .constants import *
-from .mesh_dataset import MeshDataset
+from .simple_mesh_dataset import SimpleMeshDataset
 from .tactile_classification_env import (
     TactileClassificationEnv,
     TactileClassificationVectorEnv,
@@ -32,7 +32,7 @@ def mk_config(
     mesh_dataset_config: dict[str, Any] | None = None,
 ):
     return TactilePerceptionConfig(
-        MeshDataset(
+        SimpleMeshDataset(
             load_dataset(f"TimSchneider42/tactile-mnist-{dataset_name}", split=split),
             **({} if mesh_dataset_config is None else mesh_dataset_config),
         ),

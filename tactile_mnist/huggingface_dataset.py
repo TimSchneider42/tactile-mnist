@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from abc import abstractmethod, ABC
+from dataclasses import dataclass
 from functools import lru_cache, partial
 from typing import (
     TypeVar,
@@ -22,6 +23,15 @@ try:
     import torchvision.io.image
 except ImportError:
     torch = torchvision = None
+
+
+@dataclass(frozen=True)
+class HuggingfaceDatapointField:
+    required_columns: tuple[str, ...]
+    fn: Callable[[dict[str, Any]], Any]
+
+    def __call__(self, d: dict[str, Any]) -> Any:
+        return self.fn(d)
 
 
 class HuggingfaceDatapoint:
@@ -68,6 +78,13 @@ class HuggingfaceDatapoint:
             value = item_type(
                 get_columns_fn=lambda col: self.__get_columns_fn(f"{item}.{col}"),
                 index=self.__index,
+            )
+        elif isinstance(self.__conversion_fns[item], HuggingfaceDatapointField):
+            value = self.__unflatten_dict(
+                {
+                    k: self.__get_columns_fn(k)[self.__index][k]
+                    for k in self.__conversion_fns[item].required_columns
+                }
             )
         else:
             if item in self.__column_names:

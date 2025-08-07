@@ -5,7 +5,7 @@ import random
 
 from datasets import load_dataset
 
-from tactile_mnist import MeshDataset
+from tactile_mnist import SimpleMeshDataset
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    dataset = MeshDataset(load_dataset(args.dataset, split=args.split))
+    dataset = SimpleMeshDataset(load_dataset(args.dataset, split=args.split))
 
     if args.label is not None:
         dataset = dataset.filter_labels(args.label)

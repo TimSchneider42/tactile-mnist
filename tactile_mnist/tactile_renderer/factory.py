@@ -1,5 +1,5 @@
 import itertools as _itertools
-import logging as logging
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial

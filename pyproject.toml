@@ -17,12 +17,13 @@ dependencies = [
     "numpy",
     "transformation3d>=1.0.1",
     "tqdm",
-    "trimesh",
+    "trimesh[easy]",
     "pyrender",
     "scipy",
     "requests",
     "opencv-python",
     "av",
+    "objaverse"
 ]
 
 [project.urls]

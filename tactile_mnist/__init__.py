@@ -3,8 +3,14 @@ from .touch_data import (
     TouchSeq,
     TouchSingle,
 )
-from .huggingface_dataset import HuggingfaceDataset, HuggingfaceDatapoint
+from .huggingface_dataset import (
+    HuggingfaceDataset,
+    HuggingfaceDatapoint,
+    HuggingfaceDatapointField,
+)
 from .mesh_dataset import MeshDataPoint, MeshDataset
+from .simple_mesh_dataset import SimpleMeshDataPoint, SimpleMeshDataset
+from .objaverse_xl_dataset import ObjaverseXLMeshDataPoint, ObjaverseXLMeshDataset
 from .constants import (
     CELL_SIZE,
     CELL_PADDING,
