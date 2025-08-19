@@ -12,7 +12,6 @@ from urllib.parse import urlparse
 
 import datasets
 import loguru
-import numpy as np
 import objaverse.xl
 import pandas as pd
 import requests
