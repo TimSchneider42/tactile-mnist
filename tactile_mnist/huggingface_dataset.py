@@ -79,7 +79,9 @@ class HuggingfaceDatapoint:
                 get_columns_fn=lambda col: self.__get_columns_fn(f"{item}.{col}"),
                 index=self.__index,
             )
-        elif isinstance(self.__conversion_fns[item], HuggingfaceDatapointField):
+        elif item in self.__conversion_fns and isinstance(
+            self.__conversion_fns[item], HuggingfaceDatapointField
+        ):
             value = self.__unflatten_dict(
                 {
                     k: self.__get_columns_fn(k)[self.__index][k]
