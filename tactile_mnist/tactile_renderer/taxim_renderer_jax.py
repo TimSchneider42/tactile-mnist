@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import jax
 from taxim import CALIB_GELSIGHT_MINI
 from taxim.taxim_jax import TaximJax

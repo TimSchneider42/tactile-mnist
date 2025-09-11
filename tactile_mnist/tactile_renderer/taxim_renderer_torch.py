@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 from taxim import CALIB_GELSIGHT_MINI
 from taxim.taxim_torch import TaximTorch

@@ -1,16 +1,15 @@
-import functools
+from __future__ import annotations
+
+from importlib.resources import files
 from pathlib import Path
 
-import PIL.Image
 import torch
 from torchvision.transforms import transforms
 
-from tactile_mnist import GELSIGHT_MINI_GEL_THICKNESS_MM
 from tactile_mnist.tactile_renderer.depth_renderer_torch import DepthRendererTorch
 from tactile_mnist.tactile_renderer.tactile_renderer_torch import TactileRendererTorch
 from .cycle_gan_torch import create_g_net
 from .tactile_renderer import Device
-from importlib.resources import files
 
 
 class CycleGANRendererTorch(TactileRendererTorch):

@@ -10,7 +10,6 @@ from typing import (
     TYPE_CHECKING,
     Generic,
     TypeVar,
-    List,
 )
 
 import gymnasium as gym
@@ -243,7 +242,7 @@ class TactilePerceptionVectorEnv(
             self.reset(seed=0)
             self.render()
 
-    def __sample_sensor_target_poses(self, count: int) -> List[Transformation]:
+    def __sample_sensor_target_poses(self, count: int) -> list[Transformation]:
         sensor_poses = []
         for i in range(count):
             position = np.zeros(3, dtype=np.float32)

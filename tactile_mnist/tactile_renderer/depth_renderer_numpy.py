@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 from tactile_mnist import GELSIGHT_MINI_GEL_THICKNESS_MM, GEL_PENETRATION_DEPTH_MM
