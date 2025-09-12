@@ -104,20 +104,6 @@ A detailed description of the datasets can be found in the [Dataset documentatio
 
 ## Troubleshooting
 
-### OpenGL `ctypes.ArgumentError`
-
-If you are seeing the following error:
-```
-ctypes.ArgumentError: ("argument 2: TypeError: No array-type handler for type _ctypes.type (value: <cparam 'P' (0x75561c1c8420)>) registered", (1, <cparam 'P' (0x75561c1c8420)>))
-```
-then you are likely using Python version 3.12 or higher.
-
-In that case, `PyOpenGL` has to be updated manually to version 3.1.9 or higher:
-```bash
-pip install --upgrade PyOpenGL>=3.1.9
-```
-You will see an error message warning of a dependency conflict with `pyrender`, but you can ignore it.
-
 ### Torch-Scatter Undefined Symbol Error
 If you are seeing errors as such
 

@@ -18,7 +18,7 @@ dependencies = [
     "transformation3d>=1.0.1",
     "tqdm",
     "trimesh[easy]",
-    "pyrender",
+    "scikit-robot-pyrender",
     "scipy",
     "requests",
     "opencv-python",
