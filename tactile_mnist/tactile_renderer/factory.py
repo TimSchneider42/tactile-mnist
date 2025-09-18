@@ -37,10 +37,11 @@ _DISPLAY_NAMES = {
 
 
 def device_available_jax(device: Device, module) -> bool:
-    platforms = {d.platform for d in module.devices()}
-    if device.platform not in platforms:
+    try:
+        devices = module.devices(device.platform)
+    except RuntimeError:
         return False
-    return len(module.devices(device.platform)) > device.device_index
+    return len(devices) > device.device_index
 
 
 def device_available_torch(device: Device, module) -> bool:
