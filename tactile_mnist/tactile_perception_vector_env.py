@@ -33,7 +33,6 @@ from tactile_mnist import (
     GELSIGHT_MINI_IMAGE_SIZE_PX,
     MeshDataPoint,
     MeshDataset,
-    GELSIGHT_MINI_GEL_THICKNESS_MM,
     GELSIGHT_MINI_SENSOR_SURFACE_SIZE,
     GEL_PENETRATION_DEPTH_MM,
 )
@@ -294,9 +293,7 @@ class TactilePerceptionVectorEnv(
                         [
                             0,
                             0,
-                            np.quantile(
-                                -current_datapoints_lst[i].mesh.vertices[:, 2], 0.9
-                            ),
+                            -np.min(current_datapoints_lst[i].mesh.vertices[:, 2]),
                         ]
                     )
                     if self.__config.randomize_initial_object_pose:
