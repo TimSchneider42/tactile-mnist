@@ -37,7 +37,10 @@ if __name__ == "__main__":
         terminated = False
         for p in target_trajectory:
             action = {
-                "action": {"sensor_target_pos_rel": p - obs["sensor_pos"]},
+                "action": {
+                    **env.inner_action_space.sample(),
+                    "sensor_target_pos_rel": p - obs["sensor_pos"],
+                },
                 "prediction": env.prediction_space.sample(),
             }
 
