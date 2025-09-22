@@ -5,7 +5,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from functools import partial
 from importlib.resources import files
-from typing import Sequence, Iterable
+from typing import Sequence, Iterable, Generic, Protocol, TypeVar
 
 import numpy as np
 import trimesh
@@ -189,7 +189,14 @@ class _SensorRenderer:
     object_node: MultiNode | None = None
 
 
-class TactilePerceptionRenderer:
+class HasMesh(Protocol):
+    mesh: trimesh.Trimesh
+
+
+MeshDataPointType = TypeVar("MeshDataPointType", bound=HasMesh)
+
+
+class TactilePerceptionRenderer(Generic[MeshDataPointType]):
     def __init__(
         self,
         num_envs: int,
@@ -225,7 +232,7 @@ class TactilePerceptionRenderer:
         )
 
         self.__num_envs = num_envs
-        self.__objects: tuple[MeshDataPoint] | None = None
+        self.__objects: tuple[MeshDataPointType] | None = None
         self.__object_poses: Transformation = Transformation.batch_concatenate(
             [Transformation()] * num_envs
         )
@@ -750,11 +757,11 @@ class TactilePerceptionRenderer:
         return depth
 
     @property
-    def objects(self) -> tuple[MeshDataPoint, ...]:
+    def objects(self) -> tuple[MeshDataPointType, ...]:
         return self.__objects
 
     @objects.setter
-    def objects(self, objects: Iterable[MeshDataPoint]):
+    def objects(self, objects: Iterable[MeshDataPointType]):
         objects = tuple(objects)
         assert len(objects) == self.__num_envs
         self.__objects = objects

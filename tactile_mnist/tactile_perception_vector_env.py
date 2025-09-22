@@ -11,10 +11,12 @@ from typing import (
     Generic,
     TypeVar,
     List,
+    Protocol,
 )
 
 import gymnasium as gym
 import numpy as np
+import trimesh
 from gymnasium.envs.registration import EnvSpec
 from gymnasium.vector.utils import batch_space
 from scipy.spatial.transform import Rotation
@@ -80,6 +82,27 @@ class TactilePerceptionConfig:
     timeout_behavior: Literal["terminate", "truncate"] = "terminate"
     cell_size: tuple[float, float] = tuple(CELL_SIZE)
     cell_padding: tuple[float, float] = tuple(CELL_PADDING)
+    smallest_dimension_up: bool = False
+
+
+class GenericMeshDataPoint(Protocol):
+    id: int | str
+    label: int
+    mesh: trimesh.Trimesh
+
+
+@dataclass(frozen=True)
+class TransformedDataPoint:
+    original_dp: MeshDataPoint
+    mesh: trimesh.Trimesh
+
+    @property
+    def id(self):
+        return self.original_dp.id
+
+    @property
+    def label(self):
+        return self.original_dp.label
 
 
 class TactilePerceptionVectorEnv(
@@ -128,7 +151,7 @@ class TactilePerceptionVectorEnv(
         else:
             assert len(self.__config.dataset) == num_envs
             self.__datasets = self.__config.dataset
-        self.__current_data_points: tuple[MeshDataPoint] | None = None
+        self.__current_data_points: tuple[GenericMeshDataPoint] | None = None
         self.__sensor = mk_tactile_renderer(
             renderer_type=self.__config.sensor_type,
             backend=self.__config.sensor_backend,
@@ -209,18 +232,20 @@ class TactilePerceptionVectorEnv(
         mm_per_pixel = tuple(
             GELSIGHT_MINI_SENSOR_SURFACE_SIZE / np.array(depth_map_size) * 1000
         )
-        self.__renderer = TactilePerceptionRenderer(
-            self.num_envs,
-            self.__sensor,
-            depth_map_size,
-            mm_per_pixel,
-            show_viewer=render_mode == "human",
-            show_sensor_target_pos=self.__config.show_sensor_target_pos,
-            transparent_background=self.__config.render_transparent_background,
-            cell_size=self.__config.cell_size,
-            show_tactile_image=self.__config.renderer_show_tactile_image,
-            show_class_weights=self.__config.renderer_show_class_weights,
-            external_camera_resolution=self.__config.renderer_external_camera_resolution,
+        self.__renderer: TactilePerceptionRenderer[GenericMeshDataPoint] = (
+            TactilePerceptionRenderer(
+                self.num_envs,
+                self.__sensor,
+                depth_map_size,
+                mm_per_pixel,
+                show_viewer=render_mode == "human",
+                show_sensor_target_pos=self.__config.show_sensor_target_pos,
+                transparent_background=self.__config.render_transparent_background,
+                cell_size=self.__config.cell_size,
+                show_tactile_image=self.__config.renderer_show_tactile_image,
+                show_class_weights=self.__config.renderer_show_class_weights,
+                external_camera_resolution=self.__config.renderer_external_camera_resolution,
+            )
         )
 
         # Calculate the maximum distance the sensor can travel in one step
@@ -287,7 +312,42 @@ class TactilePerceptionVectorEnv(
                     if datapoint_idx[i] is None
                     else datapoint_idx[i]
                 )
-                current_datapoints_lst[i] = self.__datasets[i][idx]
+
+                new_dp: GenericMeshDataPoint = self.__datasets[i][idx]
+
+                if self.__config.smallest_dimension_up:
+                    mesh = new_dp.mesh.copy()
+                    bb_oriented: trimesh.primitives.Box = mesh.bounding_box_oriented
+                    bb_rotation: Rotation = Rotation.from_matrix(
+                        bb_oriented.transform[:3, :3]
+                    )
+                    bb_vertices_local = bb_rotation.inv().apply(bb_oriented.vertices)
+                    extents = np.max(bb_vertices_local, axis=0) - np.min(
+                        bb_vertices_local, axis=0
+                    )
+                    axes = bb_rotation.as_matrix().T
+
+                    extends_idx_sorted = np.argsort(extents)
+                    z_axis = axes[extends_idx_sorted[0]]
+                    if z_axis[-1] < 0:
+                        z_axis = -z_axis
+                    remaining_axes = axes[extends_idx_sorted[1:]]
+
+                    if np.abs(remaining_axes[0, 0]) > np.abs(remaining_axes[1, 0]):
+                        x_axis = remaining_axes[0]
+                    else:
+                        x_axis = remaining_axes[1]
+
+                    y_axis = np.cross(z_axis, x_axis)
+
+                    target_rotation = Rotation.from_matrix(
+                        np.stack([x_axis, y_axis, z_axis], axis=-1)
+                    )
+
+                    mesh.vertices = target_rotation.inv().apply(mesh.vertices)
+                    new_dp = TransformedDataPoint(new_dp, mesh)
+
+                current_datapoints_lst[i] = new_dp
                 if initial_object_poses[i] is None:
                     initial_pose = Transformation(
                         [
@@ -421,7 +481,7 @@ class TactilePerceptionVectorEnv(
         :return: 6D feature representation of the given rotation.
         """
         matrix = rot.inv().as_matrix()
-        return matrix.reshape((*matrix.shape[:-2], -1))[..., 3:]
+        return matrix.reshape((*matrix.shape[:-2], -1))[..., 3:].astype(np.float32)
 
     @staticmethod
     def feature_to_rotation(feature: np.ndarray) -> Rotation:
@@ -665,7 +725,7 @@ class TactilePerceptionVectorEnv(
         return self.__sensor_pos_limits
 
     @property
-    def current_data_points(self) -> tuple[MeshDataPoint]:
+    def current_data_points(self) -> tuple[GenericMeshDataPoint]:
         return self.__current_data_points
 
     @property
