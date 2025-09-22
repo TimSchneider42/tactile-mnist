@@ -9,7 +9,7 @@ from .huggingface_dataset import HuggingfaceDataset, HuggingfaceDatapoint, DataP
 class MeshDataPoint(HuggingfaceDatapoint):
     id: int
     label: int
-    mesh: Trimesh = lambda d: trimesh.Trimesh(vertices=d["vertices"], faces=d["faces"])
+    mesh: Trimesh = lambda d: trimesh.Trimesh(**d)
 
 
 class MeshDataset(HuggingfaceDataset[MeshDataPoint, "MeshDataset"]):
