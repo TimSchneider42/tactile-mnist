@@ -215,7 +215,9 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         show_class_weights: bool = False,
         transparent_background: bool = False,
         cell_size: Sequence[float] = tuple(CELL_SIZE),
+        show_orig_mesh_colors: bool = False,
     ):
+        self.__show_orig_mesh_colors = show_orig_mesh_colors
         self.__tactile_renderer = tactile_renderer
         self.__transparent_background = transparent_background
 
@@ -728,13 +730,16 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         self, mesh: trimesh.Trimesh, alpha: float = 255
     ) -> trimesh.Trimesh:
         mesh = mesh.copy()
-        mesh.visual = trimesh.visual.TextureVisuals(
-            material=PBRMaterial(
-                baseColorFactor=self.__object_color + (alpha,),
-                metallicFactor=0.1,
-                roughnessFactor=0.7,
+        if not self.__show_orig_mesh_colors:
+            mesh.visual = trimesh.visual.TextureVisuals(
+                material=PBRMaterial(
+                    baseColorFactor=self.__object_color + (alpha,),
+                    metallicFactor=0.1,
+                    roughnessFactor=0.7,
+                )
             )
-        )
+        else:
+            mesh.visual.face_colors[..., 3] = alpha
         return mesh
 
     @staticmethod
@@ -766,8 +771,6 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         assert len(objects) == self.__num_envs
         self.__objects = objects
         current_meshes = [dp.mesh.copy() for dp in self.__objects]
-        for mesh in current_meshes:
-            mesh.visual.vertex_colors = [50, 50, 50]
         with self.__get_render_lock():
             if self.__camera_object_node is not None:
                 self.__camera_scene.remove_node(self.__camera_object_node)
@@ -778,7 +781,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             self.__camera_object_node = MultiNode(
                 self.__num_envs,
                 mesh=[
-                    Mesh.from_trimesh(self.__process_object_mesh(mesh))
+                    Mesh.from_trimesh(self.__process_object_mesh(mesh), smooth=False)
                     for mesh in current_meshes
                 ],
                 individual_args=True,
@@ -787,7 +790,9 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             self.__camera_shadow_object_node = MultiNode(
                 self.__num_envs,
                 mesh=[
-                    Mesh.from_trimesh(self.__process_object_mesh(mesh, alpha=100))
+                    Mesh.from_trimesh(
+                        self.__process_object_mesh(mesh, alpha=100), smooth=False
+                    )
                     for mesh in current_meshes
                 ],
                 individual_args=True,
@@ -803,7 +808,9 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                     renderer.scene.remove_node(renderer.object_node)
                 renderer.object_node = MultiNode(
                     self.__num_envs,
-                    mesh=[Mesh.from_trimesh(mesh) for mesh in current_meshes],
+                    mesh=[
+                        Mesh.from_trimesh(mesh, smooth=False) for mesh in current_meshes
+                    ],
                     individual_args=True,
                 )
                 renderer.scene.add_node(renderer.object_node)
