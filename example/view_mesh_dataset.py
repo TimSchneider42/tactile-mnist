@@ -42,4 +42,6 @@ if __name__ == "__main__":
     random.shuffle(idx)
     for i in idx:
         print(f"Datapoint {dataset[i].id}")
-        dataset[i].mesh.show()  # data_point.mesh is a trimesh.Trimesh object
+        dataset[i].mesh.show(
+            smooth=False
+        )  # data_point.mesh is a trimesh.Trimesh object
