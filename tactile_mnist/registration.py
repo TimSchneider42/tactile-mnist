@@ -78,9 +78,9 @@ def register_envs():
                     ),
                 )
 
-                for env_name, ds_name, smallest_dim_up in [
-                    ("TactileMNIST", "mnist3d", False),
-                    ("ABC", "abc-dataset-small", True),
+                for env_name, ds_name, smallest_dim_up, allow_sensor_rotation in [
+                    ("TactileMNIST", "mnist3d", False, False),
+                    ("ABC", "abc-dataset-small", True, True),
                 ]:
                     gym.envs.registration.register(
                         id=f"{env_name}Volume{sensor_type_name}{s}-v0",
@@ -103,7 +103,7 @@ def register_envs():
                         kwargs=dict(
                             default_config=dict(
                                 sensor_output_size=(64, 64),
-                                allow_sensor_rotation=False,
+                                allow_sensor_rotation=allow_sensor_rotation,
                                 step_limit=32,
                                 sensor_type=sensor_type,
                                 cell_size=CELL_SIZE,
