@@ -38,23 +38,35 @@ class TactilePoseEstimationVectorEnv(
         config: TactilePerceptionConfig,
         num_envs: int,
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
-        frame_position_mode: Literal["model", "inertia_frame"] = "model",
-        frame_rotation_mode: Literal["model", "inertia_frame"] = "model",
+        frame_position_mode: Literal["model", "inertia_frame"] | None = "model",
+        frame_rotation_mode: Literal["model", "inertia_frame"] | None = "model",
         renderer_show_shadow_objects: bool = True,
     ):
         self.__compute_object_frame_cached = functools.lru_cache(maxsize=num_envs)(
             partial(
                 self.__compute_object_frame,
-                position_mode=frame_position_mode,
-                rotation_mode=frame_rotation_mode,
+                position_mode=frame_position_mode or "model",
+                rotation_mode=frame_rotation_mode or "model",
             )
         )
+
+        self.__predict_position = frame_position_mode is not None
+        self.__predict_rotation = frame_rotation_mode is not None
+        target_dims = 0
+        if self.__predict_position:
+            target_dims += 2
+        if self.__predict_rotation:
+            target_dims += 2
+        if target_dims == 0:
+            raise ValueError(
+                "At least one of frame_position_mode or frame_rotation_mode must not be 'dont_use'"
+            )
 
         super().__init__(
             config,
             num_envs,
-            single_prediction_space=gym.spaces.Box(-np.inf, np.inf, shape=(4,)),
-            single_prediction_target_space=gym.spaces.Box(-np.inf, np.inf, shape=(4,)),
+            single_prediction_space=gym.spaces.Box(-1, 1, shape=(target_dims,)),
+            single_prediction_target_space=gym.spaces.Box(-1, 1, shape=(target_dims,)),
             loss_fn=MSELossFn(),
             render_mode=render_mode,
         )
@@ -79,64 +91,81 @@ class TactilePoseEstimationVectorEnv(
         object_frames = Transformation.batch_concatenate(
             [self.__compute_object_frame_cached(dp) for dp in self.current_data_points]
         )
-        pred_object_frame_pos_2d = (
-            prediction[..., :2] * np.array(self.config.cell_size) / 2
-        )
+
         actual_object_frames_world = (
             self.current_object_poses_platform_frame * object_frames
         )
-        pred_object_frame_pos = np.concatenate(
-            [
-                pred_object_frame_pos_2d,
-                actual_object_frames_world.translation[..., 2:3],
-            ],
-            axis=-1,
-        )
-        x = prediction[..., 2].copy()
-        y = prediction[..., 3].copy()
-        x[np.abs(x) < 1e-5] = 1e-5
-        y[np.abs(y) < 1e-5] = 1e-5
-        pred_object_frame_rot_angle = np.arctan2(y, x)
-        pred_object_frame_rot = Rotation.from_euler(
-            "xyz",
-            np.concatenate(
+
+        if self.__predict_position:
+            pred_object_frame_pos_2d = (
+                prediction[..., :2] * np.array(self.config.cell_size) / 2
+            )
+            pred_object_frame_pos = np.concatenate(
                 [
-                    np.zeros((prediction.shape[0], 2)),
-                    pred_object_frame_rot_angle[..., np.newaxis],
+                    pred_object_frame_pos_2d,
+                    actual_object_frames_world.translation[..., 2:3],
                 ],
                 axis=-1,
-            ),
-        )
-
-        # Compute actual object frame pose
-        actual_object_frame_pos_2d = actual_object_frames_world.translation[..., :2]
-        actual_object_x_axis_2d = actual_object_frames_world.rotation.as_matrix()[
-            ..., :2, 0
-        ]
-        pred_object_x_axis_2d = np.stack([x, y], axis=-1)
-
-        linear_error = np.linalg.norm(
-            actual_object_frame_pos_2d - pred_object_frame_pos_2d, axis=-1
-        )
-        angular_error = np.arccos(
-            np.clip(
-                (actual_object_x_axis_2d * pred_object_x_axis_2d).sum(-1)
-                / (
-                    np.linalg.norm(actual_object_x_axis_2d, axis=-1)
-                    * np.linalg.norm(pred_object_x_axis_2d, axis=-1)
-                ),
-                -1,
-                1,
             )
-        )
 
-        for i in range(self.num_envs):
-            if prev_done[i]:
-                self.__metrics["linear_error"][i].clear()
-                self.__metrics["angular_error"][i].clear()
-            else:
-                self.__metrics["linear_error"][i].append(linear_error[i])
-                self.__metrics["angular_error"][i].append(angular_error[i])
+            # Compute actual object frame pose
+            actual_object_frame_pos_2d = actual_object_frames_world.translation[..., :2]
+
+            linear_error = np.linalg.norm(
+                actual_object_frame_pos_2d - pred_object_frame_pos_2d, axis=-1
+            )
+
+            for i in range(self.num_envs):
+                if prev_done[i]:
+                    self.__metrics["linear_error"][i].clear()
+                else:
+                    self.__metrics["linear_error"][i].append(linear_error[i])
+        else:
+            pred_object_frame_pos = actual_object_frames_world.translation
+
+        if self.__predict_rotation:
+            x = prediction[..., -2].copy()
+            y = prediction[..., -1].copy()
+            x[np.abs(x) < 1e-5] = 1e-5
+            y[np.abs(y) < 1e-5] = 1e-5
+            pred_object_frame_rot_angle = np.arctan2(y, x)
+            pred_object_frame_rot = Rotation.from_euler(
+                "xyz",
+                np.concatenate(
+                    [
+                        np.zeros((prediction.shape[0], 2)),
+                        pred_object_frame_rot_angle[..., np.newaxis],
+                    ],
+                    axis=-1,
+                ),
+            )
+
+            pred_object_x_axis_2d = np.stack([x, y], axis=-1)
+
+            # Compute actual object frame pose
+            actual_object_x_axis_2d = actual_object_frames_world.rotation.as_matrix()[
+                ..., :2, 0
+            ]
+
+            angular_error = np.arccos(
+                np.clip(
+                    (actual_object_x_axis_2d * pred_object_x_axis_2d).sum(-1)
+                    / (
+                        np.linalg.norm(actual_object_x_axis_2d, axis=-1)
+                        * np.linalg.norm(pred_object_x_axis_2d, axis=-1)
+                    ),
+                    -1,
+                    1,
+                )
+            )
+
+            for i in range(self.num_envs):
+                if prev_done[i]:
+                    self.__metrics["angular_error"][i].clear()
+                else:
+                    self.__metrics["angular_error"][i].append(angular_error[i])
+        else:
+            pred_object_frame_rot = actual_object_frames_world.rotation
 
         obs, action_reward, terminated, truncated, info, labels = super()._step(
             action, prediction
@@ -157,9 +186,9 @@ class TactilePoseEstimationVectorEnv(
     @staticmethod
     def __compute_object_frame(
         dp: MeshDataPoint,
-        position_mode: Literal["model", "center_of_mass"],
-        rotation_mode: Literal["model"],
-    ) -> Transformation:
+        position_mode: Literal["model", "inertia_frame"],
+        rotation_mode: Literal["model", "inertia_frame"],
+    ) -> Transformation | None:
         if position_mode == "model":
             position = np.zeros(3, dtype=np.float32)
         elif position_mode == "inertia_frame":
@@ -202,21 +231,29 @@ class TactilePoseEstimationVectorEnv(
         )
         object_frames_world = self.current_object_poses_platform_frame * object_frames
         object_position_2d = object_frames_world.translation[..., :2]
-        object_x_axis_2d = object_frames_world.rotation.as_matrix()[..., :2, 0]
-        object_x_axis_2d = object_x_axis_2d / np.linalg.norm(
-            object_x_axis_2d, axis=-1, keepdims=True
-        )
-        object_position_2d_norm = object_position_2d / (
-            np.array(self.config.cell_size, dtype=np.float32) / 2
-        )
-        return np.concatenate([object_position_2d_norm, object_x_axis_2d], axis=-1)
+
+        target = []
+        if self.__predict_position:
+            object_position_2d_norm = object_position_2d / (
+                np.array(self.config.cell_size, dtype=np.float32) / 2
+            )
+            target.append(object_position_2d_norm)
+
+        if self.__predict_rotation:
+            object_x_axis_2d = object_frames_world.rotation.as_matrix()[..., :2, 0]
+            object_x_axis_2d = object_x_axis_2d / np.linalg.norm(
+                object_x_axis_2d, axis=-1, keepdims=True
+            )
+            target.append(object_x_axis_2d)
+
+        return np.concatenate(target, axis=-1)
 
 
 def TactilePoseEstimationEnv(
     config: TactilePerceptionConfig,
     render_mode: Literal["rgb_array", "human"] = "rgb_array",
-    frame_position_mode: Literal["model", "inertia_frame"] = "model",
-    frame_rotation_mode: Literal["model", "inertia_frame"] = "model",
+    frame_position_mode: Literal["model", "inertia_frame"] | None = "model",
+    frame_rotation_mode: Literal["model", "inertia_frame"] | None = "model",
     renderer_show_shadow_objects: bool = True,
 ) -> ActivePerceptionVectorToSingleWrapper["ObsType", ActType, np.ndarray, np.ndarray]:
     return ActivePerceptionVectorToSingleWrapper(
