@@ -790,9 +790,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             self.__camera_shadow_object_node = MultiNode(
                 self.__num_envs,
                 mesh=[
-                    Mesh.from_trimesh(
-                        self.__process_object_mesh(mesh, alpha=100), smooth=False
-                    )
+                    Mesh.from_trimesh(self.__process_object_mesh(mesh, alpha=100))
                     for mesh in current_meshes
                 ],
                 individual_args=True,
@@ -808,9 +806,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                     renderer.scene.remove_node(renderer.object_node)
                 renderer.object_node = MultiNode(
                     self.__num_envs,
-                    mesh=[
-                        Mesh.from_trimesh(mesh, smooth=False) for mesh in current_meshes
-                    ],
+                    mesh=[Mesh.from_trimesh(mesh) for mesh in current_meshes],
                     individual_args=True,
                 )
                 renderer.scene.add_node(renderer.object_node)
