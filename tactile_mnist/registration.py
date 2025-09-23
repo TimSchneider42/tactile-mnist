@@ -78,29 +78,39 @@ def register_envs():
                     ),
                 )
 
-                gym.envs.registration.register(
-                    id=f"TactileMNISTVolume{sensor_type_name}{s}-v0",
-                    entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionLogWrapper(
-                        TactileVolumeEstimationEnv(
-                            mk_config("mnist3d", _split, args, default_config, config),
-                            **kwargs,
-                        )
-                    ),
-                    vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
-                        TactileVolumeEstimationVectorEnv(
-                            mk_config("mnist3d", _split, args, default_config, config),
-                            **kwargs,
+                for env_name, ds_name, smallest_dim_up, allow_sensor_rotation in [
+                    ("TactileMNIST", "mnist3d", False, False),
+                    ("ABC", "abc-dataset-small", True, True),
+                ]:
+                    gym.envs.registration.register(
+                        id=f"{env_name}Volume{sensor_type_name}{s}-v0",
+                        entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+                            TactileVolumeEstimationEnv(
+                                mk_config(
+                                    _ds_name, _split, args, default_config, config
+                                ),
+                                **kwargs,
+                            )
                         ),
-                    ),
-                    kwargs=dict(
-                        default_config=dict(
-                            sensor_output_size=(64, 64),
-                            allow_sensor_rotation=False,
-                            step_limit=32,
-                            sensor_type=sensor_type,
-                        )
-                    ),
-                )
+                        vector_entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+                            TactileVolumeEstimationVectorEnv(
+                                mk_config(
+                                    _ds_name, _split, args, default_config, config
+                                ),
+                                **kwargs,
+                            ),
+                        ),
+                        kwargs=dict(
+                            default_config=dict(
+                                sensor_output_size=(64, 64),
+                                allow_sensor_rotation=allow_sensor_rotation,
+                                step_limit=32,
+                                sensor_type=sensor_type,
+                                cell_size=CELL_SIZE,
+                                smallest_dimension_up=smallest_dim_up,
+                            )
+                        ),
+                    )
 
             for sensor_type_name, sensor_type in [
                 ("", "taxim"),
@@ -137,51 +147,99 @@ def register_envs():
                     ),
                 )
 
-    for size_name, size in [("", 0.3), ("-small", 0.25)]:
-        for sensor_type_name, sensor_type in [
-            ("", "taxim"),
-            ("-Depth", "depth"),
-        ]:
-            gym.envs.registration.register(
-                id=f"Toolbox{size_name}{sensor_type_name}-v0",
-                entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionLogWrapper(
-                    TactilePoseEstimationEnv(
-                        mk_config(
-                            f"wrench",
-                            "train",
-                            args,
-                            default_config,
-                            config,
-                            dict(cache_size="full"),
+                for env_name, ds_name, smallest_dim_up in [
+                    ("ABC", "abc-dataset-small", True),
+                ]:
+                    gym.envs.registration.register(
+                        id=f"{env_name}CenterOfMass{sensor_type_name}{s}-v0",
+                        entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+                            TactilePoseEstimationEnv(
+                                mk_config(
+                                    _ds_name,
+                                    _split,
+                                    args,
+                                    default_config,
+                                    config,
+                                ),
+                                **kwargs,
+                            )
                         ),
-                        **kwargs,
+                        vector_entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+                            TactilePoseEstimationVectorEnv(
+                                mk_config(
+                                    _ds_name,
+                                    _split,
+                                    args,
+                                    default_config,
+                                    config,
+                                ),
+                                **kwargs,
+                            ),
+                        ),
+                        kwargs=dict(
+                            default_config=dict(
+                                sensor_output_size=(64, 64),
+                                allow_sensor_rotation=True,
+                                step_limit=32,
+                                cell_size=CELL_SIZE,
+                                sensor_type=sensor_type,
+                                smallest_dimension_up=smallest_dim_up,
+                            ),
+                            frame_position_mode="inertia_frame",
+                            frame_rotation_mode=None,
+                        ),
                     )
-                ),
-                vector_entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
-                    TactilePoseEstimationVectorEnv(
-                        mk_config(
-                            f"wrench",
-                            "train",
-                            args,
-                            default_config,
-                            config,
-                            dict(cache_size="full"),
-                        ),
-                        **kwargs,
+
+    for sensor_type_name, sensor_type in [
+        ("", "taxim"),
+        ("-Depth", "depth"),
+    ]:
+        for env_name, ds_name, sizes, step_limit, orig_colors in [
+            ("Toolbox", "wrench", (("", 0.3), ("-small", 0.25)), 64, False),
+            ("Minecraft", "minecraft-items-dedup", (("", 0.2),), 32, True),
+        ]:
+            for size_name, size in sizes:
+                gym.envs.registration.register(
+                    id=f"{env_name}{size_name}{sensor_type_name}-v0",
+                    entry_point=lambda *args, default_config, config=None, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+                        TactilePoseEstimationEnv(
+                            mk_config(
+                                _ds_name,
+                                "train",
+                                args,
+                                default_config,
+                                config,
+                                dict(cache_size="full"),
+                            ),
+                            **kwargs,
+                        )
                     ),
-                ),
-                kwargs=dict(
-                    default_config=dict(
-                        sensor_output_size=(64, 64),
-                        allow_sensor_rotation=False,
-                        step_limit=64,
-                        cell_size=(size, size),
-                        cell_padding=tuple(
-                            np.array([0.005, 0.005]) + GELSIGHT_MINI_OUTER_SIZE / 2
+                    vector_entry_point=lambda *args, default_config, config=None, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+                        TactilePoseEstimationVectorEnv(
+                            mk_config(
+                                _ds_name,
+                                "train",
+                                args,
+                                default_config,
+                                config,
+                                dict(cache_size="full"),
+                            ),
+                            **kwargs,
                         ),
-                        sensor_type=sensor_type,
                     ),
-                    frame_position_mode="model",
-                    frame_rotation_mode="model",
-                ),
-            )
+                    kwargs=dict(
+                        default_config=dict(
+                            sensor_output_size=(64, 64),
+                            allow_sensor_rotation=False,
+                            step_limit=step_limit,
+                            cell_size=(size, size),
+                            cell_padding=tuple(
+                                np.array([0.005, 0.005]) + GELSIGHT_MINI_OUTER_SIZE / 2
+                            ),
+                            sensor_type=sensor_type,
+                            renderer_show_orig_mesh_colors=orig_colors,
+                        ),
+                        frame_position_mode="model",
+                        frame_rotation_mode="model",
+                    ),
+                )
