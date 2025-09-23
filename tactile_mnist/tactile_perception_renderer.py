@@ -709,7 +709,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 ):
                     c = obj.mesh.center_mass
                     node.mesh.primitives[0].positions[:] = (
-                        obj.mesh.vertices - c
+                        node.mesh.primitives[0].orig_positions - c
                     ) * scale + c
             self.__camera_scene.set_pose(
                 self.__camera_shadow_object_node, shadow_object_poses_world
@@ -790,11 +790,17 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             self.__camera_shadow_object_node = MultiNode(
                 self.__num_envs,
                 mesh=[
-                    Mesh.from_trimesh(self.__process_object_mesh(mesh, alpha=100))
+                    Mesh.from_trimesh(
+                        self.__process_object_mesh(mesh, alpha=100), smooth=False
+                    )
                     for mesh in current_meshes
                 ],
                 individual_args=True,
             )
+            for node in self.__camera_shadow_object_node.nodes:
+                node.mesh.primitives[0].orig_positions = node.mesh.primitives[
+                    0
+                ].positions.copy()
             self.__camera_scene.add_node(
                 self.__camera_shadow_object_node, invisible=True
             )
@@ -806,7 +812,11 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                     renderer.scene.remove_node(renderer.object_node)
                 renderer.object_node = MultiNode(
                     self.__num_envs,
-                    mesh=[Mesh.from_trimesh(mesh) for mesh in current_meshes],
+                    mesh=[
+                        # Needed to remove color information
+                        Mesh.from_trimesh(trimesh.Trimesh(mesh.vertices, mesh.faces))
+                        for mesh in current_meshes
+                    ],
                     individual_args=True,
                 )
                 renderer.scene.add_node(renderer.object_node)
