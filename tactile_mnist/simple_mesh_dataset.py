@@ -9,7 +9,7 @@ from .mesh_dataset import MeshDataPoint
 
 
 class SimpleMeshDataPoint(MeshDataPoint):
-    mesh: Trimesh = lambda d: trimesh.Trimesh(vertices=d["vertices"], faces=d["faces"])
+    mesh: Trimesh = lambda d: trimesh.Trimesh(**d)
 
 
 class SimpleMeshDataset(MeshDataset[SimpleMeshDataPoint, "SimpleMeshDataset"]):
