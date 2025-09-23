@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import functools
 import json
+import multiprocessing.pool
 from collections import deque, defaultdict
+from functools import partial
 from typing import (
     Literal,
     TYPE_CHECKING,
     Any,
 )
 
+import datasets
 import filelock
 import gymnasium as gym
 import numpy as np
@@ -19,7 +22,7 @@ from ap_gym import (
     MSELossFn,
 )
 from ap_gym.util import update_info_metrics_vec
-from tactile_mnist import MeshDataPoint, CACHE_BASE_DIR
+from tactile_mnist import MeshDataPoint, CACHE_BASE_DIR, MeshDataset
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
     TactilePerceptionConfig,
@@ -28,6 +31,10 @@ from .tactile_perception_vector_env import (
 
 if TYPE_CHECKING:
     from .tactile_perception_vector_env import ObsType
+
+
+def _compute_object_volume_idx(idx: int, ds: datasets.Dataset):
+    return MeshDataset(ds)[idx].mesh.volume
 
 
 class TactileVolumeEstimationVectorEnv(
@@ -55,14 +62,25 @@ class TactileVolumeEstimationVectorEnv(
                 self.__mean_volume = data["mean_volume"]
                 self.__std_volume = data["std_volume"]
             else:
-                volumes = np.zeros(len(config.dataset))
                 print(
                     "Computing object volumes for normalization (the results will be cached)..."
                 )
-                for i, dp in tqdm.tqdm(
-                    enumerate(config.dataset), total=len(config.dataset)
-                ):
-                    volumes[i] = dp.mesh.volume
+                with multiprocessing.pool.Pool(
+                    processes=min(multiprocessing.cpu_count(), 8)
+                ) as pool:
+                    volumes = list(
+                        tqdm.tqdm(
+                            pool.imap_unordered(
+                                partial(
+                                    _compute_object_volume_idx,
+                                    ds=config.dataset.huggingface_dataset,
+                                ),
+                                range(len(config.dataset)),
+                            ),
+                            total=len(config.dataset),
+                        )
+                    )
+
                 self.__mean_volume = np.mean(volumes)
                 self.__std_volume = np.std(volumes)
                 with cache_file.open("w") as f:
@@ -82,6 +100,7 @@ class TactileVolumeEstimationVectorEnv(
             loss_fn=MSELossFn(),
             render_mode=render_mode,
         )
+
         self.__renderer_show_shadow_objects = renderer_show_shadow_objects
         self.__metrics: dict[str, tuple[deque[float], ...]] | None = None
 
