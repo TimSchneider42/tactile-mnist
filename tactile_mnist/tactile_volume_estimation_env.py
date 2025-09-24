@@ -22,7 +22,9 @@ from ap_gym import (
     MSELossFn,
 )
 from ap_gym.util import update_info_metrics_vec
-from tactile_mnist import MeshDataPoint, CACHE_BASE_DIR, MeshDataset
+from .constants import CACHE_BASE_DIR
+from .mesh_dataset import MeshDataPoint
+from .simple_mesh_dataset import SimpleMeshDataset
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
     TactilePerceptionConfig,
@@ -34,7 +36,7 @@ if TYPE_CHECKING:
 
 
 def _compute_object_volume_idx(idx: int, ds: datasets.Dataset):
-    return MeshDataset(ds)[idx].mesh.volume
+    return SimpleMeshDataset(ds)[idx].mesh.volume
 
 
 class TactileVolumeEstimationVectorEnv(
