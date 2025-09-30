@@ -21,6 +21,10 @@ ENVS=(
   Starstruck-Depth-test-v0
   Toolbox-v0
   Toolbox-Depth-v0
+  Minecraft-v0
+  Minecraft-Depth-v0
+  ABCVolume-v0
+  ABCVolume-Depth-v0
 )
 
 OUTPUT_DIR="$SCRIPT_DIR/../doc/img/env"
