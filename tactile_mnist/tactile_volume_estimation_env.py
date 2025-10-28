@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import json
+import logging
 import multiprocessing.pool
 from collections import deque, defaultdict
 from functools import partial
@@ -34,6 +35,8 @@ from .tactile_perception_vector_env import (
 if TYPE_CHECKING:
     from .tactile_perception_vector_env import ObsType
 
+logger = logging.getLogger(__name__)
+
 
 def _compute_object_volume_idx(idx: int, ds: datasets.Dataset):
     return SimpleMeshDataset(ds)[idx].mesh.volume
@@ -59,11 +62,29 @@ class TactileVolumeEstimationVectorEnv(
         cache_file = cache_dir / f"{ds_fingerprint}.json"
         with filelock.FileLock(cache_dir / f"{ds_fingerprint}.lock"):
             if cache_file.exists():
-                with cache_file.open() as f:
-                    data = json.load(f)
-                self.__mean_volume = data["mean_volume"]
-                self.__std_volume = data["std_volume"]
-            else:
+                try:
+                    with cache_file.open() as f:
+                        data = json.load(f)
+                    self.__mean_volume = data["mean_volume"]
+                    self.__std_volume = data["std_volume"]
+                    self.__min_volume = data["min_volume"]
+                    self.__max_volume = data["max_volume"]
+                except Exception as ex:
+                    logger.warning(
+                        f"Loading volume statistics from cache failed with the following exception: {ex}"
+                    )
+                    self.__mean_volume = self.__std_volume = self.__min_volume = (
+                        self.__max_volume
+                    ) = None
+            if any(
+                m is None
+                for m in [
+                    self.__mean_volume,
+                    self.__std_volume,
+                    self.__min_volume,
+                    self.__max_volume,
+                ]
+            ):
                 print(
                     "Computing object volumes for normalization (the results will be cached)..."
                 )
@@ -85,20 +106,30 @@ class TactileVolumeEstimationVectorEnv(
 
                 self.__mean_volume = np.mean(volumes)
                 self.__std_volume = np.std(volumes)
+                self.__min_volume = np.min(volumes)
+                self.__max_volume = np.max(volumes)
                 with cache_file.open("w") as f:
                     json.dump(
                         {
                             "mean_volume": self.__mean_volume,
                             "std_volume": self.__std_volume,
+                            "min_volume": self.__min_volume,
+                            "max_volume": self.__max_volume,
                         },
                         f,
                     )
 
+        pred_space = gym.spaces.Box(
+            self.__normalize_volume(self.__min_volume),
+            self.__normalize_volume(self.__max_volume),
+            shape=(1,),
+        )
+
         super().__init__(
             config,
             num_envs,
-            single_prediction_space=gym.spaces.Box(-np.inf, np.inf, shape=(1,)),
-            single_prediction_target_space=gym.spaces.Box(-np.inf, np.inf, shape=(1,)),
+            single_prediction_space=pred_space,
+            single_prediction_target_space=pred_space,
             loss_fn=MSELossFn(),
             render_mode=render_mode,
         )
@@ -155,8 +186,11 @@ class TactileVolumeEstimationVectorEnv(
     def __compute_object_volume(dp: MeshDataPoint) -> float:
         return dp.mesh.volume
 
+    def __normalize_volume(self, volume: np.ndarray | float) -> np.ndarray | float:
+        return (volume - self.__mean_volume) / self.__std_volume
+
     def _get_prediction_targets(self) -> np.ndarray:
-        return (self.__get_object_volumes() - self.__mean_volume) / self.__std_volume
+        return self.__normalize_volume(self.__get_object_volumes())
 
     def __get_object_volumes(self) -> np.ndarray:
         return np.array(
