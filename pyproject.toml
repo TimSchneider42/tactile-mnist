@@ -12,7 +12,7 @@ authors = [
 ]
 license = { text = "MIT" }
 dependencies = [
-    "ap_gym>=0.3.0",
+    "ap_gym>=0.4.0",
     "filelock",
     "numpy",
     "transformation3d>=1.0.1",

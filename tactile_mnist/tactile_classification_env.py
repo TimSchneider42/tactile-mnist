@@ -13,6 +13,7 @@ import scipy.special
 from ap_gym import (
     ActivePerceptionVectorToSingleWrapper,
     CrossEntropyLossFn,
+    LogitSpace,
 )
 from tactile_mnist import (
     MeshDataset,
@@ -45,7 +46,7 @@ class TactileClassificationVectorEnv(
         super().__init__(
             config,
             num_envs,
-            single_prediction_space=gym.spaces.Box(
+            single_prediction_space=LogitSpace(
                 -np.inf, np.inf, shape=(len(datasets[0].label_names),)
             ),
             single_prediction_target_space=gym.spaces.Discrete(
