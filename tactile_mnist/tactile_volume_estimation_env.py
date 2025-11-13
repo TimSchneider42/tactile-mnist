@@ -60,6 +60,9 @@ class TactileVolumeEstimationVectorEnv(
         cache_dir.mkdir(parents=True, exist_ok=True)
         ds_fingerprint = config.dataset.huggingface_dataset._fingerprint
         cache_file = cache_dir / f"{ds_fingerprint}.json"
+        self.__mean_volume = self.__std_volume = self.__min_volume = (
+            self.__max_volume
+        ) = None
         with filelock.FileLock(cache_dir / f"{ds_fingerprint}.lock"):
             if cache_file.exists():
                 try:
@@ -73,9 +76,6 @@ class TactileVolumeEstimationVectorEnv(
                     logger.warning(
                         f"Loading volume statistics from cache failed with the following exception: {ex}"
                     )
-                    self.__mean_volume = self.__std_volume = self.__min_volume = (
-                        self.__max_volume
-                    ) = None
             if any(
                 m is None
                 for m in [
