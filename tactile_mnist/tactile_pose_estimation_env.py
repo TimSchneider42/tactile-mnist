@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import math
 from collections import deque, defaultdict
 from functools import partial
 from typing import (
@@ -12,6 +13,7 @@ from typing import (
 import gymnasium as gym
 import numpy as np
 from scipy.spatial.transform import Rotation
+from scipy.stats import norm
 from transformation import Transformation
 
 from ap_gym import (
@@ -62,11 +64,30 @@ class TactilePoseEstimationVectorEnv(
                 "At least one of frame_position_mode or frame_rotation_mode must not be 'dont_use'"
             )
 
+        max_expected_translation_perturbation_norm = 0
+        if config.perturb_object_pose:
+            cumulative_std = config.translation_perturbation_scale * math.sqrt(
+                config.step_limit
+            )
+            # For all objects starting directly at the edge of the platform, 99.99% of the time they will stay within
+            # this bound.
+            max_expected_translation_perturbation = cumulative_std * norm.ppf(0.9999)
+            max_expected_translation_perturbation_norm = (
+                max_expected_translation_perturbation / (np.min(config.cell_size) / 2)
+            )
+
+        prediction_bound = 1.0 + max_expected_translation_perturbation_norm
+
         super().__init__(
             config,
             num_envs,
-            single_prediction_space=gym.spaces.Box(-1, 1, shape=(target_dims,)),
-            single_prediction_target_space=gym.spaces.Box(-1, 1, shape=(target_dims,)),
+            # We allow for more than [-1, 1] range to account for objects moving beyond the platform during the episode
+            single_prediction_space=gym.spaces.Box(
+                -prediction_bound, prediction_bound, shape=(target_dims,)
+            ),
+            single_prediction_target_space=gym.spaces.Box(
+                -prediction_bound, prediction_bound, shape=(target_dims,)
+            ),
             loss_fn=MSELossFn(),
             render_mode=render_mode,
         )

@@ -84,6 +84,8 @@ class TactilePerceptionConfig:
     cell_size: tuple[float, float] = tuple(CELL_SIZE)
     cell_padding: tuple[float, float] = tuple(CELL_PADDING)
     smallest_dimension_up: bool = False
+    translation_perturbation_scale: float = 1e-3
+    rotation_perturbation_scale: float = 5e-2
 
 
 class GenericMeshDataPoint(Protocol):
@@ -660,8 +662,12 @@ class TactilePerceptionVectorEnv(
             self.__current_sensor_target_poses_platform_frame
         )
         if self.__config.perturb_object_pose:
-            translation_perturbation = self.np_random.normal(scale=1e-3, size=2)
-            rotation_perturbation = self.np_random.normal(scale=5e-2)
+            translation_perturbation = self.np_random.normal(
+                scale=self.config.translation_perturbation_scale, size=2
+            )
+            rotation_perturbation = self.np_random.normal(
+                scale=self.config.rotation_perturbation_scale
+            )
             perturbation = Transformation.from_pos_euler(
                 np.concatenate([translation_perturbation, [0]]),
                 [0, 0, rotation_perturbation],
