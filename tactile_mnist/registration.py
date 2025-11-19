@@ -1,6 +1,5 @@
 from typing import Any, Iterable
 
-import gymnasium as gym
 from datasets import load_dataset
 
 import ap_gym
@@ -53,7 +52,7 @@ def register_envs():
                 ("-CycleGAN", "cycle_gan"),
                 ("-Depth", "depth"),
             ]:
-                gym.envs.registration.register(
+                ap_gym.register(
                     id=f"TactileMNIST{sensor_type_name}{s}-v0",
                     entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                         TactileClassificationEnv(
@@ -82,7 +81,7 @@ def register_envs():
                     ("TactileMNIST", "mnist3d", False, False),
                     ("ABC", "abc-dataset-small", True, True),
                 ]:
-                    gym.envs.registration.register(
+                    ap_gym.register(
                         id=f"{env_name}Volume{sensor_type_name}{s}-v0",
                         entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                             TactileVolumeEstimationEnv(
@@ -116,7 +115,7 @@ def register_envs():
                 ("", "taxim"),
                 ("-Depth", "depth"),
             ]:
-                gym.envs.registration.register(
+                ap_gym.register(
                     id=f"Starstruck{sensor_type_name}{s}-v0",
                     entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                         TactileClassificationEnv(
@@ -150,7 +149,7 @@ def register_envs():
                 for env_name, ds_name, smallest_dim_up in [
                     ("ABC", "abc-dataset-small", True),
                 ]:
-                    gym.envs.registration.register(
+                    ap_gym.register(
                         id=f"{env_name}CenterOfMass{sensor_type_name}{s}-v0",
                         entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                             TactilePoseEstimationEnv(
@@ -199,7 +198,7 @@ def register_envs():
             ("Minecraft", "minecraft-items-dedup", (("", 0.2),), 32, True),
         ]:
             for size_name, size in sizes:
-                gym.envs.registration.register(
+                ap_gym.register(
                     id=f"{env_name}{size_name}{sensor_type_name}-v0",
                     entry_point=lambda *args, default_config, config=None, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                         TactilePoseEstimationEnv(
