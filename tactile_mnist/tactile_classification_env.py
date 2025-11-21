@@ -56,13 +56,13 @@ class TactileClassificationVectorEnv(
             render_mode=render_mode,
         )
 
-    def _reset(self, *, options: dict[str, Any] | None = None):
+    def reset(self, *, seed: int | None = None, options: dict[str, Any | None] = None):
+        obs, info = super().reset(seed=seed, options=options)
         self._renderer.class_weights = np.zeros(
             (self.num_envs, self.single_prediction_space.shape[-1])
         )
-        obs, info, labels = super()._reset(options=options)
-        self._renderer.target_class_idx = labels
-        return obs, info, labels
+        self._renderer.target_class_idx = self._get_prediction_targets()
+        return obs, info
 
     def _step(
         self,

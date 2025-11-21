@@ -10,7 +10,6 @@ from typing import (
     TYPE_CHECKING,
     Generic,
     TypeVar,
-    List,
     Protocol,
 )
 
@@ -299,7 +298,7 @@ class TactilePerceptionVectorEnv(
 
     def __reset_partial(
         self, mask: Sequence[bool], options: dict[str, Any] | None = None
-    ) -> np.ndarray:
+    ):
         if np.any(mask):
             if options is None:
                 options = {}
@@ -415,8 +414,6 @@ class TactilePerceptionVectorEnv(
             self._set_object_poses(Transformation.batch_concatenate(object_poses_lst))
             self.__current_step[mask] = np.zeros(np.sum(mask), dtype=np.float32)
 
-        return self._get_prediction_targets()
-
     @abstractmethod
     def _get_prediction_targets(self) -> np.ndarray:
         pass
@@ -449,13 +446,12 @@ class TactilePerceptionVectorEnv(
         info = {"depth": depth_output, "sensor_pose": sensor_pose}
         return obs, info
 
-    def _reset(self, *, options: dict[str, Any] | None = None):
+    def reset(self, *, seed: int | None = None, options: dict[str, Any | None] = None):
+        super().reset(seed=seed, options=options)
         self.__current_step = np.zeros(self.num_envs, dtype=np.int_)
         self.__current_data_points = [None] * self.num_envs
         self.__prev_done = np.zeros(self.num_envs, dtype=np.bool_)
-        labels = self.__reset_partial(
-            np.ones(self.num_envs, dtype=np.bool_), options=options
-        )
+        self.__reset_partial(np.ones(self.num_envs, dtype=np.bool_), options=options)
         if options is not None:
             initial_sensor_target_poses = list(
                 options.get("initial_sensor_target_pose", [None] * self.num_envs)
@@ -469,10 +465,9 @@ class TactilePerceptionVectorEnv(
                 initial_sensor_target_poses,
             )
         ]
-        obs, info = self.__get_obs_info(
+        return self.__get_obs_info(
             Transformation.batch_concatenate(sensor_target_poses)
         )
-        return obs, info, labels
 
     @staticmethod
     def rotation_to_feature(rot: Rotation) -> np.ndarray:
@@ -557,7 +552,8 @@ class TactilePerceptionVectorEnv(
         action: ActType,
         prediction: np.ndarray,
     ):
-        labels = self.__reset_partial(self.__prev_done)
+        targets = self._get_prediction_targets()
+        self.__reset_partial(self.__prev_done)
 
         sensor_pos_min, sensor_pos_max = self.__sensor_pos_limits
         sensor_target_pos_rel = action["sensor_target_pos_rel"]
@@ -639,7 +635,7 @@ class TactilePerceptionVectorEnv(
 
         action_reward = np.where(self.__prev_done, 0, action_reward)
         self.__prev_done = terminated | truncated
-        return obs, action_reward, terminated, truncated, info, labels
+        return obs, action_reward, terminated, truncated, info, targets
 
     def execute_step(
         self, sensor_target_pose: Transformation, mask: Sequence[bool] | None = None
