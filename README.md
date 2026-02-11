@@ -3,26 +3,26 @@
 <table style="border-collapse: collapse; border: none;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="180px"/><br/>
-            <a href="doc/TactileMNIST.md">
+            <img src="docs/img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="180px"/><br/>
+            <a href="docs/TactileMNIST.md">
                 TactileMNIST-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="180px"/><br/>
-            <a href="doc/Starstruck.md">
+            <img src="docs/img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="180px"/><br/>
+            <a href="docs/Starstruck.md">
                 Starstruck-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/Toolbox-v0.gif" alt="Toolbox-v0" width="180px"/><br/>
-            <a href="doc/Toolbox.md">
+            <img src="docs/img/env/Toolbox-v0.gif" alt="Toolbox-v0" width="180px"/><br/>
+            <a href="docs/Toolbox.md">
                 Toolbox-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="doc/img/env/TactileMNISTVolume-v0.gif" alt="TactileMNISTVolume-v0" width="180px"/><br/>
-            <a href="doc/TactileMNISTVolume.md">
+            <img src="docs/img/env/TactileMNISTVolume-v0.gif" alt="TactileMNISTVolume-v0" width="180px"/><br/>
+            <a href="docs/TactileMNISTVolume.md">
                 TactileMNISTVolume-v0
             </a>
         </td>
@@ -66,7 +66,7 @@ This package provides an easy way of loading and working with these datasets, as
 
 ## Simulated Active Tactile Perception Benchmark
 
-This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for four active tactile perception environments: [TactileMNIST](doc/TactileMNIST.md), [Starstruck](doc/Starstruck.md), [Toolbox](doc/Toolbox.md), and [TactileMNISTVolume](doc/TactileMNISTVolume.md).
+This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for four active tactile perception environments: [TactileMNIST](docs/TactileMNIST.md), [Starstruck](docs/Starstruck.md), [Toolbox](docs/Toolbox.md), and [TactileMNISTVolume](docs/TactileMNISTVolume.md).
 In all environments, the agent must solve a perception problem by actively controlling a [GelSight Mini](https://www.gelsight.com/gelsightmini/) tactile sensor in a simulated environment.
 
 The _TactileMNIST_ environment challenges the agent to find and classify a 3D MNIST model as quickly as possible.
@@ -85,22 +85,22 @@ Finally, the _TactileMNISTVolume_ environment poses another regression problem.
 Here, the agent must determine the exact volume of the 3D MNIST model it is given.
 Thus, unlike in the TactileMNIST environment, where a couple of touches might already be sufficient for classification, in TactileMNISTVolume, the agent has to make sure to explore the entire object.
 
-A detailed description of the environments can be found [here](doc/TactilePerceptionEnv.md).
+A detailed description of the environments can be found [here](docs/TactilePerceptionEnv.md).
 
 ## Datasets
 
 Aside of the simulated benchmark tasks, this package provides access to two classes of static datasets: 3D mesh datasets and touch datasets.
 Below is an overview of the datasets provided in this package:
 
-- **[3D Mesh Datasets](doc/datasets.md#3d-mesh-datasets)**:
+- **[3D Mesh Datasets](docs/datasets.md#3d-mesh-datasets)**:
     1. **MNIST 3D**: a dataset of 3D models generated from a [high-resolution version of the MNIST dataset](https://arxiv.org/abs/2011.07946).
     2. **Starstruck**: a dataset in which the number of stars in a scene have to be counted (3 classes, 1 - 3 stars per scene).
-- **[Touch Datasets](doc/datasets.md#touch-datasets)**
+- **[Touch Datasets](docs/datasets.md#touch-datasets)**
     1. **Synthetic Tactile MNIST**: a dataset of synthetic tactile images generated from the _MNIST 3D_ dataset with the [Taxim simulator](https://arxiv.org/abs/2109.04027).
     2. **Real Tactile MNIST**: a dataset of real tactile images of 3D printed _MNIST 3D_ digits collected with a Franka robot.
     3. **Synthetic Tactile Starstruck**: a dataset of synthetic tactile images generated from the _Starstruck_ dataset with the Taxim simulator.
 
-A detailed description of the datasets can be found in the [Dataset documentation](doc/datasets.md).
+A detailed description of the datasets can be found in the [Dataset documentation](docs/datasets.md).
 
 ## Troubleshooting
 

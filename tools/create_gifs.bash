@@ -29,7 +29,7 @@ ENVS=(
   ABCCenterOfMass-Depth-v0
 )
 
-OUTPUT_DIR="$SCRIPT_DIR/../doc/img/env"
+OUTPUT_DIR="$SCRIPT_DIR/../docs/img/env"
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 for env in "${ENVS[@]}"; do
