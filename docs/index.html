@@ -1,14 +1,376 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <meta charset="utf-8">
-    <title>Redirecting...</title>
-    <meta http-equiv="refresh" content="0; url=https://sites.google.com/robot-learning.de/tactile-mnist/home">
-    <script>
-        window.location.href = "https://sites.google.com/robot-learning.de/tactile-mnist/home";
-    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tactile MNIST</title>
+
+    <!-- Social Media Meta Tags -->
+    <meta property="og:title" content="Tactile MNIST: A Benchmark for Active Tactile Perception">
+    <meta property="og:description"
+        content="An open-source, Gymnasium-compatible benchmark for active tactile perception tasks including localization, classification, and volume estimation.">
+    <meta property="og:image" content="assets/digit_8.png">
+    <meta property="og:url" content="https://timschneider42.github.io/tactile-mnist/">
+    <meta property="og:type" content="website">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tactile MNIST: A Benchmark for Active Tactile Perception">
+    <meta name="twitter:description"
+        content="An open-source, Gymnasium-compatible benchmark for active tactile perception tasks including localization, classification, and volume estimation.">
+    <meta name="twitter:image" content="assets/digit_8.png">
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
+
 <body>
-    <p>If you are not redirected automatically, follow this <a href="https://sites.google.com/robot-learning.de/tactile-mnist/home">link to the website</a>.</p>
+    <div class="grain"></div>
+
+    <div class="topbar">
+        <div class="topbar-inner">
+            <div class="brand">
+                <h1>Tactile MNIST</h1>
+                <div class="sub">Active Tactile Perception Benchmark</div>
+            </div>
+            <nav class="nav">
+                <a href="https://arxiv.org/abs/2506.06361">Paper</a>
+                <a href="https://github.com/TimSchneider42/tactile-mnist">Code</a>
+                <a href="https://github.com/TimSchneider42/active-perception-gym">ap_gym</a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="wrap">
+        <div class="heroBox">
+            <h1 class="title">
+                Tactile MNIST: <br>
+                <span>A Benchmark for Active Tactile Perception</span>
+            </h1>
+
+            <!-- Authors Section -->
+            <div class="authorBlock hero-authors">
+                <div class="author-container">
+                    <!-- Tim Schneider -->
+                    <div class="author-item">
+                        <a href="https://www.ias.informatik.tu-darmstadt.de/Team/TimSchneider" class="author">
+                            <img src="img/authors/schneider.jpg" class="author-avatar" alt="Tim Schneider">
+                            <div>Tim Schneider<span class="affil-sup">1,2</span></div>
+                        </a>
+                    </div>
+                    <!-- Guillaume Duret -->
+                    <div class="author-item">
+                        <a href="#" class="author">
+                            <img src="img/authors/duret.jpg" class="author-avatar" alt="Guillaume Duret">
+                            <div>Guillaume Duret<span class="affil-sup">2</span></div>
+                        </a>
+                    </div>
+                    <!-- Cristiana de Farias -->
+                    <div class="author-item">
+                        <a href="https://www.ias.informatik.tu-darmstadt.de/Team/CristianaMirandadeFarias"
+                            class="author">
+                            <img src="img/authors/defarias.jpg" class="author-avatar" alt="Cristiana de Farias">
+                            <div>Cristiana de Farias<span class="affil-sup">1</span></div>
+                        </a>
+                    </div>
+                    <!-- Roberto Calandra -->
+                    <div class="author-item">
+                        <a href="https://www.robertocalandra.com" class="author">
+                            <img src="img/authors/calandra.png" class="author-avatar" alt="Roberto Calandra">
+                            <div>Roberto Calandra<span class="affil-sup">3</span></div>
+                        </a>
+                    </div>
+                    <!-- Liming Chen -->
+                    <div class="author-item">
+                        <a href="http://perso.ec-lyon.fr/liming.chen/" class="author">
+                            <img src="img/authors/chen.gif" class="author-avatar" alt="Liming Chen">
+                            <div>Liming Chen<span class="affil-sup">2</span></div>
+                        </a>
+                    </div>
+                    <!-- Jan Peters -->
+                    <div class="author-item">
+                        <a href="https://www.ias.informatik.tu-darmstadt.de/Team/JanPeters" class="author">
+                            <img src="img/authors/peters.jpg" class="author-avatar" alt="Jan Peters">
+                            <div>Jan Peters<span class="affil-sup">1,4</span></div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="affils">
+                    <div><span>1</span> <a href="https://www.informatik.tu-darmstadt.de/" target="_blank">Department of
+                            Computer Science</a>, <a href="https://www.tu-darmstadt.de/" target="_blank">TU
+                            Darmstadt</a>,
+                        Germany</div>
+                    <div><span>2</span> <a href="https://liris.cnrs.fr/" target="_blank">LIRIS, CNRS UMR5205</a>, <a
+                            href="https://www.ec-lyon.fr/" target="_blank">Ecole Centrale de Lyon</a>, France</div>
+                    <div><span>3</span> <a href="https://lasr.org/" target="_blank">LASR Lab</a> & <a
+                            href="https://ceti.one/" target="_blank">CeTI</a>, <a href="https://tu-dresden.de/"
+                            target="_blank">TU Dresden</a>, Germany</div>
+                    <div><span>4</span> <a href="https://www.dfki.de/" target="_blank">DFKI</a>, <a
+                            href="https://hessian.ai/" target="_blank">Hessian.AI</a>, RIG, and <a
+                            href="https://www.tu-darmstadt.de/cogsci" target="_blank">Centre for Cognitive Science</a>,
+                        <a href="https://www.tu-darmstadt.de/" target="_blank">TU Darmstadt</a>, Germany
+                    </div>
+                </div>
+            </div>
+            <p class="blurb">
+                Tactile perception has the potential to significantly enhance dexterous robotic manipulation by
+                providing rich local information that can complement or substitute for other sensory modalities such as
+                vision. However, because tactile sensing is inherently local, it is not well-suited for tasks that
+                require broad spatial awareness or global scene understanding on its own. A human-inspired strategy to
+                address this issue is to consider active perception techniques instead. That is, to actively guide
+                sensors toward regions with more informative or significant features and integrate such information over
+                time in order to understand a scene or complete a task. Both active perception and different methods for
+                tactile sensing have received significant attention recently. Yet, despite advancements, both fields
+                lack standardized benchmarks. To bridge this gap, we introduce the Tactile MNIST Benchmark Suite, an
+                open-source, Gymnasium-compatible benchmark specifically designed for active tactile perception tasks,
+                including localization, classification, and volume estimation. Our benchmark suite offers diverse
+                simulation scenarios, from simple toy environments all the way to complex tactile perception tasks using
+                vision-based tactile sensors. Furthermore, we also offer a comprehensive dataset comprising 13,500
+                synthetic 3D MNIST digit models and 153,600 real-world tactile samples collected from 600 3D printed
+                digits. Using this dataset, we train a CycleGAN for realistic tactile simulation rendering. By providing
+                standardized protocols and reproducible evaluation frameworks, our benchmark suite facilitates
+                systematic progress in the fields of tactile sensing and active perception.
+            </p>
+
+            <div class="ctaRow">
+                <a href="https://arxiv.org/abs/2506.06361" class="btn primary">Read Paper</a>
+                <a href="https://github.com/TimSchneider42/tactile-mnist" class="btn">Dataset and Code</a>
+            </div>
+        </div>
+
+
+        <div class="section">
+            <h2>Benchmark Tasks</h2>
+
+            <div class="content-block">
+                <p>
+                    The Tactile MNIST benchmark provides four simulated active tactile classification tasks ranging from
+                    classification and counting to pose and volume estimation. Each task comes with a unique set of
+                    challenges and, thus, Tactile MNIST requires adaptive algorithms and clever exploration strategies.
+                    The aim of these benchmark tasks is to provide an extensible framework for a fair comparison of
+                    active tactile perception methods. All tasks are implemented as <a
+                        href="https://github.com/TimSchneider42/active-perception-gym" class="text-primary">ap_gym</a>
+                    environments, which is a Gymnasium-compatible
+                    framework for active perception tasks.
+                </p>
+            </div>
+
+            <div class="EnvGrid">
+
+                <!-- TactileMNIST -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/TactileMNIST.md"
+                    class="EnvCard">
+                    <h3>TactileMNIST</h3>
+                    <div class="EnvMedia">
+                        <video autoplay loop muted playsinline src="img/env/TactileMNIST-v0.mp4"></video>
+                    </div>
+                    <p>
+                        In the TactileMNIST environment, the agent's objective is to classify 3D models of handwritten
+                        digits by touch alone.
+                        Aside from finding the object, the main challenge in the TactileMNIST environment is to learn
+                        contour following strategies to efficiently classify it once found.
+                        Object pose perturbation is enabled, meaning that the object shifts around slightly while being
+                        touched.
+                    </p>
+                </a>
+
+                <!-- Starstruck -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/Starstruck.md" class="EnvCard">
+                    <h3>Starstruck</h3>
+                    <div class="EnvMedia">
+                        <video autoplay loop muted playsinline src="img/env/Starstruck-v0.mp4"></video>
+                    </div>
+                    <p>
+                        In the Starstruck environment, the agent must count the number of stars in a scene cluttered
+                        with other objects.
+                        Since all stars look the same, distinguishing stars from other objects is rather
+                        straightforward.
+                        The main challenge is to learn an effective search strategy to systematically cover as much
+                        space as possible.
+                    </p>
+                </a>
+
+                <!-- Toolbox -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/Toolbox.md" class="EnvCard">
+                    <h3>Toolbox</h3>
+                    <div class="EnvMedia">
+                        <video autoplay loop muted playsinline src="img/env/Toolbox-v0.mp4"></video>
+                    </div>
+                    <p>
+                        In the Toolbox environment, the agent's objective is to locate a wrench positioned randomly on a
+                        platform and estimate its precise 2D position and 1D orientation.
+                        Unlike the previous classification tasks, Toolbox poses a regression problem that requires
+                        combining multiple touch observations to resolve ambiguities inherent in the wrench’s shape.
+                    </p>
+                </a>
+
+                <!-- TactileMNISTVolume -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/TactileMNISTVolume.md"
+                    class="EnvCard">
+                    <h3>TactileMNISTVolume</h3>
+                    <div class="EnvMedia">
+                        <video autoplay loop muted playsinline src="img/env/TactileMNISTVolume-v0.mp4"></video>
+                    </div>
+                    <p>
+                        In the TactileMNISTVolume environment, the agent's objective is to estimate the volume of 3D
+                        models of handwritten digits by touch alone.
+                        Aside from finding the object, the main challenge is to learn contour following strategies to
+                        efficiently explore it once found.
+                    </p>
+                </a>
+
+            </div>
+
+        </div>
+
+        <!-- NEW DATASET SECTION DESIGN -->
+        <div class="section">
+            <div class="dataset-hero-container">
+                <div class="dataset-hero-text">
+                    <h2>The Tactile MNIST Datasets</h2>
+                    <p>
+                        In addition to the benchmark tasks, Tactile MNIST provides two large datasets: MNIST 3D and the
+                        Real
+                        Tactile MNIST Dataset. The former is a dataset of 3D models of hand-written MNIST digits, which
+                        are used in the TactileMNIST and TactileMNISTVolume environments. The latter is a dataset of
+                        real-world tactile interactions with 3D-printed MNIST 3D objects, which we use to train a
+                        CycleGAN
+                        for realistic tactile simulations. Both datasets are available on Huggingface. To access them,
+                        check
+                        out our GitHub repository.
+                    </p>
+                </div>
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/datasets.md"
+                    class="btn white-btn">Explore Datasets</a>
+            </div>
+
+            <div class="EnvGrid dataset-grid">
+                <!-- MNIST 3D (Renamed from Details) -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/datasets.md"
+                    class="EnvCard horizontal">
+                    <div class="horizontal-left-col">
+                        <h3>The MNIST 3D Dataset</h3>
+                        <div class="EnvMedia digits-grid">
+                            <img src="assets/digit_0.png" alt="Digit 0">
+                            <img src="assets/digit_3.png" alt="Digit 3">
+                            <img src="assets/digit_7.png" alt="Digit 7">
+                            <img src="assets/digit_8.png" alt="Digit 8">
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p>
+                            MNIST 3D is a collection of 13,580 auto-generated 3D-printable meshes derived from a 500 ×
+                            500
+                            pixel high-resolution MNIST variant and scaled to fit in a 10 × 10 cm square. The MNIST 3D
+                            dataset poses an exciting tactile classification challenge, as it has significant
+                            variability in
+                            shape and size within the classes, while also being large enough to facilitate learning from
+                            data. A single touch is rarely enough to classify objects from this dataset, as segments of
+                            hand-written digits are usually ambiguous. Hence, even after finding the object, the agent
+                            has
+                            to apply some strategy (e.g., contour following) to gather enough information for a
+                            successful
+                            classification. In addition to tactile sensing, this dataset could also be used as a
+                            benchmark
+                            for 3D mesh classification methods. More details on the generation of the MNIST 3D dataset
+                            can
+                            be found in our
+                            <span class="text-primary">paper</span>.
+                        </p>
+                    </div>
+                </a>
+
+                <!-- Real Tactile Interactions -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/datasets.md"
+                    class="EnvCard horizontal">
+                    <div class="horizontal-left-col">
+                        <h3>Real Tactile Interactions</h3>
+                        <div class="EnvMedia">
+                            <img src="img/dataset/data_collection.png" alt="Real Interactions">
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p>
+                            The Tactile MNIST benchmark includes a real-world, static tactile dataset of 3D-printed
+                            MNIST 3D
+                            digits captured with a GelSight Mini tactile sensor mounted on a Franka Research 3 robot:
+                            the
+                            Real Tactile MNIST Dataset. The dataset contains video sequences of 153,600 touches across
+                            600
+                            digits, which amounts to 256 touches per object collected in sequence. For data acquisition,
+                            we
+                            laid each 3D-printed MNIST digit in a 12x12cm grid on a rubber mat and used a Franka
+                            Research 3
+                            robot arm, with a GelSight Mini tactile sensor, to press the sensor down at random locations
+                            in
+                            the cell. Once we measured a normal force exceeding 5N, we stopped pressing and registered
+                            the
+                            time stamp. To prevent degradation of the elastomer gel, we replaced the GelSight sensor’s
+                            gel
+                            pad after every 76,800 touches (i.e., halfway through each dataset). Finally, we partitioned
+                            each dataset into training (90 %) and test (10 %) splits, ensuring uniform class
+                            distributions
+                            across each split. Note that we also provide two processed versions of this dataset, where
+                            we
+                            replaced the videos with still images at the time of contact, one in full resolution at
+                            320x240px and one scaled to 64x64px for faster loading and training.
+                        </p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="section cyclegan-section">
+            <h2>Realistic Tactile Renderings with CycleGAN</h2>
+
+            <div class="content-block">
+                <p>
+                    Using the Real Tactile MNIST Dataset, we train a CycleGAN to produce realistic tactile images in
+                    simulation. This allows for sim-to-real transfer and realistic training environments.
+                </p>
+            </div>
+
+            <div class="EnvGrid">
+                <!-- TactileMNIST-CycleGAN -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/TactileMNIST.md"
+                    class="EnvCard">
+                    <h3>TactileMNIST-CycleGAN</h3>
+                    <div class="EnvMedia">
+                        <video autoplay loop muted playsinline src="img/env/TactileMNIST-CycleGAN-v0.mp4"></video>
+                    </div>
+                    <p>
+                        The TactileMNIST-CycleGAN environment is a CycleGAN variant of TactileMNIST.
+                    </p>
+                </a>
+
+                <!-- TactileMNISTVolume-CycleGAN -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/TactileMNISTVolume.md"
+                    class="EnvCard">
+                    <h3>TactileMNISTVolume-CycleGAN</h3>
+                    <div class="EnvMedia">
+                        <video autoplay loop muted playsinline src="img/env/TactileMNISTVolume-CycleGAN-v0.mp4"></video>
+                    </div>
+                    <p>
+                        The TactileMNISTVolume-CycleGAN environment is a CycleGAN variant of TactileMNISTVolume.
+                    </p>
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        <div class="logo-row">
+            <img src="assets/logos/tuda.png" class="footer-logo" alt="TU Darmstadt">
+            <img src="assets/logos/ias.png" class="footer-logo" alt="IAS">
+            <img src="assets/logos/liris.png" class="footer-logo" alt="LIRIS">
+            <img src="assets/logos/ecl.png" class="footer-logo" alt="ECL">
+            <img src="assets/logos/lasr.png" class="footer-logo logo-lasr" alt="LASR">
+            <img src="assets/logos/tud.png" class="footer-logo logo-tud" alt="TUD">
+        </div>
+        <a href="https://www.tu-darmstadt.de/impressum/index.en.jsp" class="footer-link">Legal Note</a>
+    </footer>
 </body>
+
 </html>

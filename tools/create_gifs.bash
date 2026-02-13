@@ -34,7 +34,8 @@ rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 for env in "${ENVS[@]}"; do
   echo "Creating GIF for $env..."
-  ap-gym-create-env-vid "tactile_mnist:$env" "${OUTPUT_DIR}/$env.gif"
+  ap-gym-create-env-vid "tactile_mnist:$env" "${OUTPUT_DIR}/$env.mp4"
+#  ap-gym-create-env-vid "tactile_mnist:$env" "${OUTPUT_DIR}/$env.gif"
 done
 
 wait
