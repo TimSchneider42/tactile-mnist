@@ -130,7 +130,7 @@ class TactileVolumeEstimationVectorEnv(
             num_envs,
             single_prediction_space=pred_space,
             single_prediction_target_space=pred_space,
-            loss_fn=MSELossFn(),
+            loss_fn=MSELossFn(target_std=self.__std_volume).normalized,
             render_mode=render_mode,
         )
 

@@ -78,6 +78,10 @@ class TactilePoseEstimationVectorEnv(
 
         prediction_bound = 1.0 + max_expected_translation_perturbation_norm
 
+        single_prediction_target_space = gym.spaces.Box(
+            -prediction_bound, prediction_bound, shape=(target_dims,)
+        )
+
         super().__init__(
             config,
             num_envs,
@@ -85,10 +89,9 @@ class TactilePoseEstimationVectorEnv(
             single_prediction_space=gym.spaces.Box(
                 -prediction_bound, prediction_bound, shape=(target_dims,)
             ),
-            single_prediction_target_space=gym.spaces.Box(
-                -prediction_bound, prediction_bound, shape=(target_dims,)
-            ),
-            loss_fn=MSELossFn(),
+            single_prediction_target_space=single_prediction_target_space,
+            # Assuming uniform distribution over the prediction target space
+            loss_fn=MSELossFn(target_std=2 * prediction_bound / np.sqrt(12)).normalized,
             render_mode=render_mode,
         )
         self.__metrics: dict[str, tuple[deque[float], ...]] | None = None
