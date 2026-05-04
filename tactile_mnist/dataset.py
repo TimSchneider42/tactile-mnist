@@ -8,7 +8,6 @@ from typing import (
     TypeVar,
     Literal,
     overload,
-    Self,
 )
 
 import numpy as np
@@ -32,7 +31,7 @@ class Dataset(Sequence[DataPointType], Generic[DataPointType, SelfType], ABC):
         pass
 
     @abstractmethod
-    def _select(self, indices: np.ndarray) -> Self:
+    def _select(self, indices: np.ndarray) -> SelfType:
         pass
 
     @abstractmethod

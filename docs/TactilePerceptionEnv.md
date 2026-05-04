@@ -1,7 +1,7 @@
 # Tactile Perception Environments
 
 **This guide assumes you are familiar with ap_gym.
-If you are not, please refer to the [ap_gym](https://github.com/TimSchneider42/active-perception-gym) documentation.**
+If you are not, please refer to the ap_gym documentation.**
 
 In tactile perception environments, the agent has to identify properties of 3D objects by exploring them with a [GelSight Mini](https://www.gelsight.com/gelsightmini/) tactile sensor.
 The agent does not have access to the location of the objects and also receives no visual input.

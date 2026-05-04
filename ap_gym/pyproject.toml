@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ap_gym"
+version = "0.4.0"
+description = "Active Perception Gym: extension of Gymnasium for active perception tasks."
+authors = [
+    { name = "REDACTED", email = "REDACTED" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+dependencies = [
+    "gymnasium>=1.1.0",
+    "scipy",
+    "numpy",
+    "datasets",
+    "shapely",
+]
+
+[project.urls]
+homepage = "REDACTED"
+
+[project.optional-dependencies]
+examples = ["matplotlib"]
+
+[tool.setuptools.packages.find]
+include = ["ap_gym*"]
+
+[project.scripts]
+ap-gym-create-env-vid = "ap_gym.tools.create_env_vid:main"

@@ -8,26 +8,13 @@ version = "0.12.0"
 description = "The Tactile MNIST benchmark for active tactile perception."
 readme = "README.md"
 authors = [
-    { name = "Tim Schneider", email = "tim@robot-learning.de" }
+    { name = "REDACTED", email = "REDACTED" }
 ]
 license = { text = "MIT" }
-dependencies = [
-    "ap_gym>=0.4.0",
-    "filelock",
-    "numpy",
-    "transformation3d>=1.0.1",
-    "tqdm",
-    "trimesh[easy]",
-    "scikit-robot-pyrender",
-    "scipy",
-    "requests",
-    "opencv-python",
-    "av",
-    "objaverse"
-]
+dynamic = ["dependencies"]
 
 [project.urls]
-Homepage = "https://github.com/TimSchneider42/tactile-mnist"
+Homepage = "REDACTED"
 
 [project.optional-dependencies]
 examples = ["matplotlib"]

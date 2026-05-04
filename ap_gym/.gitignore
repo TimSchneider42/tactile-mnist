@@ -1,0 +1,9 @@
+/.idea/
+
+# Python
+*.pyc
+__pycache__
+
+/build
+*.egg-info
+/dist

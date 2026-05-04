@@ -13,7 +13,7 @@ if __name__ == "__main__":
         "-d",
         "--dataset",
         type=str,
-        default="TimSchneider42/tactile-mnist-mnist3d",
+        default="anonymous-submission-hf/tactile-mnist-mnist3d",
         help="Name or path of the dataset to load.",
     )
     parser.add_argument(

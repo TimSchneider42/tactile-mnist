@@ -32,7 +32,7 @@ def mk_config(
 ):
     return TactilePerceptionConfig(
         SimpleMeshDataset(
-            load_dataset(f"TimSchneider42/tactile-mnist-{dataset_name}", split=split),
+            load_dataset(f"anonymous-submission-hf/tactile-mnist-{dataset_name}", split=split),
             **({} if mesh_dataset_config is None else mesh_dataset_config),
         ),
         *args,

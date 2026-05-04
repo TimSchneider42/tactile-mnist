@@ -14,7 +14,7 @@ if __name__ == "__main__":
         "-d",
         "--dataset",
         type=str,
-        default="TimSchneider42/tactile-mnist-touch-real-seq-t256-320x240",
+        default="anonymous-submission-hf/tactile-mnist-touch-real-seq-t256-320x240",
         help="Name or path of the dataset to load.",
     )
     parser.add_argument(
