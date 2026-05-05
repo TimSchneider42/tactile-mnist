@@ -134,7 +134,7 @@ Moreover, meshes were simplified to have at most 500 faces per cm² of their sur
 | `train` | Training split of the *ABC Dataset*. |
 | `test`  | Test split of the *ABC Dataset*.     |
 
-Available on Huggingface: [TimSchneider42/tactile-mnist-abc-dataset-small](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-abc-dataset-small).
+Available on Huggingface: [tactile-mnist-abc-dataset-small](https://huggingface.co/datasets/anonymous-submission-hf/tactile-mnist-abc-dataset-small).
 
 ## Touch datasets
 
