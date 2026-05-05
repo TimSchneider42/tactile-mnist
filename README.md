@@ -144,16 +144,3 @@ RuntimeError: Not compiled with CUDA support
 then `nvcc` was not found when installing `torch_scatter`.
 
 In both cases, follow the instructions in the [official torch_scatter repository](https://github.com/rusty1s/pytorch_scatter) to install compatible PyTorch and `torch_scatter` versions.
-
-## License
-
-The project is licensed under the MIT license.
-
-## Contributing
-
-If you wish to contribute to this project, you are welcome to create a pull request.
-Please run the [pre-commit](https://pre-commit.com/) hooks before submitting your pull request.
-To install the pre-commit hooks, run:
-
-1. [Install pre-commit](https://pre-commit.com/#install)
-2. Install the Git hooks by running `pre-commit install` or, alternatively, run `pre-commit run --all-files manually.
