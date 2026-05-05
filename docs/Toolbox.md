@@ -17,9 +17,9 @@ Refer to the [tactile regression environments overview](TactileRegressionEnv.md)
 ## Description
 
 In the Toolbox environment, the agent's objective is to locate a wrench positioned randomly on a platform and estimate its precise 2D position and 1D orientation.
-Unlike the previous classification tasks, Toolbox is poses a regression problem that requires combining multiple touch observations to resolve ambiguities inherent in the wrench’s shape.
+Unlike the classification tasks, Toolbox poses a regression problem that requires combining multiple touch observations to resolve ambiguities inherent in the wrench’s shape.
 For example, touching the handle may reveal lateral placement but not longitudinal position or orientation, making it critical for the agent to explore strategically and seek out one of the wrench’s ends to accurately determine its pose.
-Overall, the Toolbox tests the agent’s ability to both find and precisely localize an object through sequential tactile exploration.
+Overall, the Toolbox task tests the agent’s ability to both find and precisely localize an object through sequential tactile exploration.
 
 ## Prediction Target Space
 
