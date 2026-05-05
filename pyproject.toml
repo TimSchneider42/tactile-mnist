@@ -8,7 +8,7 @@ version = "0.12.0"
 description = "The Tactile MNIST benchmark for active tactile perception."
 readme = "README.md"
 authors = [
-    { name = "REDACTED", email = "REDACTED" }
+    { name = "REDACTED", email = "REDACTED@REDACTED.REDACTED" }
 ]
 license = { text = "MIT" }
 dynamic = ["dependencies"]
