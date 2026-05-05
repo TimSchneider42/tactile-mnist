@@ -195,7 +195,6 @@ def register_envs():
     ]:
         for env_name, ds_name, sizes, step_limit, orig_colors in [
             ("Toolbox", "wrench", (("", 0.3), ("-small", 0.25)), 64, False),
-            ("Minecraft", "minecraft-items-dedup", (("", 0.2),), 32, True),
         ]:
             for size_name, size in sizes:
                 ap_gym.register(
