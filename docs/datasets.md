@@ -5,6 +5,7 @@ This package provides the following datasets:
 - **[3D Mesh Datasets](#3d-mesh-datasets)**:
     1. **MNIST 3D**: a dataset of 3D models generated from a [high-resolution version of the MNIST dataset](https://arxiv.org/abs/2011.07946).
     2. **Starstruck**: a dataset in which the number of stars in a scene have to be counted (3 classes, 1 - 3 stars per scene).
+    3. **ABC Dataset**: a variant of the [ABC dataset](https://deep-geometry.github.io/abc-dataset/), processed for the use with this benchmark suite.
 - **[Touch Datasets](#touch-datasets)**
     1. **Synthetic Tactile MNIST**: a dataset of synthetic tactile images generated from the _MNIST 3D_ dataset with the [Taxim simulator](https://arxiv.org/abs/2109.04027).
     2. **Real Tactile MNIST**: a dataset of real tactile images of 3D printed _MNIST 3D_ digits collected with a Franka robot.
@@ -84,11 +85,11 @@ Currently, the following 3D mesh datasets are available:
 
 | Split           | Description                                                                                                                                                                                      |
 |-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `train`         | Training split of *mnist3d*.                                                                                                                                                                     |
-| `test`          | Test split of *mnist3d*.                                                                                                                                                                         |
+| `train`         | Training split of *MNIST 3D*.                                                                                                                                                                    |
+| `test`          | Test split of *MNIST 3D*.                                                                                                                                                                        |
 | `printed_train` | Training split of the digits that were 3D printed and used to collect the *Real Tactile MNIST* dataset. Corresponds to the touch data in *tactile-mnist-touch-real-[seq/single]-t256-.../train*. |
 | `printed_test`  | Test split of the digits that were 3D printed and used to collect the *Real Tactile MNIST* dataset. Corresponds to the touch data in *tactile-mnist-touch-real-[seq/single]-t256-.../test*.      |
-| `holdout`       | Holdout split of *mnist3d*.                                                                                                                                                                      |
+| `holdout`       | Holdout split of *MNIST 3D*.                                                                                                                                                                     |
 
 Available on Huggingface: [TimSchneider42/tactile-mnist-mnist3d](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-mnist3d).
 
@@ -105,10 +106,35 @@ A dataset in which the number of stars in a scene must be counted (3 classes, 1�
 
 | Split   | Description                     |
 |---------|---------------------------------|
-| `train` | Training split of *starstruck*. |
-| `test`  | Test split of *starstruck*.     |
+| `train` | Training split of *Starstruck*. |
+| `test`  | Test split of *Starstruck*.     |
 
 Available on Huggingface: [TimSchneider42/tactile-mnist-starstruck](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-starstruck).
+
+#### ABC Dataset
+
+<p align="center">
+  <img src="img/abc_0.png" alt="ABC models" width="24%"/>
+  <img src="img/abc_1.png" alt="ABC models" width="24%"/>
+  <img src="img/abc_2.png" alt="ABC models" width="24%"/>
+  <img src="img/abc_3.png" alt="ABC models" width="24%"/>
+</p>
+
+A variant of the [ABC dataset](https://deep-geometry.github.io/abc-dataset/), processed for the use with this benchmark suite.
+
+Specifically, meshes were first filtered, including only those that
+- Fit in a cuboid of width 100 mm and height 50 mm
+- Are at least 1mm wide and 1 mm tall
+- Have a volume of at least 1000 mm³
+
+Moreover, meshes were simplified to have at most 500 faces per cm² of their surface area via [trimesh's `simplify_quadratic_decimation` method](https://trimesh.org/trimesh.scene.scene.html#trimesh.scene.scene.Scene.simplify_quadric_decimation).
+
+| Split   | Description                          |
+|---------|--------------------------------------|
+| `train` | Training split of the *ABC Dataset*. |
+| `test`  | Test split of the *ABC Dataset*.     |
+
+Available on Huggingface: [TimSchneider42/tactile-mnist-abc-dataset-small](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-abc-dataset-small).
 
 ## Touch datasets
 
