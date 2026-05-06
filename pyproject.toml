@@ -30,7 +30,10 @@ dependencies = [
 Homepage = "https://github.com/TimSchneider42/tactile-mnist"
 
 [project.optional-dependencies]
-examples = ["matplotlib"]
+examples = [
+    "matplotlib",
+    "trimesh[recommend]",
+]
 torch = [
     "taxim[torch]>=1.4.0",
     "torch",
