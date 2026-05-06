@@ -4,7 +4,7 @@ import hashlib
 import logging
 import sys
 import traceback
-from functools import lru_cache
+from functools import lru_cache, partial
 from importlib.resources import files
 from pathlib import Path
 from typing import Literal
@@ -12,10 +12,12 @@ from urllib.parse import urlparse
 
 import datasets
 import loguru
+import numpy as np
 import objaverse.xl
 import pandas as pd
 import requests
 import trimesh
+from pandas.io.sas.sas_constants import file_type_length
 from trimesh import Trimesh
 from trimesh.exchange.load import mesh_loaders
 
@@ -140,17 +142,33 @@ class ObjaverseXLMeshDataset(
         # Filter out Thingiverse objects as they do not allow scripted downloads
         print("Filtering out invalid objects from Objaverse XL dataset...")
         super().__init__(
-            huggingface_dataset=huggingface_dataset.filter(self.__data_point_loadable),
+            huggingface_dataset=huggingface_dataset.filter(
+                partial(
+                    self.__data_point_loadable, supported_file_types=tuple(mesh_loaders)
+                ),
+                batched=True,
+                batch_size=10_000,
+            ),
             cache_size=cache_size,
         )
 
     @staticmethod
-    def __data_point_loadable(data_point: dict[str, str]) -> bool:
-        if data_point["source"] == "thingiverse":
-            return False
-        if data_point["source"] == "github":
-            return data_point["fileType"].lower() in mesh_loaders
-        return True
+    def __data_point_loadable(
+        data_point: dict[str, list[str]], supported_file_types: tuple[str, ...]
+    ) -> list[bool]:
+        supported_file_types = set(supported_file_types)
+
+        def filter_single(source: str, file_type: str) -> bool:
+            if source == "thingiverse":
+                return False
+            if source == "github":
+                return file_type.lower() in supported_file_types
+            return True
+
+        return [
+            filter_single(s, f)
+            for s, f in zip(data_point["source"], data_point["fileType"])
+        ]
 
     def _get_data_point_type(self) -> type[DataPointType]:
         return ObjaverseXLMeshDataPoint
