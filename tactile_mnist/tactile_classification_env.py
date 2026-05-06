@@ -52,7 +52,9 @@ class TactileClassificationVectorEnv(
             single_prediction_target_space=gym.spaces.Discrete(
                 len(datasets[0].label_names)
             ),
-            loss_fn=CrossEntropyLossFn(num_classes=len(datasets[0].label_names)).normalized,
+            loss_fn=CrossEntropyLossFn(
+                num_classes=len(datasets[0].label_names)
+            ).normalized,
             render_mode=render_mode,
         )
 
