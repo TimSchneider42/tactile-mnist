@@ -3,37 +3,41 @@
 <table style="border-collapse: collapse; border: none;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="180px"/><br/>
+            <img src="docs/img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="240px"/><br/>
             <a href="docs/TactileMNIST.md">
                 TactileMNIST-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="180px"/><br/>
+            <img src="docs/img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="240px"/><br/>
             <a href="docs/Starstruck.md">
                 Starstruck-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/Toolbox-v0.gif" alt="Toolbox-v0" width="180px"/><br/>
+            <img src="docs/img/env/Toolbox-v0.gif" alt="Toolbox-v0" width="240px"/><br/>
             <a href="docs/Toolbox.md">
                 Toolbox-v0
             </a>
         </td>
+    </tr>
+</table>
+<table style="border-collapse: collapse; border: none;">
+    <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/ABCCenterOfMass-v0.gif" alt="ABCCenterOfMass-v0" width="180px"/><br/>
+            <img src="docs/img/env/ABCCenterOfMass-v0.gif" alt="ABCCenterOfMass-v0" width="240px"/><br/>
             <a href="docs/ABCCenterOfMass.md">
                 ABCCenterOfMass-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/TactileMNISTVolume-v0.gif" alt="TactileMNISTVolume-v0" width="180px"/><br/>
+            <img src="docs/img/env/TactileMNISTVolume-v0.gif" alt="TactileMNISTVolume-v0" width="240px"/><br/>
             <a href="docs/TactileMNISTVolume.md">
                 TactileMNISTVolume-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/ABCVolume-v0.gif" alt="ABCVolume-v0" width="180px"/><br/>
+            <img src="docs/img/env/ABCVolume-v0.gif" alt="ABCVolume-v0" width="240px"/><br/>
             <a href="docs/ABCVolume.md">
                 ABCVolume-v0
             </a>
