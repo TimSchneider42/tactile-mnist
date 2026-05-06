@@ -12,12 +12,10 @@ from urllib.parse import urlparse
 
 import datasets
 import loguru
-import numpy as np
 import objaverse.xl
 import pandas as pd
 import requests
 import trimesh
-from pandas.io.sas.sas_constants import file_type_length
 from trimesh import Trimesh
 from trimesh.exchange.load import mesh_loaders
 
