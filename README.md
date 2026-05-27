@@ -56,8 +56,6 @@ The agent's objective is to make a prediction about some property of the objects
 
 In addition to the simulated benchmark tasks, this package provides access to a large dataset of real tactile images collected from 3D printed MNIST digits and a couple of synthetic datasets.
 
-Further details can be found on our [project page](https://sites.google.com/robot-learning.de/tactile-mnist/), which also links to the paper.
-
 ## Installation
 
 Install Tactile MNIST via `pip`:
