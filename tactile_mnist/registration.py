@@ -146,8 +146,9 @@ def register_envs():
                     ),
                 )
 
-                for env_name, ds_name, smallest_dim_up in [
-                    ("ABC", "abc-dataset-small", True),
+                for env_name, ds_name, smallest_dim_up, allow_sensor_rotation in [
+                    ("ABC", "abc-dataset-small", True, True),
+                    ("TactileMNIST", "mnist3d", False, False),
                 ]:
                     ap_gym.register(
                         id=f"{env_name}CenterOfMass{sensor_type_name}{s}-v0",
@@ -178,7 +179,7 @@ def register_envs():
                         kwargs=dict(
                             default_config=dict(
                                 sensor_output_size=(64, 64),
-                                allow_sensor_rotation=True,
+                                allow_sensor_rotation=allow_sensor_rotation,
                                 step_limit=32,
                                 cell_size=CELL_SIZE,
                                 sensor_type=sensor_type,
