@@ -21,7 +21,9 @@ from ap_gym import (
     MSELossFn,
 )
 from ap_gym.util import update_info_metrics_vec
-from tactile_mnist import MeshDataPoint
+from .mesh_dataset import MeshDataPoint, MeshDataset
+from .simple_mesh_dataset import SimpleMeshDataset
+from .util import get_dataset_stats
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
     TactilePerceptionConfig,
@@ -30,6 +32,71 @@ from .tactile_perception_vector_env import (
 
 if TYPE_CHECKING:
     from .tactile_perception_vector_env import ObsType
+
+
+def _compute_object_pose_distribution_stats(
+    idx: int,
+    ds: MeshDataset,
+    randomize_initial_object_pose: bool,
+    max_initial_angle_perturbation: float,
+    cell_size: tuple[float, float],
+    smallest_dimension_up: bool,
+    position_mode: Literal["model", "inertia_frame"],
+    rotation_mode: Literal["model", "inertia_frame"],
+    predict_position: bool,
+    predict_rotation: bool,
+) -> dict[str, float]:
+    ds = SimpleMeshDataset(ds)
+    dp = TactilePerceptionVectorEnv._pre_process_dp(
+        ds[idx], smallest_dimension_up=smallest_dimension_up
+    )
+    num_samples = 16
+    rotation_perturbations = np.repeat(np.linspace(0, 1, num_samples), 2, axis=0)
+    translation_perturbation_limits = np.repeat(
+        np.array([[0.0, 0.0], [1.0, 1.0]])[None], repeats=num_samples, axis=0
+    ).reshape((-1, 2))
+    poses = TactilePerceptionVectorEnv._get_random_object_pose_batch(
+        dp,
+        randomize_initial_object_pose,
+        max_initial_angle_perturbation,
+        cell_size,
+        rotation_perturbation_norm=rotation_perturbations,
+        translation_perturbation_norm=translation_perturbation_limits,
+    )
+    frame = TactilePoseEstimationVectorEnv._compute_object_frame(
+        dp, position_mode or "model", rotation_mode or "model"
+    )
+    targets_flat = TactilePoseEstimationVectorEnv._get_prediction_targets_batch(
+        poses,
+        frame,
+        predict_position,
+        predict_rotation,
+        cell_size,
+    )
+    targets = targets_flat.reshape((num_samples, 2, -1))
+    output = {}
+    if predict_position:
+        translation_targets = targets[..., :2]
+        # This should work as the transformation happening to the translation perturbation is just additive, so the
+        # distribution shape is not changed, only shifted.
+        translation_min = translation_targets[:, 0]
+        translation_max = translation_targets[:, 1]
+        translation_mean = np.mean((translation_min + translation_max) / 2, axis=0)
+        translation_var = np.mean((translation_max - translation_min) ** 2 / 12, axis=0)
+        output["mean_trans_0"] = translation_mean[0]
+        output["mean_trans_1"] = translation_mean[1]
+        output["var_trans_0"] = translation_var[0]
+        output["var_trans_1"] = translation_var[1]
+    if predict_rotation:
+        rotation_targets = targets[:, 0, -2:]
+        rotation_mean = np.mean(rotation_targets, axis=0)
+        rotation_var = np.var(rotation_targets, axis=0)
+        output["mean_rot_0"] = rotation_mean[0]
+        output["mean_rot_1"] = rotation_mean[1]
+        output["var_rot_0"] = rotation_var[0]
+        output["var_rot_1"] = rotation_var[1]
+
+    return output
 
 
 class TactilePoseEstimationVectorEnv(
@@ -46,7 +113,7 @@ class TactilePoseEstimationVectorEnv(
     ):
         self.__compute_object_frame_cached = functools.lru_cache(maxsize=num_envs)(
             partial(
-                self.__compute_object_frame,
+                self._compute_object_frame,
                 position_mode=frame_position_mode or "model",
                 rotation_mode=frame_rotation_mode or "model",
             )
@@ -55,14 +122,6 @@ class TactilePoseEstimationVectorEnv(
         self.__predict_position = frame_position_mode is not None
         self.__predict_rotation = frame_rotation_mode is not None
         target_dims = 0
-        if self.__predict_position:
-            target_dims += 2
-        if self.__predict_rotation:
-            target_dims += 2
-        if target_dims == 0:
-            raise ValueError(
-                "At least one of frame_position_mode or frame_rotation_mode must not be 'dont_use'"
-            )
 
         max_expected_translation_perturbation_norm = 0
         if config.perturb_object_pose:
@@ -76,22 +135,76 @@ class TactilePoseEstimationVectorEnv(
                 max_expected_translation_perturbation / (np.min(config.cell_size) / 2)
             )
 
-        prediction_bound = 1.0 + max_expected_translation_perturbation_norm
+        prediction_bound = []
 
+        if self.__predict_position:
+            target_dims += 2
+            prediction_bound += [1.0 + max_expected_translation_perturbation_norm] * 2
+        if self.__predict_rotation:
+            target_dims += 2
+            prediction_bound += [1.0] * 2
+        if target_dims == 0:
+            raise ValueError(
+                "At least one of frame_position_mode or frame_rotation_mode must not be 'dont_use'"
+            )
+
+        prediction_bound = np.asarray(prediction_bound)
         single_prediction_target_space = gym.spaces.Box(
             -prediction_bound, prediction_bound, shape=(target_dims,)
         )
+
+        kwargs = {
+            "randomize_initial_object_pose": config.randomize_initial_object_pose,
+            "max_initial_angle_perturbation": config.max_initial_angle_perturbation,
+            "cell_size": config.cell_size,
+            "smallest_dimension_up": config.smallest_dimension_up,
+            "position_mode": frame_position_mode,
+            "rotation_mode": frame_rotation_mode,
+            "predict_position": self.__predict_position,
+            "predict_rotation": self.__predict_rotation,
+        }
+
+        statistics = get_dataset_stats(
+            config.dataset,
+            "pose",
+            _compute_object_pose_distribution_stats,
+            kwargs,
+        )
+
+        var = np.array(())
+        if self.__predict_position:
+            var = np.concatenate(
+                [
+                    var,
+                    [
+                        statistics["mean_trans_0"]["std"] ** 2
+                        + statistics["var_trans_0"]["mean"],
+                        statistics["mean_trans_1"]["std"] ** 2
+                        + statistics["var_trans_1"]["mean"],
+                    ],
+                ]
+            )
+        if self.__predict_rotation:
+            var = np.concatenate(
+                [
+                    var,
+                    [
+                        statistics["mean_rot_0"]["std"] ** 2
+                        + statistics["var_rot_0"]["mean"],
+                        statistics["mean_rot_1"]["std"] ** 2
+                        + statistics["var_rot_1"]["mean"],
+                    ],
+                ]
+            )
 
         super().__init__(
             config,
             num_envs,
             # We allow for more than [-1, 1] range to account for objects moving beyond the platform during the episode
-            single_prediction_space=gym.spaces.Box(
-                -prediction_bound, prediction_bound, shape=(target_dims,)
-            ),
+            single_prediction_space=single_prediction_target_space,
             single_prediction_target_space=single_prediction_target_space,
             # Assuming uniform distribution over the prediction target space
-            loss_fn=MSELossFn(target_std=2 * prediction_bound / np.sqrt(12)).normalized,
+            loss_fn=MSELossFn(target_std=np.sqrt(var)).normalized,
             render_mode=render_mode,
         )
         self.__metrics: dict[str, tuple[deque[float], ...]] | None = None
@@ -208,7 +321,7 @@ class TactilePoseEstimationVectorEnv(
         return obs, action_reward, terminated, truncated, info, labels
 
     @staticmethod
-    def __compute_object_frame(
+    def _compute_object_frame(
         dp: MeshDataPoint,
         position_mode: Literal["model", "inertia_frame"],
         rotation_mode: Literal["model", "inertia_frame"],
@@ -249,21 +362,25 @@ class TactilePoseEstimationVectorEnv(
             raise ValueError(f"Unknown frame rotation mode: {rotation_mode}")
         return Transformation(position, rotation)
 
-    def _get_prediction_targets(self) -> np.ndarray:
-        object_frames = Transformation.batch_concatenate(
-            [self.__compute_object_frame_cached(dp) for dp in self.current_data_points]
-        )
-        object_frames_world = self.current_object_poses_platform_frame * object_frames
+    @staticmethod
+    def _get_prediction_targets_batch(
+        object_poses: Transformation,
+        object_frames: Transformation,
+        predict_position: bool,
+        predict_rotation: bool,
+        cell_size: tuple[float, float],
+    ) -> np.ndarray:
+        object_frames_world = object_poses * object_frames
         object_position_2d = object_frames_world.translation[..., :2]
 
         target = []
-        if self.__predict_position:
+        if predict_position:
             object_position_2d_norm = object_position_2d / (
-                np.array(self.config.cell_size, dtype=np.float32) / 2
+                np.array(cell_size, dtype=np.float32) / 2
             )
             target.append(object_position_2d_norm)
 
-        if self.__predict_rotation:
+        if predict_rotation:
             object_x_axis_2d = object_frames_world.rotation.as_matrix()[..., :2, 0]
             object_x_axis_2d = object_x_axis_2d / np.linalg.norm(
                 object_x_axis_2d, axis=-1, keepdims=True
@@ -271,6 +388,18 @@ class TactilePoseEstimationVectorEnv(
             target.append(object_x_axis_2d)
 
         return np.concatenate(target, axis=-1)
+
+    def _get_prediction_targets(self) -> np.ndarray:
+        object_frames = Transformation.batch_concatenate(
+            [self.__compute_object_frame_cached(dp) for dp in self.current_data_points]
+        )
+        return self._get_prediction_targets_batch(
+            self.current_object_poses_platform_frame,
+            object_frames,
+            self.__predict_position,
+            self.__predict_rotation,
+            self.config.cell_size,
+        )
 
 
 def TactilePoseEstimationEnv(

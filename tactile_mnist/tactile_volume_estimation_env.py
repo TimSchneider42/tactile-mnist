@@ -1,36 +1,30 @@
 from __future__ import annotations
 
 import functools
-import json
 import logging
-import multiprocessing.pool
 from collections import deque, defaultdict
-from functools import partial
 from typing import (
     Literal,
     TYPE_CHECKING,
     Any,
 )
 
-import datasets
-import filelock
 import gymnasium as gym
 import numpy as np
-import tqdm
 
 from ap_gym import (
     ActivePerceptionVectorToSingleWrapper,
     MSELossFn,
 )
 from ap_gym.util import update_info_metrics_vec
-from .constants import CACHE_BASE_DIR
-from .mesh_dataset import MeshDataPoint
+from .mesh_dataset import MeshDataPoint, MeshDataset
 from .simple_mesh_dataset import SimpleMeshDataset
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
     TactilePerceptionConfig,
     ActType,
 )
+from .util import get_dataset_stats
 
 if TYPE_CHECKING:
     from .tactile_perception_vector_env import ObsType
@@ -38,8 +32,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _compute_object_volume_idx(idx: int, ds: datasets.Dataset):
-    return SimpleMeshDataset(ds)[idx].mesh.volume
+def _compute_object_volume_idx(idx: int, ds: MeshDataset):
+    return {"volume": SimpleMeshDataset(ds)[idx].mesh.volume}
 
 
 class TactileVolumeEstimationVectorEnv(
@@ -56,68 +50,13 @@ class TactileVolumeEstimationVectorEnv(
             self.__compute_object_volume
         )
 
-        cache_dir = CACHE_BASE_DIR / "volume_estimation"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        ds_fingerprint = config.dataset.huggingface_dataset._fingerprint
-        cache_file = cache_dir / f"{ds_fingerprint}.json"
-        self.__mean_volume = self.__std_volume = self.__min_volume = (
-            self.__max_volume
-        ) = None
-        with filelock.FileLock(cache_dir / f"{ds_fingerprint}.lock"):
-            if cache_file.exists():
-                try:
-                    with cache_file.open() as f:
-                        data = json.load(f)
-                    self.__mean_volume = data["mean_volume"]
-                    self.__std_volume = data["std_volume"]
-                    self.__min_volume = data["min_volume"]
-                    self.__max_volume = data["max_volume"]
-                except Exception as ex:
-                    logger.warning(
-                        f"Loading volume statistics from cache failed with the following exception: {ex}"
-                    )
-            if any(
-                m is None
-                for m in [
-                    self.__mean_volume,
-                    self.__std_volume,
-                    self.__min_volume,
-                    self.__max_volume,
-                ]
-            ):
-                print(
-                    "Computing object volumes for normalization (the results will be cached)..."
-                )
-                with multiprocessing.pool.Pool(
-                    processes=min(multiprocessing.cpu_count(), 8)
-                ) as pool:
-                    volumes = list(
-                        tqdm.tqdm(
-                            pool.imap_unordered(
-                                partial(
-                                    _compute_object_volume_idx,
-                                    ds=config.dataset.huggingface_dataset,
-                                ),
-                                range(len(config.dataset)),
-                            ),
-                            total=len(config.dataset),
-                        )
-                    )
-
-                self.__mean_volume = np.mean(volumes)
-                self.__std_volume = np.std(volumes)
-                self.__min_volume = np.min(volumes)
-                self.__max_volume = np.max(volumes)
-                with cache_file.open("w") as f:
-                    json.dump(
-                        {
-                            "mean_volume": self.__mean_volume,
-                            "std_volume": self.__std_volume,
-                            "min_volume": self.__min_volume,
-                            "max_volume": self.__max_volume,
-                        },
-                        f,
-                    )
+        statistics = get_dataset_stats(
+            config.dataset, "volume", _compute_object_volume_idx
+        )
+        self.__mean_volume = statistics["volume"]["mean"]
+        self.__std_volume = statistics["volume"]["std"]
+        self.__min_volume = statistics["volume"]["min"]
+        self.__max_volume = statistics["volume"]["max"]
 
         pred_space = gym.spaces.Box(
             self.__normalize_volume(self.__min_volume),

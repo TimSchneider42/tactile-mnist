@@ -296,6 +296,105 @@ class TactilePerceptionVectorEnv(
             sensor_poses.append(Transformation(position, rotation))
         return sensor_poses
 
+    @staticmethod
+    def _pre_process_dp(
+        dp: GenericMeshDataPoint, smallest_dimension_up: bool = False
+    ) -> GenericMeshDataPoint:
+        if smallest_dimension_up:
+            bb_oriented: trimesh.primitives.Box = dp.mesh.bounding_box_oriented
+            bb_rotation: Rotation = Rotation.from_matrix(bb_oriented.transform[:3, :3])
+            bb_vertices_local = bb_rotation.inv().apply(bb_oriented.vertices)
+            extents = np.max(bb_vertices_local, axis=0) - np.min(
+                bb_vertices_local, axis=0
+            )
+            axes = bb_rotation.as_matrix().T
+
+            extends_idx_sorted = np.argsort(extents)
+            z_axis = axes[extends_idx_sorted[0]]
+            if z_axis[-1] < 0:
+                z_axis = -z_axis
+            remaining_axes = axes[extends_idx_sorted[1:]]
+
+            if np.abs(remaining_axes[0, 0]) > np.abs(remaining_axes[1, 0]):
+                x_axis = remaining_axes[0]
+            else:
+                x_axis = remaining_axes[1]
+
+            y_axis = np.cross(z_axis, x_axis)
+
+            target_rotation = Rotation.from_matrix(
+                np.stack([x_axis, y_axis, z_axis], axis=-1)
+            )
+
+            mesh = dp.mesh.copy()
+            mesh.vertices = target_rotation.inv().apply(mesh.vertices)
+            dp = TransformedDataPoint(dp, mesh)
+        return dp
+
+    @staticmethod
+    def _get_random_object_pose_batch(
+        dp: GenericMeshDataPoint,
+        randomize_initial_pose: bool,
+        max_initial_angle_perturbation: float,
+        cell_size: tuple[float, float],
+        rotation_perturbation_norm: np.ndarray | None = None,
+        translation_perturbation_norm: np.ndarray | None = None,
+        np_random: np.random.Generator | None = None,
+    ) -> Transformation:
+        initial_pose = Transformation([[0, 0, -np.min(dp.mesh.vertices[:, 2])]])
+        if randomize_initial_pose:
+            if rotation_perturbation_norm is None:
+                rotation_perturbation_norm = np_random.uniform(
+                    low=0.0, high=1.0, size=(1,)
+                )
+            rotation_perturbation_euler = (
+                rotation_perturbation_norm * 2 - 1
+            ) * max_initial_angle_perturbation
+            rotation_perturbation = Rotation.from_euler(
+                "xyz",
+                np.concatenate(
+                    [
+                        np.zeros(
+                            (rotation_perturbation_euler.shape[0], 2), dtype=np.float32
+                        ),
+                        rotation_perturbation_euler[..., None],
+                    ],
+                    axis=-1,
+                ),
+            )
+            xy_pos = (
+                rotation_perturbation.as_matrix()[:, None]
+                @ dp.mesh.vertices[None, ..., None]
+            )[..., :2, 0]
+            xy_min = np.min(xy_pos, axis=1)
+            xy_max = np.max(xy_pos, axis=1)
+            margin = 0.01
+            low = -np.array(cell_size) / 2 + margin - xy_min
+            high = np.array(cell_size) / 2 - margin - xy_max
+            conflict = low > high
+            low[conflict] = high[conflict] = ((low + high) / 2)[conflict]
+            if translation_perturbation_norm is None:
+                translation_perturbation_norm = np_random.uniform(
+                    low=0.0, high=1.0, size=(1, 2)
+                )
+            translation_perturbation = (
+                translation_perturbation_norm * (high - low) + low
+            )
+            perturbation = Transformation(
+                np.concatenate(
+                    [
+                        translation_perturbation,
+                        np.zeros(
+                            (translation_perturbation.shape[0], 1), dtype=np.float32
+                        ),
+                    ],
+                    axis=-1,
+                ),
+                rotation_perturbation,
+            )
+            initial_pose *= perturbation
+        return initial_pose
+
     def __reset_partial(
         self, mask: Sequence[bool], options: dict[str, Any] | None = None
     ):
@@ -316,95 +415,18 @@ class TactilePerceptionVectorEnv(
                     else datapoint_idx[i]
                 )
 
-                new_dp: GenericMeshDataPoint = self.__datasets[i][idx]
-
-                if self.__config.smallest_dimension_up:
-                    mesh = new_dp.mesh.copy()
-                    bb_oriented: trimesh.primitives.Box = mesh.bounding_box_oriented
-                    bb_rotation: Rotation = Rotation.from_matrix(
-                        bb_oriented.transform[:3, :3]
-                    )
-                    bb_vertices_local = bb_rotation.inv().apply(bb_oriented.vertices)
-                    extents = np.max(bb_vertices_local, axis=0) - np.min(
-                        bb_vertices_local, axis=0
-                    )
-                    axes = bb_rotation.as_matrix().T
-
-                    extends_idx_sorted = np.argsort(extents)
-                    z_axis = axes[extends_idx_sorted[0]]
-                    if z_axis[-1] < 0:
-                        z_axis = -z_axis
-                    remaining_axes = axes[extends_idx_sorted[1:]]
-
-                    if np.abs(remaining_axes[0, 0]) > np.abs(remaining_axes[1, 0]):
-                        x_axis = remaining_axes[0]
-                    else:
-                        x_axis = remaining_axes[1]
-
-                    y_axis = np.cross(z_axis, x_axis)
-
-                    target_rotation = Rotation.from_matrix(
-                        np.stack([x_axis, y_axis, z_axis], axis=-1)
-                    )
-
-                    mesh.vertices = target_rotation.inv().apply(mesh.vertices)
-                    new_dp = TransformedDataPoint(new_dp, mesh)
-
-                current_datapoints_lst[i] = new_dp
+                current_datapoints_lst[i] = self._pre_process_dp(
+                    self.__datasets[i][idx],
+                    smallest_dimension_up=self.__config.smallest_dimension_up,
+                )
                 if initial_object_poses[i] is None:
-                    initial_pose = Transformation(
-                        [
-                            0,
-                            0,
-                            -np.min(current_datapoints_lst[i].mesh.vertices[:, 2]),
-                        ]
-                    )
-                    if self.__config.randomize_initial_object_pose:
-                        rotation_perturbation_euler = self.np_random.uniform(
-                            low=-self.__config.max_initial_angle_perturbation,
-                            high=self.__config.max_initial_angle_perturbation,
-                            size=(1,),
-                        )
-                        rotation_perturbation = Rotation.from_euler(
-                            "xyz",
-                            np.concatenate(
-                                [
-                                    np.zeros((2,), dtype=np.float32),
-                                    rotation_perturbation_euler,
-                                ]
-                            ),
-                        )
-                        xy_min = np.min(
-                            rotation_perturbation.apply(
-                                current_datapoints_lst[i].mesh.vertices
-                            )[:, :2],
-                            axis=0,
-                        )
-                        xy_max = np.max(
-                            rotation_perturbation.apply(
-                                current_datapoints_lst[i].mesh.vertices
-                            )[:, :2],
-                            axis=0,
-                        )
-                        margin = 0.01
-                        low = -np.array(self.__config.cell_size) / 2 + margin - xy_min
-                        high = np.array(self.__config.cell_size) / 2 - margin - xy_max
-                        conflict = low > high
-                        low[conflict] = high[conflict] = ((low + high) / 2)[conflict]
-                        translation_perturbation = self.np_random.uniform(
-                            low=low, high=high
-                        )
-                        perturbation = Transformation(
-                            np.concatenate(
-                                [
-                                    translation_perturbation,
-                                    np.zeros((1,), dtype=np.float32),
-                                ]
-                            ),
-                            rotation_perturbation,
-                        )
-                        initial_pose *= perturbation
-                    object_poses_lst[i] = initial_pose
+                    object_poses_lst[i] = self._get_random_object_pose_batch(
+                        current_datapoints_lst[i],
+                        self.__config.randomize_initial_object_pose,
+                        self.__config.max_initial_angle_perturbation,
+                        self.__config.cell_size,
+                        np_random=self.np_random,
+                    )[0]
                 else:
                     object_poses_lst[i] = initial_object_poses[i]
 
