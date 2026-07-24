@@ -44,6 +44,20 @@ Currently implemented are the following tasks, which are described in more detai
                 </a>
             </td>
             <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/TactileMNISTShape-v0.webp" alt="TactileMNISTShape-v0" width="200px"/><br/>
+                <a href="TactileMNISTShape.md">
+                    TactileMNISTShape-v0
+                </a>
+            </td>
+        </tr>
+        <tr style="border: none;">
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/ABCShape-v0.webp" alt="ABCShape-v0" width="200px"/><br/>
+                <a href="ABCShape.md">
+                    ABCShape-v0
+                </a>
+            </td>
+            <td align="center" style="border: none; padding: 10px;">
                 <img src="img/env/MinecraftPose-v0.webp" alt="MinecraftPose-v0" width="200px"/><br/>
                 <a href="MinecraftPose.md">
                     MinecraftPose-v0
@@ -92,4 +106,6 @@ The agent's objective is to approximate the prediction target as closely as poss
 | [TactileMNISTVolume-v0](TactileMNISTVolume.md)             | [MNIST 3D](datasets.md#mnist-3d)       | 1   | 16         | disabled        | enabled                  | Estimate the volume of objects from the _MNIST 3D_ dataset. |
 | [TactileMNISTVolumeRealSnap-v0](TactileMNISTVolumeRealSnap.md) | [Real Tactile MNIST](datasets.md#available-touch-datasets) | 1   | 16         | disabled        | n/a                      | Estimate the volume of 3D printed digits from prerecorded real touch data. |
 | [ABCVolume-v0](ABCVolume.md)                               | [ABC Dataset](datasets.md#abc-dataset) | 1   | 32         | enabled         | enabled                  | Estimate the volume of objects from the _ABC_ dataset.      |
+| [TactileMNISTShape-v0](TactileMNISTShape.md)               | [MNIST 3D](datasets.md#mnist-3d)       | 192 | 16         | disabled        | enabled                  | Reconstruct the shape of objects from the _MNIST 3D_ dataset as a spectral (Laplacian) representation. |
+| [ABCShape-v0](ABCShape.md)                                 | [ABC Dataset](datasets.md#abc-dataset) | 192 | 32         | enabled         | enabled                  | Reconstruct the shape of objects from the _ABC_ dataset as a spectral (Laplacian) representation. |
 | [MinecraftPose-v0](MinecraftPose.md)                       |                                        | 4   | 64         | disabled        | enabled                  | Estimate the pose of a Minecraft item.                      |
