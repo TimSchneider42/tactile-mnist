@@ -44,6 +44,20 @@ Currently implemented are the following tasks, which are described in more detai
                 </a>
             </td>
             <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/TactileMNISTShape-v0.webp" alt="TactileMNISTShape-v0" width="200px"/><br/>
+                <a href="TactileMNISTShape.md">
+                    TactileMNISTShape-v0
+                </a>
+            </td>
+        </tr>
+        <tr style="border: none;">
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/ABCShape-v0.webp" alt="ABCShape-v0" width="200px"/><br/>
+                <a href="ABCShape.md">
+                    ABCShape-v0
+                </a>
+            </td>
+            <td align="center" style="border: none; padding: 10px;">
                 <img src="img/env/MinecraftPose-v0.webp" alt="MinecraftPose-v0" width="200px"/><br/>
                 <a href="MinecraftPose.md">
                     MinecraftPose-v0
