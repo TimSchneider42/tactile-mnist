@@ -23,7 +23,8 @@ dependencies = [
     "requests",
     "opencv-python",
     "av",
-    "objaverse"
+    "objaverse",
+    "datasets"
 ]
 
 [project.urls]
