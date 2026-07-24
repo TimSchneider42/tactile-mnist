@@ -6,7 +6,7 @@ Instead, it must actively control the sensor to find and explore the object.
 
 For more details on tactile perception environments in general, see the [Tactile Perception Environments documentation](TactilePerceptionEnv.md).
 
-Currently implemented are the following two tasks, which are described in more detail in their respective documentations:
+Currently implemented are the following tasks, which are described in more detail in their respective documentations:
 
 <div align="center">
     <table style="border-collapse: collapse; border: none;">
@@ -18,9 +18,43 @@ Currently implemented are the following two tasks, which are described in more d
                 </a>
             </td>
             <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/TactileMNISTCenterOfMass-v0.gif" alt="TactileMNISTCenterOfMass-v0" width="200px"/><br/>
+                <a href="TactileMNISTCenterOfMass.md">
+                    TactileMNISTCenterOfMass-v0
+                </a>
+            </td>
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/ABCCenterOfMass-v0.gif" alt="ABCCenterOfMass-v0" width="200px"/><br/>
+                <a href="ABCCenterOfMass.md">
+                    ABCCenterOfMass-v0
+                </a>
+            </td>
+        </tr>
+        <tr style="border: none;">
+            <td align="center" style="border: none; padding: 10px;">
                 <img src="img/env/TactileMNISTVolume-v0.gif" alt="TactileMNISTVolume-v0" width="200px"/><br/>
                 <a href="TactileMNISTVolume.md">
                     TactileMNISTVolume-v0
+                </a>
+            </td>
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/ABCVolume-v0.gif" alt="ABCVolume-v0" width="200px"/><br/>
+                <a href="ABCVolume.md">
+                    ABCVolume-v0
+                </a>
+            </td>
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/TactileMNISTShape-v0.gif" alt="TactileMNISTShape-v0" width="200px"/><br/>
+                <a href="TactileMNISTShape.md">
+                    TactileMNISTShape-v0
+                </a>
+            </td>
+        </tr>
+        <tr style="border: none;">
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/ABCShape-v0.gif" alt="ABCShape-v0" width="200px"/><br/>
+                <a href="ABCShape.md">
+                    ABCShape-v0
                 </a>
             </td>
         </tr>
@@ -58,9 +92,12 @@ The agent's objective is to approximate the prediction target as closely as poss
 
 ## Overview of Implemented Environments
 
-| Environment ID                                 | Dataset                          | N | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                 |
-|------------------------------------------------|----------------------------------|---|------------|-----------------|--------------------------|-------------------------------------------------------------|
-| [Toolbox-v0](Toolbox.md)                       |                                  | 4 | 64         | disabled        | enabled                  | Estimate the pose of a tool.                                |
-| [TactileMNISTVolume-v0](TactileMNISTVolume.md) | [MNIST 3D](datasets.md#mnist-3d) | 1 | 32         | disabled        | enabled                  | Estimate the volume of objects from the _MNIST 3D_ dataset. |
-| [TactileMNISTShape-v0](TactileMNISTShape.md)   | [MNIST 3D](datasets.md#mnist-3d) | 192 | 32       | disabled        | enabled                  | Reconstruct the shape of objects from the _MNIST 3D_ dataset as a spectral (Laplacian) representation. |
-| [ABCShape-v0](ABCShape.md)                     | [ABC Dataset](datasets.md#abc-dataset) | 192 | 32 | enabled         | enabled                  | Reconstruct the shape of objects from the _ABC_ dataset as a spectral (Laplacian) representation. |
+| Environment ID                                             | Dataset                                | N   | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                 |
+|------------------------------------------------------------|----------------------------------------|-----|------------|-----------------|--------------------------|-------------------------------------------------------------|
+| [Toolbox-v0](Toolbox.md)                                   |                                        | 4   | 64         | disabled        | enabled                  | Estimate the pose of a tool.                                |
+| [TactileMNISTCenterOfMass-v0](TactileMNISTCenterOfMass.md) | [MNIST 3D](datasets.md#mnist-3d)       | 2   | 32         | disabled        | enabled                  | Estimate the center of mass of objects from the _MNIST 3D_ dataset. |
+| [ABCCenterOfMass-v0](ABCCenterOfMass.md)                   | [ABC Dataset](datasets.md#abc-dataset) | 2   | 32         | enabled         | enabled                  | Estimate the center of mass of objects from the _ABC_ dataset. |
+| [TactileMNISTVolume-v0](TactileMNISTVolume.md)             | [MNIST 3D](datasets.md#mnist-3d)       | 1   | 32         | disabled        | enabled                  | Estimate the volume of objects from the _MNIST 3D_ dataset. |
+| [ABCVolume-v0](ABCVolume.md)                               | [ABC Dataset](datasets.md#abc-dataset) | 1   | 32         | enabled         | enabled                  | Estimate the volume of objects from the _ABC_ dataset.      |
+| [TactileMNISTShape-v0](TactileMNISTShape.md)               | [MNIST 3D](datasets.md#mnist-3d)       | 192 | 32         | disabled        | enabled                  | Reconstruct the shape of objects from the _MNIST 3D_ dataset as a spectral (Laplacian) representation. |
+| [ABCShape-v0](ABCShape.md)                                 | [ABC Dataset](datasets.md#abc-dataset) | 192 | 32         | enabled         | enabled                  | Reconstruct the shape of objects from the _ABC_ dataset as a spectral (Laplacian) representation. |

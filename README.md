@@ -46,7 +46,7 @@
 </table>
 
 Tactile MNIST is a benchmark for learning-based active perception algorithms.
-It introduces four simulated tactile perception tasks, ranging from classification and counting to pose and volume estimation.
+It introduces nine simulated tactile perception tasks, ranging from classification and counting to pose, volume, and shape estimation.
 Each task comes with a unique set of challenges and, thus, Tactile MNIST requires adaptive algorithms and clever exploration strategies.
 The aim of Tactile MNIST is to provide an extensible framework for a fair comparison of active tactile perception methods.
 
@@ -75,14 +75,14 @@ If you encounter problems during the installation or execution, check our [troub
 
 ## Contents
 
-This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for four simulated [active tactile classification benchmark tasks](#simulated-active-tactile-perception-benchmark) and access to the [Tactile MNIST datasets](#datasets).
+This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for nine simulated [active tactile perception benchmark tasks](#simulated-active-tactile-perception-benchmark) and access to the [Tactile MNIST datasets](#datasets).
 The ap_gym environments can be used to train and evaluate agents on active tactile perception problems on simulated data and are further described in the [Benchmark section](#simulated-active-tactile-perception-benchmark).
 In the Tactile MNIST datasets, you find two datasets of 3D CAD models, _MNIST 3D_ and _Starstruck_, and several datasets of simulated and real tactile images.
 This package provides an easy way of loading and working with these datasets, as further described in the [Datasets section](#datasets).
 
 ## Simulated Active Tactile Perception Benchmark
 
-This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for eight active tactile perception environments: [TactileMNIST](docs/TactileMNIST.md), [Starstruck](docs/Starstruck.md), [Toolbox](docs/Toolbox.md), [ABCCenterOfMass](docs/ABCCenterOfMass.md), [TactileMNISTVolume](docs/TactileMNISTVolume.md), [ABCVolume](docs/ABCVolume.md), [TactileMNISTShape](docs/TactileMNISTShape.md), and [ABCShape](docs/ABCShape.md).
+This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for nine active tactile perception environments: [TactileMNIST](docs/TactileMNIST.md), [Starstruck](docs/Starstruck.md), [Toolbox](docs/Toolbox.md), [TactileMNISTCenterOfMass](docs/TactileMNISTCenterOfMass.md), [ABCCenterOfMass](docs/ABCCenterOfMass.md), [TactileMNISTVolume](docs/TactileMNISTVolume.md), [ABCVolume](docs/ABCVolume.md), [TactileMNISTShape](docs/TactileMNISTShape.md), and [ABCShape](docs/ABCShape.md).
 In all environments, the agent must solve a perception problem by actively controlling a [GelSight Mini](https://www.gelsight.com/gelsightmini/) tactile sensor in a simulated environment.
 
 The _TactileMNIST_ environment challenges the agent to find and classify a [3D MNIST](docs/datasets.md#mnist-3d) model as quickly as possible.
@@ -93,13 +93,13 @@ Since all stars look the same, distinguishing stars from other objects is rather
 Instead, the main challenge posed in this environment is to learn an effective search strategy to systematically cover as much space as possible.
 
 The _Toolbox_ environment challenges the agent to locate a wrench positioned randomly on a platform and estimate its precise 2D position and 1D orientation.
-Unlike the previous classification tasks, Toolbox is poses a regression problem that requires combining multiple touch observations to resolve ambiguities inherent in the wrench’s shape.
+Unlike the previous classification tasks, Toolbox poses a regression problem that requires combining multiple touch observations to resolve ambiguities inherent in the wrench’s shape.
 For example, touching the handle may reveal lateral placement but not longitudinal position or orientation, making it critical for the agent to explore strategically and seek out one of the wrench’s ends to accurately determine its pose.
 Overall, the Toolbox tests the agent’s ability to both find and precisely localize an object through sequential tactile exploration.
 
-In the _ABCCenterOfMass_ environment, the agent must determine the exact 2D position of the center of mass of an object from the [ABC dataset](docs/datasets.md#abc-dataset).
-Unlike in the Toolbox environment, where the object shape is known, in ABCCenterOfMass, the agent has to deal with a large variety of object shapes and learn thorough exploration policies.
-Due to the larger variety of object shapes compared to TactileMNISTVolume, we give the agent control over the sensor's rotation in ABCVolume, which adds another layer of complexity to the problem.
+In the _TactileMNISTCenterOfMass_ and _ABCCenterOfMass_ environments, the agent must determine the exact 2D position of the center of mass of an object from the [3D MNIST](docs/datasets.md#mnist-3d) and [ABC](docs/datasets.md#abc-dataset) datasets, respectively.
+Unlike in the Toolbox environment, where the object shape is known, in TactileMNISTCenterOfMass and ABCCenterOfMass, the agent has to deal with a large variety of object shapes and learn thorough exploration policies.
+Due to the larger variety of object shapes in the ABC dataset, we give the agent control over the sensor's rotation in ABCCenterOfMass, which adds another layer of complexity to the problem.
 
 The _TactileMNISTVolume_ environment poses another regression problem.
 Here, the agent must determine the exact volume of the [3D MNIST](docs/datasets.md#mnist-3d) model it is given.
