@@ -27,6 +27,14 @@ ENVS=(
   ABCVolume-Depth-v0
   ABCCenterOfMass-v0
   ABCCenterOfMass-Depth-v0
+  TactileMNISTShape-v0
+  TactileMNISTShape-test-v0
+  TactileMNISTShape-CycleGAN-v0
+  TactileMNISTShape-CycleGAN-test-v0
+  TactileMNISTShape-Depth-v0
+  TactileMNISTShape-Depth-test-v0
+  ABCShape-v0
+  ABCShape-Depth-v0
 )
 
 OUTPUT_DIR="$SCRIPT_DIR/../docs/img/env"

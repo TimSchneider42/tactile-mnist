@@ -10,12 +10,24 @@ from typing import Sequence, Any, Callable, TypeVar, Generic, overload
 
 import filelock
 import numpy as np
+import threadpoolctl
 import tqdm
 from transformation import Transformation
 
 from tactile_mnist import CACHE_BASE_DIR, MeshDataset
 
 logger = logging.getLogger(__name__)
+
+_worker_threadpool_limiter: threadpoolctl.threadpool_limits | None = None
+
+
+def _limit_worker_blas_threads():
+    # Limit each worker to a single BLAS thread, as the workers would otherwise spawn one BLAS thread per CPU core
+    # each, oversubscribing the CPU massively.
+    global _worker_threadpool_limiter
+    _worker_threadpool_limiter = threadpoolctl.threadpool_limits(
+        limits=1, user_api="blas"
+    )
 
 
 def transformation_where(
@@ -100,7 +112,8 @@ def get_dataset_stats(
                 )
         print(f"Computing {stats_name} statistics (the results will be cached)...")
         with multiprocessing.pool.Pool(
-            processes=min(multiprocessing.cpu_count(), 8)
+            processes=min(multiprocessing.cpu_count(), 8),
+            initializer=_limit_worker_blas_threads,
         ) as pool:
             statistics = list(
                 tqdm.tqdm(

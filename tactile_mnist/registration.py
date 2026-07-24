@@ -3,6 +3,10 @@ from typing import Any, Iterable
 from datasets import load_dataset
 
 import ap_gym
+from tactile_mnist.tactile_shape_reconstruction_env import (
+    TactileShapeReconstructionVectorEnv,
+    TactileShapeReconstructionEnv,
+)
 from tactile_mnist.tactile_volume_estimation_env import (
     TactileVolumeEstimationVectorEnv,
     TactileVolumeEstimationEnv,
@@ -93,6 +97,36 @@ def register_envs():
                         ),
                         vector_entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
                             TactileVolumeEstimationVectorEnv(
+                                mk_config(
+                                    _ds_name, _split, args, default_config, config
+                                ),
+                                **kwargs,
+                            ),
+                        ),
+                        kwargs=dict(
+                            default_config=dict(
+                                sensor_output_size=(64, 64),
+                                allow_sensor_rotation=allow_sensor_rotation,
+                                step_limit=32,
+                                sensor_type=sensor_type,
+                                cell_size=CELL_SIZE,
+                                smallest_dimension_up=smallest_dim_up,
+                            )
+                        ),
+                    )
+
+                    ap_gym.register(
+                        id=f"{env_name}Shape{sensor_type_name}{s}-v0",
+                        entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+                            TactileShapeReconstructionEnv(
+                                mk_config(
+                                    _ds_name, _split, args, default_config, config
+                                ),
+                                **kwargs,
+                            )
+                        ),
+                        vector_entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+                            TactileShapeReconstructionVectorEnv(
                                 mk_config(
                                     _ds_name, _split, args, default_config, config
                                 ),

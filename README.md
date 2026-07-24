@@ -82,7 +82,7 @@ This package provides an easy way of loading and working with these datasets, as
 
 ## Simulated Active Tactile Perception Benchmark
 
-This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for six active tactile perception environments: [TactileMNIST](docs/TactileMNIST.md), [Starstruck](docs/Starstruck.md), [Toolbox](docs/Toolbox.md), [ABCCenterOfMass](docs/ABCCenterOfMass.md), [TactileMNISTVolume](docs/TactileMNISTVolume.md), and [ABCVolume](docs/ABCVolume.md).
+This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for eight active tactile perception environments: [TactileMNIST](docs/TactileMNIST.md), [Starstruck](docs/Starstruck.md), [Toolbox](docs/Toolbox.md), [ABCCenterOfMass](docs/ABCCenterOfMass.md), [TactileMNISTVolume](docs/TactileMNISTVolume.md), [ABCVolume](docs/ABCVolume.md), [TactileMNISTShape](docs/TactileMNISTShape.md), and [ABCShape](docs/ABCShape.md).
 In all environments, the agent must solve a perception problem by actively controlling a [GelSight Mini](https://www.gelsight.com/gelsightmini/) tactile sensor in a simulated environment.
 
 The _TactileMNIST_ environment challenges the agent to find and classify a [3D MNIST](docs/datasets.md#mnist-3d) model as quickly as possible.
@@ -108,6 +108,10 @@ Thus, unlike in the TactileMNIST environment, where a couple of touches might al
 Similar to the TactileMNISTVolume environment, the _ABCVolume_ environment challenges the agent to determine the exact volume of an object.
 However, instead of 3D MNIST models, the objects in ABCVolume are randomly sampled from the [ABC dataset](docs/datasets.md#abc-dataset), which contains a large variety of 3D CAD models.
 Similar to ABCCenterOfMass, we give the agent control over the sensor's rotation in ABCVolume.
+
+Finally, the _TactileMNISTShape_ and _ABCShape_ environments challenge the agent to reconstruct the full 3D shape of an object from the [3D MNIST](docs/datasets.md#mnist-3d) and [ABC](docs/datasets.md#abc-dataset) datasets, respectively.
+The shape is encoded as a truncated spectral (Laplacian) representation of the object's mesh, which the agent has to regress to and from which a smoothed version of the object can be reconstructed.
+Since every touch reveals only a small patch of the object's surface, the agent has to integrate information from many touches to build up a complete picture of the object's geometry.
 
 A detailed description of the environments can be found [here](docs/TactilePerceptionEnv.md).
 

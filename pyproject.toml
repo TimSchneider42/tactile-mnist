@@ -20,6 +20,7 @@ dependencies = [
     "trimesh[easy]",
     "scikit-robot-pyrender",
     "scipy",
+    "threadpoolctl",
     "requests",
     "opencv-python",
     "av",

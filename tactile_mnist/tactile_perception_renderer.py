@@ -695,6 +695,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         new_shadow_object_poses: Transformation,
         new_shadow_object_scales: Sequence[float] | None = None,
         shadow_object_visible: Sequence[bool] | None = None,
+        new_shadow_object_vertices: Sequence[np.ndarray | None] | None = None,
     ):
         if shadow_object_visible is None:
             shadow_object_visible = np.ones(self.__num_envs, dtype=np.bool_)
@@ -711,6 +712,27 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                     node.mesh.primitives[0].positions[:] = (
                         node.mesh.primitives[0].orig_positions - c
                     ) * scale + c
+            if new_shadow_object_vertices is not None:
+                for obj, node, vertices in zip(
+                    self.__objects,
+                    self.__camera_shadow_object_node.nodes,
+                    new_shadow_object_vertices,
+                ):
+                    if vertices is None:
+                        continue
+                    # The shadow meshes are rendered with flat shading, so the primitive holds one position and normal
+                    # per face corner.
+                    primitive = node.mesh.primitives[0]
+                    triangles = vertices[obj.mesh.faces]
+                    primitive.positions[:] = triangles.reshape(-1, 3)
+                    face_normals = np.cross(
+                        triangles[:, 1] - triangles[:, 0],
+                        triangles[:, 2] - triangles[:, 0],
+                    )
+                    face_normals /= np.maximum(
+                        np.linalg.norm(face_normals, axis=-1, keepdims=True), 1e-12
+                    )
+                    primitive.normals[:] = np.repeat(face_normals, 3, axis=0)
             self.__camera_scene.set_pose(
                 self.__camera_shadow_object_node, shadow_object_poses_world
             )
