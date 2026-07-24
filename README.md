@@ -1,4 +1,4 @@
-# The Tactile MNIST Benchmark
+# The Tactile MNIST Active Perception Benchmark
 
 <table style="border-collapse: collapse; border: none;">
     <tr style="border: none;">
