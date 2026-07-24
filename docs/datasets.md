@@ -203,7 +203,7 @@ The coordinate frame of each cell is in its center, with the x-axis pointing to 
 
 ### Available Touch Datasets
 
-This package provides three classes of touch datasets: [Real Tactile MNIST](#real-tactile-mnist), [Synthetic Tactile MNIST](#synthetic-tactile-mnist), and [Synthetic Tactile Starstruck](#synthetic-tactile-starstruck).
+This package provides three classes of touch datasets: _Real Tactile MNIST_, _Synthetic Tactile MNIST_, and _Synthetic Tactile Starstruck_.
 Each class contains multiple datasets and each dataset has a training (`train`) and test (`test`) split.
 
 | Name                                                                                                                                                          | 3D Model Dataset | Type     | # Rounds         | # Touches / Round | Sensor Resolution | Description                                                                                                                                                                                                | Preview                                                                                                                                                      |
@@ -216,7 +216,7 @@ Each class contains multiple datasets and each dataset has a training (`train`) 
 | [tactile-mnist-touch-starstruck-syn-single-t32-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-starstruck-syn-single-t32-320x240) | Starstruck       | _single_ | 16,000 / 1,600   | 32                | 320 x 240         | Synthetic tactile images generated from the _Starstruck_ dataset with the Taxim simulator.                                                                                                                 | <img src="img/tactile-mnist-touch-starstruck-syn-single-t32-320x240.jpeg" alt="tactile-mnist-touch-starstruck-syn-single-t32-320x240 preview" width="200px"> |
 | [tactile-mnist-touch-starstruck-syn-single-t32-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-starstruck-syn-single-t32-64x64)     | Starstruck       | _single_ | 16,000 / 1,600   | 32                | 64 x 64           | `tactile-mnist-touch-starstruck-syn-single-t32-320x240` scaled to a 64x64 resolution.                                                                                                                      | <img src="img/tactile-mnist-touch-starstruck-syn-single-t32-64x64.jpeg" alt="tactile-mnist-touch-starstruck-syn-single-t32-64x64 preview" width="200px">     |
 
-For details about the data collection procedure see the [Data Collection](#data-collection) section.
+For details about the data collection procedure see the [Tactile Data Collection](#tactile-data-collection) section.
 
 ### Tactile Data Collection
 
