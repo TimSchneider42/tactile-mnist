@@ -23,7 +23,9 @@ import numpy as np
 import requests
 from PIL import Image
 
-VERSION_MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
+VERSION_MANIFEST_URL = (
+    "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
+)
 ITEM_TEXTURE_PREFIX = "assets/minecraft/textures/item/"
 DEFAULT_MINECRAFT_VERSION = "1.21.8"
 
@@ -48,9 +50,7 @@ def fetch_minecraft_item_textures(
     The textures are downloaded from Mojang's servers on first use and cached
     locally, so no Minecraft assets have to be redistributed with this package.
     """
-    cache_dir = (
-        _default_cache_dir(version) if cache_dir is None else Path(cache_dir)
-    )
+    cache_dir = _default_cache_dir(version) if cache_dir is None else Path(cache_dir)
     cache_file = cache_dir / "item_textures.npz"
     if cache_file.exists():
         with np.load(cache_file) as data:
@@ -71,8 +71,7 @@ def fetch_minecraft_item_textures(
     with zipfile.ZipFile(io.BytesIO(jar_response.content)) as jar:
         for file_path in jar.namelist():
             if not (
-                file_path.startswith(ITEM_TEXTURE_PREFIX)
-                and file_path.endswith(".png")
+                file_path.startswith(ITEM_TEXTURE_PREFIX) and file_path.endswith(".png")
             ):
                 continue
             name = file_path[len(ITEM_TEXTURE_PREFIX) : -len(".png")]
