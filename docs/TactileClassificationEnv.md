@@ -78,5 +78,6 @@ The prediction target is a scalar integer in the range $[0, K - 1]$, representin
 | Environment ID                     | Dataset                                 | # classes | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                   |
 |------------------------------------|-----------------------------------------|-----------|------------|-----------------|--------------------------|-----------------------------------------------|
 | [TactileMNIST-v0](TactileMNIST.md) | [MNIST 3D](datasets.md#mnist-3d)      | 10        | 16         | disabled        | enabled                  | Classify objects from the _MNIST 3D_ dataset. |
+| [TactileMNISTRealSnap-v0](TactileMNISTRealSnap.md) | [Real Tactile MNIST](datasets.md#available-touch-datasets) | 10        | 16         | disabled        | n/a                      | Classify 3D printed digits from prerecorded real touch data. |
 | [Starstruck-v0](Starstruck.md)     | [Starstruck](datasets.md#starstruck) | 3         | 32         | disabled        | disabled                 | Count the number of stars in the scene.       |
 | [Minecraft-v0](Minecraft.md)       |                                       | 301       | 32         | disabled        | enabled                  | Classify Minecraft items.                     |

@@ -85,6 +85,11 @@ class TactilePerceptionConfig:
     smallest_dimension_up: bool = False
     translation_perturbation_scale: float = 1e-3
     rotation_perturbation_scale: float = 5e-2
+    # If snap_touch_positions is set, the sensor cannot be positioned freely. Instead, in each step, the given
+    # number of positions is sampled uniformly over the cell and the one closest to the requested target position is
+    # chosen. This simulates the behavior of the TactileMNISTRealSnap environment, where each touch is chosen from a
+    # window of prerecorded touches.
+    snap_touch_positions: int | None = None
 
 
 class GenericMeshDataPoint(Protocol):
@@ -270,6 +275,19 @@ class TactilePerceptionVectorEnv(
             self.reset(seed=0)
             self.render()
 
+    def __snap_to_touch_positions(self, target_pos_xy: np.ndarray) -> np.ndarray:
+        batch_shape = target_pos_xy.shape[:-1]
+        candidates = self.np_random.uniform(
+            low=self.__sensor_pos_limits[0][:2],
+            high=self.__sensor_pos_limits[1][:2],
+            size=(*batch_shape, self.__config.snap_touch_positions, 2),
+        )
+        distances = np.linalg.norm(candidates - target_pos_xy[..., None, :], axis=-1)
+        closest_idx = np.argmin(distances, axis=-1)
+        return np.take_along_axis(candidates, closest_idx[..., None, None], axis=-2)[
+            ..., 0, :
+        ]
+
     def __sample_sensor_target_poses(self, count: int) -> list[Transformation]:
         sensor_poses = []
         for i in range(count):
@@ -292,6 +310,9 @@ class TactilePerceptionVectorEnv(
                     )
                 else:
                     rotation = Rotation.identity()
+
+            if self.__config.snap_touch_positions is not None:
+                position[:2] = self.__snap_to_touch_positions(position[:2])
 
             sensor_poses.append(Transformation(position, rotation))
         return sensor_poses
@@ -597,6 +618,11 @@ class TactilePerceptionVectorEnv(
         sensor_target_pos = np.clip(
             sensor_target_pos_unconstrained, sensor_pos_min, sensor_pos_max
         )
+
+        if self.__config.snap_touch_positions is not None:
+            sensor_target_pos[..., :2] = self.__snap_to_touch_positions(
+                sensor_target_pos[..., :2]
+            )
 
         if self.__config.allow_sensor_rotation:
             sensor_target_rot_rel = action["sensor_target_rot_rel"]
