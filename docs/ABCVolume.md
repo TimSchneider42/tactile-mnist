@@ -1,6 +1,6 @@
 # ABCVolume
 
-<p align="center"><img src="img/env/ABCVolume-v0.gif" alt="ABCVolume-v0" width="200px"/></p>
+<p align="center"><img src="img/env/ABCVolume-v0.webp" alt="ABCVolume-v0" width="200px"/></p>
 
 This environment is part of the tactile regression environments.
 Refer to the [tactile regression environments overview](TactileRegressionEnv.md) for a general description of these environments.
@@ -54,7 +54,7 @@ envs = ap_gym.make_vec("ABCVolume-v0", num_envs=4)
 
 | Environment ID           | Description                                                                                               | Preview                                                                                      |
 |--------------------------|-----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
-| ABCVolume-train-v0       | Alias for ABCVolume-v0.                                                                                   | <img src="img/env/ABCVolume-v0.gif" alt="ABCVolume-v0" width="200px"/>                       |
-| ABCVolume-test-v0        | Uses the test split of the _ABC Dataset_ instead of the train split.                                      | <img src="img/env/ABCVolume-test-v0.gif" alt="ABCVolume-test-v0" width="200px"/>             |
-| ABCVolume-Depth-train-v0 | Uses a depth image instead of rendering tactile images.                                                   | <img src="img/env/ABCVolume-Depth-v0.gif" alt="ABCVolume-Depth-v0" width="200px"/>           |
-| ABCVolume-Depth-test-v0  | Same as ABCVolume-Depth-train-v0 but uses the test split of the _ABC Dataset_ instead of the train split. | <img src="img/env/ABCVolume-Depth-test-v0.gif" alt="ABCVolume-Depth-test-v0" width="200px"/> |
+| ABCVolume-train-v0       | Alias for ABCVolume-v0.                                                                                   | <img src="img/env/ABCVolume-v0.webp" alt="ABCVolume-v0" width="200px"/>                       |
+| ABCVolume-test-v0        | Uses the test split of the _ABC Dataset_ instead of the train split.                                      | <img src="img/env/ABCVolume-test-v0.webp" alt="ABCVolume-test-v0" width="200px"/>             |
+| ABCVolume-Depth-train-v0 | Uses a depth image instead of rendering tactile images.                                                   | <img src="img/env/ABCVolume-Depth-v0.webp" alt="ABCVolume-Depth-v0" width="200px"/>           |
+| ABCVolume-Depth-test-v0  | Same as ABCVolume-Depth-train-v0 but uses the test split of the _ABC Dataset_ instead of the train split. | <img src="img/env/ABCVolume-Depth-test-v0.webp" alt="ABCVolume-Depth-test-v0" width="200px"/> |
