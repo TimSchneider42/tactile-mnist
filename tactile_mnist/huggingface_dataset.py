@@ -100,7 +100,15 @@ class HuggingfaceDatapoint:
                     }
                 )
         if item in self.__conversion_fns:
-            if "datapoint" in inspect.signature(self.__conversion_fns[item]).parameters:
+            try:
+                takes_datapoint = (
+                    "datapoint"
+                    in inspect.signature(self.__conversion_fns[item]).parameters
+                )
+            except (ValueError, TypeError):
+                # Some builtins (e.g. np.asarray) do not expose a signature
+                takes_datapoint = False
+            if takes_datapoint:
                 value = self.__conversion_fns[item](value, datapoint=self)
             else:
                 value = self.__conversion_fns[item](value)
