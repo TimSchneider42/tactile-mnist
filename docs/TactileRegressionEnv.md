@@ -57,6 +57,18 @@ Currently implemented are the following tasks, which are described in more detai
                     ABCShape-v0
                 </a>
             </td>
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/MinecraftPose-v0.webp" alt="MinecraftPose-v0" width="200px"/><br/>
+                <a href="MinecraftPose.md">
+                    MinecraftPose-v0
+                </a>
+            </td>
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/MinecraftShape-v0.webp" alt="MinecraftShape-v0" width="200px"/><br/>
+                <a href="MinecraftShape.md">
+                    MinecraftShape-v0
+                </a>
+            </td>
         </tr>
     </table>
 </div>
@@ -101,3 +113,5 @@ The agent's objective is to approximate the prediction target as closely as poss
 | [ABCVolume-v0](ABCVolume.md)                               | [ABC Dataset](datasets.md#abc-dataset) | 1   | 32         | enabled         | enabled                  | Estimate the volume of objects from the _ABC_ dataset.      |
 | [TactileMNISTShape-v0](TactileMNISTShape.md)               | [MNIST 3D](datasets.md#mnist-3d)       | 192 | 32         | disabled        | enabled                  | Reconstruct the shape of objects from the _MNIST 3D_ dataset as a spectral (Laplacian) representation. |
 | [ABCShape-v0](ABCShape.md)                                 | [ABC Dataset](datasets.md#abc-dataset) | 192 | 32         | enabled         | enabled                  | Reconstruct the shape of objects from the _ABC_ dataset as a spectral (Laplacian) representation. |
+| [MinecraftPose-v0](MinecraftPose.md)                       |                                        | 4   | 32         | disabled        | enabled                  | Estimate the pose of a Minecraft item.                      |
+| [MinecraftShape-v0](MinecraftShape.md)                     |                                        | 192 | 32         | disabled        | enabled                  | Reconstruct the shape of Minecraft items as a spectral (Laplacian) representation. |

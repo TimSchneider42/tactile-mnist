@@ -36,6 +36,26 @@ Currently implemented are the following tasks, which are described in more detai
             </a>
         </td>
     </tr>
+    <tr style="border: none;">
+        <td align="center" style="border: none; padding: 10px;">
+            <img src="img/env/Minecraft-v0.webp" alt="Minecraft-v0" width="200px"/><br/>
+            <a href="Minecraft.md">
+                Minecraft-v0
+            </a>
+        </td>
+        <td align="center" style="border: none; padding: 10px;">
+            <img src="img/env/MinecraftPose-v0.webp" alt="MinecraftPose-v0" width="200px"/><br/>
+            <a href="MinecraftPose.md">
+                MinecraftPose-v0
+            </a>
+        </td>
+        <td align="center" style="border: none; padding: 10px;">
+            <img src="img/env/MinecraftShape-v0.webp" alt="MinecraftShape-v0" width="200px"/><br/>
+            <a href="MinecraftShape.md">
+                MinecraftShape-v0
+            </a>
+        </td>
+    </tr>
 </table>
 
 For an example usage of tactile perception environments, see `example/tactile_mnist_env.py`.

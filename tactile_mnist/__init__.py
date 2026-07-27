@@ -10,6 +10,10 @@ from .huggingface_dataset import (
 )
 from .mesh_dataset import MeshDataPoint, MeshDataset
 from .simple_mesh_dataset import SimpleMeshDataPoint, SimpleMeshDataset
+from .minecraft_dataset import (
+    fetch_minecraft_item_textures,
+    load_minecraft_item_mesh_dataset,
+)
 from .objaverse_xl_dataset import ObjaverseXLMeshDataPoint, ObjaverseXLMeshDataset
 from .constants import (
     CELL_SIZE,

@@ -1,5 +1,6 @@
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
+import datasets
 from datasets import load_dataset
 
 import ap_gym
@@ -12,6 +13,7 @@ from tactile_mnist.tactile_volume_estimation_env import (
     TactileVolumeEstimationEnv,
 )
 from .constants import *
+from .minecraft_dataset import load_minecraft_item_mesh_dataset
 from .simple_mesh_dataset import SimpleMeshDataset
 from .tactile_classification_env import (
     TactileClassificationEnv,
@@ -27,16 +29,22 @@ from .tactile_pose_estimation_env import (
 
 
 def mk_config(
-    dataset_name: str,
+    dataset_name: str | Callable[[str], datasets.Dataset],
     split: str,
     args: Iterable[Any],
     default_config: dict[str, Any],
     config: dict[str, Any] | None = None,
     mesh_dataset_config: dict[str, Any] | None = None,
 ):
+    if callable(dataset_name):
+        dataset = dataset_name(split)
+    else:
+        dataset = load_dataset(
+            f"TimSchneider42/tactile-mnist-{dataset_name}", split=split
+        )
     return TactilePerceptionConfig(
         SimpleMeshDataset(
-            load_dataset(f"TimSchneider42/tactile-mnist-{dataset_name}", split=split),
+            dataset,
             **({} if mesh_dataset_config is None else mesh_dataset_config),
         ),
         *args,
@@ -224,13 +232,97 @@ def register_envs():
                         ),
                     )
 
+    # Minecraft item meshes are generated on the fly from Mojang's official
+    # assets; the resulting dataset has no train/test split
+    minecraft_items = lambda split: load_minecraft_item_mesh_dataset()
+
     for sensor_type_name, sensor_type in [
         ("", "taxim"),
         ("-Depth", "depth"),
     ]:
+        ap_gym.register(
+            id=f"Minecraft{sensor_type_name}-v0",
+            entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveClassificationLogWrapper(
+                TactileClassificationEnv(
+                    mk_config(
+                        minecraft_items,
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                        dict(cache_size="full"),
+                    ),
+                    **kwargs,
+                )
+            ),
+            vector_entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
+                TactileClassificationVectorEnv(
+                    mk_config(
+                        minecraft_items,
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                        dict(cache_size="full"),
+                    ),
+                    **kwargs,
+                ),
+            ),
+            kwargs=dict(
+                default_config=dict(
+                    sensor_output_size=(64, 64),
+                    allow_sensor_rotation=False,
+                    step_limit=32,
+                    sensor_type=sensor_type,
+                    renderer_show_orig_mesh_colors=True,
+                )
+            ),
+        )
+
+        ap_gym.register(
+            id=f"MinecraftShape{sensor_type_name}-v0",
+            entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+                TactileShapeReconstructionEnv(
+                    mk_config(
+                        minecraft_items,
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                        dict(cache_size="full"),
+                    ),
+                    **kwargs,
+                )
+            ),
+            vector_entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+                TactileShapeReconstructionVectorEnv(
+                    mk_config(
+                        minecraft_items,
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                        dict(cache_size="full"),
+                    ),
+                    **kwargs,
+                ),
+            ),
+            kwargs=dict(
+                default_config=dict(
+                    sensor_output_size=(64, 64),
+                    allow_sensor_rotation=False,
+                    step_limit=32,
+                    sensor_type=sensor_type,
+                    cell_size=CELL_SIZE,
+                    smallest_dimension_up=False,
+                    renderer_show_orig_mesh_colors=True,
+                )
+            ),
+        )
+
         for env_name, ds_name, sizes, step_limit, orig_colors in [
             ("Toolbox", "wrench", (("", 0.3), ("-small", 0.25)), 64, False),
-            ("Minecraft", "minecraft-items-dedup", (("", 0.2),), 32, True),
+            ("MinecraftPose", minecraft_items, (("", 0.2),), 32, True),
         ]:
             for size_name, size in sizes:
                 ap_gym.register(
