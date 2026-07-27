@@ -10,7 +10,7 @@ Refer to the [tactile regression environments overview](TactileRegressionEnv.md)
 | **Environment ID**           | TactileMNISTCenterOfMass-v0      |
 | **Dataset**                  | [MNIST 3D](datasets.md#mnist-3d) |
 | **Prediction Dimensions**    | 2                                |
-| **Step limit**               | 32                               |
+| **Step limit**               | 16                               |
 | **Sensor rotation**          | disabled                         |
 | **Object pose perturbation** | enabled                          |
 

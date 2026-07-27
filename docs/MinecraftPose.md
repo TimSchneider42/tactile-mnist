@@ -9,7 +9,7 @@ Refer to the [tactile regression environments overview](TactileRegressionEnv.md)
 |------------------------------|------------------|
 | **Environment ID**           | MinecraftPose-v0 |
 | **Prediction Dimensions**    | 4                |
-| **Step limit**               | 32               |
+| **Step limit**               | 64               |
 | **Sensor rotation**          | disabled         |
 | **Object pose perturbation** | enabled          |
 

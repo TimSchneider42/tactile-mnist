@@ -229,7 +229,9 @@ def register_envs():
                                 default_config=dict(
                                     sensor_output_size=(64, 64),
                                     allow_sensor_rotation=allow_sensor_rotation,
-                                    step_limit=32,
+                                    step_limit=(
+                                        16 if env_name == "TactileMNIST" else 32
+                                    ),
                                     sensor_type=sensor_type,
                                     cell_size=CELL_SIZE,
                                     smallest_dimension_up=smallest_dim_up,
@@ -260,7 +262,9 @@ def register_envs():
                                 default_config=dict(
                                     sensor_output_size=(64, 64),
                                     allow_sensor_rotation=allow_sensor_rotation,
-                                    step_limit=32,
+                                    step_limit=(
+                                        16 if env_name == "TactileMNIST" else 32
+                                    ),
                                     sensor_type=sensor_type,
                                     cell_size=CELL_SIZE,
                                     smallest_dimension_up=smallest_dim_up,
@@ -343,7 +347,9 @@ def register_envs():
                                 default_config=dict(
                                     sensor_output_size=(64, 64),
                                     allow_sensor_rotation=allow_sensor_rotation,
-                                    step_limit=32,
+                                    step_limit=(
+                                        16 if env_name == "TactileMNIST" else 32
+                                    ),
                                     cell_size=CELL_SIZE,
                                     sensor_type=sensor_type,
                                     smallest_dimension_up=smallest_dim_up,
@@ -444,7 +450,7 @@ def register_envs():
 
         for env_name, ds_name, sizes, step_limit, orig_colors in [
             ("Toolbox", "wrench", (("", 0.3), ("-small", 0.25)), 64, False),
-            ("MinecraftPose", minecraft_items, (("", 0.2),), 32, True),
+            ("MinecraftPose", minecraft_items, (("", 0.2),), 64, True),
         ]:
             for size_name, size in sizes:
                 ap_gym.register(
