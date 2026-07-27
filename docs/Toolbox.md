@@ -1,6 +1,6 @@
 # Toolbox
 
-<p align="center"><img src="img/env/Toolbox-v0.gif" alt="Toolbox-v0" width="200px"/></p>
+<p align="center"><img src="img/env/Toolbox-v0.webp" alt="Toolbox-v0" width="200px"/></p>
 
 This environment is part of the tactile regression environments.
 Refer to the [tactile regression environments overview](TactileRegressionEnv.md) for a general description of these environments.
@@ -46,4 +46,4 @@ envs = ap_gym.make_vec("Toolbox-v0", num_envs=4)
 
 | Environment ID   | Description                                             | Preview                                                                        |
 |------------------|---------------------------------------------------------|--------------------------------------------------------------------------------|
-| Toolbox-Depth-v0 | Uses a depth image instead of rendering tactile images. | <img src="img/env/Toolbox-Depth-v0.gif" alt="Toolbox-Depth-v0" width="200px"/> |
+| Toolbox-Depth-v0 | Uses a depth image instead of rendering tactile images. | <img src="img/env/Toolbox-Depth-v0.webp" alt="Toolbox-Depth-v0" width="200px"/> |

@@ -1,6 +1,6 @@
 # ABCCenterOfMass
 
-<p align="center"><img src="img/env/ABCCenterOfMass-v0.gif" alt="ABCCenterOfMass-v0" width="200px"/></p>
+<p align="center"><img src="img/env/ABCCenterOfMass-v0.webp" alt="ABCCenterOfMass-v0" width="200px"/></p>
 
 This environment is part of the tactile regression environments.
 Refer to the [tactile regression environments overview](TactileRegressionEnv.md) for a general description of these environments.
@@ -43,7 +43,7 @@ envs = ap_gym.make_vec("ABCCenterOfMass-v0", num_envs=4)
 
 | Environment ID                 | Description                                                                                                     | Preview                                                                                                  |
 |--------------------------------|-----------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| ABCCenterOfMass-train-v0       | Alias for ABCCenterOfMass-v0.                                                                                   | <img src="img/env/ABCCenterOfMass-v0.gif" alt="ABCCenterOfMass-v0" width="200px"/>                       |
-| ABCCenterOfMass-test-v0        | Uses the test split of the _ABC Dataset_ instead of the train split.                                            | <img src="img/env/ABCCenterOfMass-test-v0.gif" alt="ABCCenterOfMass-test-v0" width="200px"/>             |
-| ABCCenterOfMass-Depth-train-v0 | Uses a depth image instead of rendering tactile images.                                                         | <img src="img/env/ABCCenterOfMass-Depth-v0.gif" alt="ABCCenterOfMass-Depth-v0" width="200px"/>           |
-| ABCCenterOfMass-Depth-test-v0  | Same as ABCCenterOfMass-Depth-train-v0 but uses the test split of the _ABC Dataset_ instead of the train split. | <img src="img/env/ABCCenterOfMass-Depth-test-v0.gif" alt="ABCCenterOfMass-Depth-test-v0" width="200px"/> |
+| ABCCenterOfMass-train-v0       | Alias for ABCCenterOfMass-v0.                                                                                   | <img src="img/env/ABCCenterOfMass-v0.webp" alt="ABCCenterOfMass-v0" width="200px"/>                       |
+| ABCCenterOfMass-test-v0        | Uses the test split of the _ABC Dataset_ instead of the train split.                                            | <img src="img/env/ABCCenterOfMass-test-v0.webp" alt="ABCCenterOfMass-test-v0" width="200px"/>             |
+| ABCCenterOfMass-Depth-train-v0 | Uses a depth image instead of rendering tactile images.                                                         | <img src="img/env/ABCCenterOfMass-Depth-v0.webp" alt="ABCCenterOfMass-Depth-v0" width="200px"/>           |
+| ABCCenterOfMass-Depth-test-v0  | Same as ABCCenterOfMass-Depth-train-v0 but uses the test split of the _ABC Dataset_ instead of the train split. | <img src="img/env/ABCCenterOfMass-Depth-test-v0.webp" alt="ABCCenterOfMass-Depth-test-v0" width="200px"/> |

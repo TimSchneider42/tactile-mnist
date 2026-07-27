@@ -1,6 +1,6 @@
 # ABCShape
 
-<p align="center"><img src="img/env/ABCShape-v0.gif" alt="ABCShape-v0" width="200px"/></p>
+<p align="center"><img src="img/env/ABCShape-v0.webp" alt="ABCShape-v0" width="200px"/></p>
 
 This environment is part of the tactile regression environments.
 Refer to the [tactile regression environments overview](TactileRegressionEnv.md) for a general description of these environments.
@@ -87,7 +87,7 @@ envs = ap_gym.make_vec("ABCShape-v0", num_envs=4)
 
 | Environment ID          | Description                                                                                              | Preview                                                                                    |
 |-------------------------|----------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| ABCShape-train-v0       | Alias for ABCShape-v0.                                                                                   | <img src="img/env/ABCShape-v0.gif" alt="ABCShape-v0" width="200px"/>                       |
-| ABCShape-test-v0        | Uses the test split of the _ABC Dataset_ instead of the train split.                                     | <img src="img/env/ABCShape-test-v0.gif" alt="ABCShape-test-v0" width="200px"/>             |
-| ABCShape-Depth-train-v0 | Uses a depth image instead of rendering tactile images.                                                  | <img src="img/env/ABCShape-Depth-v0.gif" alt="ABCShape-Depth-v0" width="200px"/>           |
-| ABCShape-Depth-test-v0  | Same as ABCShape-Depth-train-v0 but uses the test split of the _ABC Dataset_ instead of the train split. | <img src="img/env/ABCShape-Depth-test-v0.gif" alt="ABCShape-Depth-test-v0" width="200px"/> |
+| ABCShape-train-v0       | Alias for ABCShape-v0.                                                                                   | <img src="img/env/ABCShape-v0.webp" alt="ABCShape-v0" width="200px"/>                       |
+| ABCShape-test-v0        | Uses the test split of the _ABC Dataset_ instead of the train split.                                     | <img src="img/env/ABCShape-test-v0.webp" alt="ABCShape-test-v0" width="200px"/>             |
+| ABCShape-Depth-train-v0 | Uses a depth image instead of rendering tactile images.                                                  | <img src="img/env/ABCShape-Depth-v0.webp" alt="ABCShape-Depth-v0" width="200px"/>           |
+| ABCShape-Depth-test-v0  | Same as ABCShape-Depth-train-v0 but uses the test split of the _ABC Dataset_ instead of the train split. | <img src="img/env/ABCShape-Depth-test-v0.webp" alt="ABCShape-Depth-test-v0" width="200px"/> |

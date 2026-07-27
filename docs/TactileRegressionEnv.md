@@ -12,19 +12,19 @@ Currently implemented are the following tasks, which are described in more detai
     <table style="border-collapse: collapse; border: none;">
         <tr style="border: none;">
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/Toolbox-v0.gif" alt="Toolbox-v0" width="200px"/><br/>
+                <img src="img/env/Toolbox-v0.webp" alt="Toolbox-v0" width="200px"/><br/>
                 <a href="Toolbox.md">
                     Toolbox-v0
                 </a>
             </td>
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/TactileMNISTCenterOfMass-v0.gif" alt="TactileMNISTCenterOfMass-v0" width="200px"/><br/>
+                <img src="img/env/TactileMNISTCenterOfMass-v0.webp" alt="TactileMNISTCenterOfMass-v0" width="200px"/><br/>
                 <a href="TactileMNISTCenterOfMass.md">
                     TactileMNISTCenterOfMass-v0
                 </a>
             </td>
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/ABCCenterOfMass-v0.gif" alt="ABCCenterOfMass-v0" width="200px"/><br/>
+                <img src="img/env/ABCCenterOfMass-v0.webp" alt="ABCCenterOfMass-v0" width="200px"/><br/>
                 <a href="ABCCenterOfMass.md">
                     ABCCenterOfMass-v0
                 </a>
@@ -32,19 +32,19 @@ Currently implemented are the following tasks, which are described in more detai
         </tr>
         <tr style="border: none;">
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/TactileMNISTVolume-v0.gif" alt="TactileMNISTVolume-v0" width="200px"/><br/>
+                <img src="img/env/TactileMNISTVolume-v0.webp" alt="TactileMNISTVolume-v0" width="200px"/><br/>
                 <a href="TactileMNISTVolume.md">
                     TactileMNISTVolume-v0
                 </a>
             </td>
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/ABCVolume-v0.gif" alt="ABCVolume-v0" width="200px"/><br/>
+                <img src="img/env/ABCVolume-v0.webp" alt="ABCVolume-v0" width="200px"/><br/>
                 <a href="ABCVolume.md">
                     ABCVolume-v0
                 </a>
             </td>
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/TactileMNISTShape-v0.gif" alt="TactileMNISTShape-v0" width="200px"/><br/>
+                <img src="img/env/TactileMNISTShape-v0.webp" alt="TactileMNISTShape-v0" width="200px"/><br/>
                 <a href="TactileMNISTShape.md">
                     TactileMNISTShape-v0
                 </a>
@@ -52,7 +52,7 @@ Currently implemented are the following tasks, which are described in more detai
         </tr>
         <tr style="border: none;">
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/ABCShape-v0.gif" alt="ABCShape-v0" width="200px"/><br/>
+                <img src="img/env/ABCShape-v0.webp" alt="ABCShape-v0" width="200px"/><br/>
                 <a href="ABCShape.md">
                     ABCShape-v0
                 </a>

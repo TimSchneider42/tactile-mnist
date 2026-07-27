@@ -12,13 +12,13 @@ Currently implemented are the following two tasks, which are described in more d
     <table style="border-collapse: collapse; border: none;">
         <tr style="border: none;">
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/TactileMNIST-v0.gif" alt="TactileMNIST-v0" width="200px"/><br/>
+                <img src="img/env/TactileMNIST-v0.webp" alt="TactileMNIST-v0" width="200px"/><br/>
                 <a href="TactileMNIST.md">
                     TactileMNIST-v0
                 </a>
             </td>
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/Starstruck-v0.gif" alt="Starstruck-v0" width="200px"/><br/>
+                <img src="img/env/Starstruck-v0.webp" alt="Starstruck-v0" width="200px"/><br/>
                 <a href="Starstruck.md">
                     Starstruck-v0
                 </a>

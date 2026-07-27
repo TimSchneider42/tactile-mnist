@@ -1,6 +1,6 @@
 # TactileMNISTCenterOfMass
 
-<p align="center"><img src="img/env/TactileMNISTCenterOfMass-v0.gif" alt="TactileMNISTCenterOfMass-v0" width="200px"/></p>
+<p align="center"><img src="img/env/TactileMNISTCenterOfMass-v0.webp" alt="TactileMNISTCenterOfMass-v0" width="200px"/></p>
 
 This environment is part of the tactile regression environments.
 Refer to the [tactile regression environments overview](TactileRegressionEnv.md) for a general description of these environments.
@@ -44,7 +44,7 @@ envs = ap_gym.make_vec("TactileMNISTCenterOfMass-v0", num_envs=4)
 
 | Environment ID                          | Description                                                                                              | Preview                                                                                                                    |
 |-----------------------------------------|----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------|
-| TactileMNISTCenterOfMass-train-v0       | Alias for TactileMNISTCenterOfMass-v0.                                                                   | <img src="img/env/TactileMNISTCenterOfMass-v0.gif" alt="TactileMNISTCenterOfMass-v0" width="200px"/>                       |
-| TactileMNISTCenterOfMass-test-v0        | Uses the test split of _MNIST 3D_ instead of the train split.                                            | <img src="img/env/TactileMNISTCenterOfMass-test-v0.gif" alt="TactileMNISTCenterOfMass-test-v0" width="200px"/>             |
-| TactileMNISTCenterOfMass-Depth-train-v0 | Uses a depth image instead of rendering tactile images.                                                  | <img src="img/env/TactileMNISTCenterOfMass-Depth-v0.gif" alt="TactileMNISTCenterOfMass-Depth-v0" width="200px"/>           |
-| TactileMNISTCenterOfMass-Depth-test-v0  | Same as TactileMNISTCenterOfMass-Depth-train-v0 but uses the test split of _MNIST 3D_ instead of the train split. | <img src="img/env/TactileMNISTCenterOfMass-Depth-test-v0.gif" alt="TactileMNISTCenterOfMass-Depth-test-v0" width="200px"/> |
+| TactileMNISTCenterOfMass-train-v0       | Alias for TactileMNISTCenterOfMass-v0.                                                                   | <img src="img/env/TactileMNISTCenterOfMass-v0.webp" alt="TactileMNISTCenterOfMass-v0" width="200px"/>                       |
+| TactileMNISTCenterOfMass-test-v0        | Uses the test split of _MNIST 3D_ instead of the train split.                                            | <img src="img/env/TactileMNISTCenterOfMass-test-v0.webp" alt="TactileMNISTCenterOfMass-test-v0" width="200px"/>             |
+| TactileMNISTCenterOfMass-Depth-train-v0 | Uses a depth image instead of rendering tactile images.                                                  | <img src="img/env/TactileMNISTCenterOfMass-Depth-v0.webp" alt="TactileMNISTCenterOfMass-Depth-v0" width="200px"/>           |
+| TactileMNISTCenterOfMass-Depth-test-v0  | Same as TactileMNISTCenterOfMass-Depth-train-v0 but uses the test split of _MNIST 3D_ instead of the train split. | <img src="img/env/TactileMNISTCenterOfMass-Depth-test-v0.webp" alt="TactileMNISTCenterOfMass-Depth-test-v0" width="200px"/> |
