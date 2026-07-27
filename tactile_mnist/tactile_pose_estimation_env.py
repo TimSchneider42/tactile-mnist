@@ -148,7 +148,7 @@ class TactilePoseEstimationVectorEnv(
                 "At least one of frame_position_mode or frame_rotation_mode must not be 'dont_use'"
             )
 
-        prediction_bound = np.asarray(prediction_bound)
+        prediction_bound = np.asarray(prediction_bound, dtype=np.float32)
         single_prediction_target_space = gym.spaces.Box(
             -prediction_bound, prediction_bound, shape=(target_dims,)
         )
