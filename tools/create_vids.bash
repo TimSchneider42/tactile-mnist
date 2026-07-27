@@ -20,16 +20,36 @@ ENVS=(
   TactileMNIST-CycleGAN-test-v0
   TactileMNIST-Depth-v0
   TactileMNIST-Depth-test-v0
+  TactileMNISTSnap-v0
+  TactileMNISTSnap-test-v0
+  TactileMNISTSnap-CycleGAN-v0
+  TactileMNISTSnap-CycleGAN-test-v0
+  TactileMNISTSnap-Depth-v0
+  TactileMNISTSnap-Depth-test-v0
+  TactileMNISTRealSnap-v0
+  TactileMNISTRealSnap-test-v0
   TactileMNISTVolume-v0
   TactileMNISTVolume-test-v0
   TactileMNISTVolume-CycleGAN-v0
   TactileMNISTVolume-CycleGAN-test-v0
   TactileMNISTVolume-Depth-v0
   TactileMNISTVolume-Depth-test-v0
+  TactileMNISTVolumeSnap-v0
+  TactileMNISTVolumeSnap-test-v0
+  TactileMNISTVolumeSnap-CycleGAN-v0
+  TactileMNISTVolumeSnap-CycleGAN-test-v0
+  TactileMNISTVolumeSnap-Depth-v0
+  TactileMNISTVolumeSnap-Depth-test-v0
+  TactileMNISTVolumeRealSnap-v0
+  TactileMNISTVolumeRealSnap-test-v0
   TactileMNISTCenterOfMass-v0
   TactileMNISTCenterOfMass-test-v0
   TactileMNISTCenterOfMass-Depth-v0
   TactileMNISTCenterOfMass-Depth-test-v0
+  TactileMNISTCenterOfMassSnap-v0
+  TactileMNISTCenterOfMassSnap-test-v0
+  TactileMNISTCenterOfMassSnap-Depth-v0
+  TactileMNISTCenterOfMassSnap-Depth-test-v0
   Starstruck-v0
   Starstruck-test-v0
   Starstruck-Depth-v0
@@ -56,6 +76,12 @@ ENVS=(
   TactileMNISTShape-CycleGAN-test-v0
   TactileMNISTShape-Depth-v0
   TactileMNISTShape-Depth-test-v0
+  TactileMNISTShapeSnap-v0
+  TactileMNISTShapeSnap-test-v0
+  TactileMNISTShapeSnap-CycleGAN-v0
+  TactileMNISTShapeSnap-CycleGAN-test-v0
+  TactileMNISTShapeSnap-Depth-v0
+  TactileMNISTShapeSnap-Depth-test-v0
   ABCShape-v0
   ABCShape-test-v0
   ABCShape-Depth-v0

@@ -59,6 +59,14 @@ from .touch_data import (
     TouchSingleDataset,
     TouchSeqDataset,
 )
+from .tactile_real_snap_env import (
+    TactileRealSnapConfig,
+    TactileRealSnapVectorEnv,
+    TactileRealSnapClassificationEnv,
+    TactileRealSnapClassificationVectorEnv,
+    TactileRealSnapVolumeEstimationEnv,
+    TactileRealSnapVolumeEstimationVectorEnv,
+)
 
 from .registration import register_envs
 
