@@ -38,6 +38,8 @@ ENVS=(
   Toolbox-Depth-v0
   Minecraft-v0
   Minecraft-Depth-v0
+  MinecraftPose-v0
+  MinecraftPose-Depth-v0
   ABCVolume-v0
   ABCVolume-test-v0
   ABCVolume-Depth-v0

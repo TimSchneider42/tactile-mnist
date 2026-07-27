@@ -43,6 +43,12 @@ Currently implemented are the following tasks, which are described in more detai
                     ABCVolume-v0
                 </a>
             </td>
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/MinecraftPose-v0.webp" alt="MinecraftPose-v0" width="200px"/><br/>
+                <a href="MinecraftPose.md">
+                    MinecraftPose-v0
+                </a>
+            </td>
         </tr>
     </table>
 </div>
@@ -85,3 +91,4 @@ The agent's objective is to approximate the prediction target as closely as poss
 | [ABCCenterOfMass-v0](ABCCenterOfMass.md)                   | [ABC Dataset](datasets.md#abc-dataset) | 2   | 32         | enabled         | enabled                  | Estimate the center of mass of objects from the _ABC_ dataset. |
 | [TactileMNISTVolume-v0](TactileMNISTVolume.md)             | [MNIST 3D](datasets.md#mnist-3d)       | 1   | 32         | disabled        | enabled                  | Estimate the volume of objects from the _MNIST 3D_ dataset. |
 | [ABCVolume-v0](ABCVolume.md)                               | [ABC Dataset](datasets.md#abc-dataset) | 1   | 32         | enabled         | enabled                  | Estimate the volume of objects from the _ABC_ dataset.      |
+| [MinecraftPose-v0](MinecraftPose.md)                       |                                        | 4   | 32         | disabled        | enabled                  | Estimate the pose of a Minecraft item.                      |

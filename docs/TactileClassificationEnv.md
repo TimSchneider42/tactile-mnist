@@ -6,7 +6,7 @@ Instead, it must actively control the sensor to find and classify the object.
 
 For more details on tactile perception environments in general, see the [Tactile Perception Environments documentation](TactilePerceptionEnv.md).
 
-Currently implemented are the following two tasks, which are described in more detail in their respective documentations:
+Currently implemented are the following three tasks, which are described in more detail in their respective documentations:
 
 <div align="center">
     <table style="border-collapse: collapse; border: none;">
@@ -21,6 +21,12 @@ Currently implemented are the following two tasks, which are described in more d
                 <img src="img/env/Starstruck-v0.webp" alt="Starstruck-v0" width="200px"/><br/>
                 <a href="Starstruck.md">
                     Starstruck-v0
+                </a>
+            </td>
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/Minecraft-v0.webp" alt="Minecraft-v0" width="200px"/><br/>
+                <a href="Minecraft.md">
+                    Minecraft-v0
                 </a>
             </td>
         </tr>
@@ -73,3 +79,4 @@ The prediction target is a scalar integer in the range $[0, K - 1]$, representin
 |------------------------------------|-----------------------------------------|-----------|------------|-----------------|--------------------------|-----------------------------------------------|
 | [TactileMNIST-v0](TactileMNIST.md) | [MNIST 3D](datasets.md#mnist-3d)      | 10        | 16         | disabled        | enabled                  | Classify objects from the _MNIST 3D_ dataset. |
 | [Starstruck-v0](Starstruck.md)     | [Starstruck](datasets.md#starstruck) | 3         | 32         | disabled        | disabled                 | Count the number of stars in the scene.       |
+| [Minecraft-v0](Minecraft.md)       |                                       | 301       | 32         | disabled        | enabled                  | Classify Minecraft items.                     |
