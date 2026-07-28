@@ -194,6 +194,7 @@ def register_envs():
                                 renderer_show_class_weights=True,
                                 sensor_type=sensor_type,
                                 snap_touch_positions=snap_touch_positions,
+                                show_sensor_target_pos=snap_touch_positions is not None,
                             )
                         ),
                     )
@@ -236,6 +237,8 @@ def register_envs():
                                     cell_size=CELL_SIZE,
                                     smallest_dimension_up=smallest_dim_up,
                                     snap_touch_positions=snap_touch_positions,
+                                    show_sensor_target_pos=snap_touch_positions
+                                    is not None,
                                 )
                             ),
                         )
@@ -269,6 +272,8 @@ def register_envs():
                                     cell_size=CELL_SIZE,
                                     smallest_dimension_up=smallest_dim_up,
                                     snap_touch_positions=snap_touch_positions,
+                                    show_sensor_target_pos=snap_touch_positions
+                                    is not None,
                                 )
                             ),
                         )
@@ -354,6 +359,8 @@ def register_envs():
                                     sensor_type=sensor_type,
                                     smallest_dimension_up=smallest_dim_up,
                                     snap_touch_positions=snap_touch_positions,
+                                    show_sensor_target_pos=snap_touch_positions
+                                    is not None,
                                 ),
                                 frame_position_mode="inertia_frame",
                                 frame_rotation_mode=None,
