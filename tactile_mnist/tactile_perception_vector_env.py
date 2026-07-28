@@ -311,9 +311,6 @@ class TactilePerceptionVectorEnv(
                 else:
                     rotation = Rotation.identity()
 
-            if self.__config.snap_touch_positions is not None:
-                position[:2] = self.__snap_to_touch_positions(position[:2])
-
             sensor_poses.append(Transformation(position, rotation))
         return sensor_poses
 
@@ -619,11 +616,6 @@ class TactilePerceptionVectorEnv(
             sensor_target_pos_unconstrained, sensor_pos_min, sensor_pos_max
         )
 
-        if self.__config.snap_touch_positions is not None:
-            sensor_target_pos[..., :2] = self.__snap_to_touch_positions(
-                sensor_target_pos[..., :2]
-            )
-
         if self.__config.allow_sensor_rotation:
             sensor_target_rot_rel = action["sensor_target_rot_rel"]
             if np.any(np.isnan(sensor_target_rot_rel)):
@@ -693,6 +685,14 @@ class TactilePerceptionVectorEnv(
         self.__current_sensor_target_poses_platform_frame = transformation_where(
             mask, sensor_target_pose, self.__current_sensor_target_poses_platform_frame
         )
+        if self.__config.snap_touch_positions is not None:
+            # The target pose stored above is the requested pose, which is rendered as the sensor target position,
+            # while the sensor actually moves to the snapped pose.
+            snapped_pos = sensor_target_pose.translation.copy()
+            snapped_pos[..., :2] = self.__snap_to_touch_positions(snapped_pos[..., :2])
+            sensor_target_pose = Transformation(
+                snapped_pos, sensor_target_pose.rotation
+            )
         sensor_output, depth_output, current_sensor_pose_platform_frame = self.touch(
             sensor_target_pose
         )
