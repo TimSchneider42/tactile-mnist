@@ -9,7 +9,7 @@ Refer to the [tactile regression environments overview](TactileRegressionEnv.md)
 |------------------------------|----------------------------------------|
 | **Environment ID**           | ABCShape-v0                            |
 | **Dataset**                  | [ABC Dataset](datasets.md#abc-dataset) |
-| **Prediction Dimensions**    | 192                                    |
+| **Prediction Dimensions**    | 128                                    |
 | **Step limit**               | 32                                     |
 | **Sensor rotation**          | enabled                                |
 | **Object pose perturbation** | enabled                                |
@@ -17,7 +17,7 @@ Refer to the [tactile regression environments overview](TactileRegressionEnv.md)
 ## Description
 
 In the ABCShape environment, the agent's objective is to reconstruct the full 3D shape of realistic industrial 3D CAD models by touch alone.
-The shape is represented by a truncated spectral (Laplacian) representation of the object's mesh, which the agent has to regress to.
+The shape is represented by a compact latent embedding of a COD-VAE shape autoencoder, which the agent has to regress to.
 Since every touch reveals only a small patch of the object's surface, the agent has to integrate information from many touches to reconstruct the global shape.
 Object pose perturbation is enabled, meaning that the object shifts around slightly while being touched.
 This requires the agent to use robust strategies that are invariant to small shifts in the object's pose.
@@ -26,47 +26,32 @@ For this reason, we allow the agent to rotate the sensor, which can be crucial t
 
 ## Prediction Target Space
 
-The prediction target is the truncated Laplace-Beltrami spectral representation of the object's mesh.
-For each object, we compute the cotangent Laplace-Beltrami operator of its mesh and take the eigenvectors $\Phi \in \mathbb{R}^{n \times k}$ corresponding to the $k = 64$ smallest eigenvalues, where $n$ is the number of vertices of the mesh.
-The prediction target are the spectral coefficients of the vertex positions $V \in \mathbb{R}^{n \times 3}$:
+The prediction target is the flattened [COD-VAE](https://github.com/TimSchneider42/cod-vae) latent representation of the object's mesh (Cho et al., ICCV 2025).
+The mesh, posed in the platform frame, is normalized into the COD-VAE model's $[-1, 1]$ cube and encoded into $k$ latent vectors of dimension $d$.
+Flattened, this yields a $k \cdot d = 128$-element `np.ndarray` for the default model ($k = 4$, $d = 32$).
+Since the cube normalization removes the object's position and scale, the target jointly encodes the object's shape and its current (randomized and perturbed) orientation on the platform.
+Note that encoding the orientation is important in ABCShape, as the models of the ABC dataset have no canonical orientation, so a prediction target in the model frame would not be identifiable from touch observations alone.
+Unlike a factored orientation-plus-shape representation, this joint representation remains well-defined even for (rotationally) symmetric objects, for which the orientation alone would be ambiguous.
+The latent is a deterministic function of the posed mesh: encoding uses the deterministic posterior mean, the surface sampling is seeded, and the latent tokens are put into a canonical order.
+A mesh can be reconstructed from a predicted latent by decoding it into an occupancy field with the same COD-VAE model (see `cod_vae.CODVAEBase.decode_mesh`).
+If the `renderer_show_shadow_objects` option is enabled, the environment decodes the agent's current prediction every step and renders it as a translucent shadow object; this is disabled by default, as it requires a COD-VAE decoder pass per step.
 
-$$C = \Phi^T M V \in \mathbb{R}^{k \times 3}$$
+COD-VAE latents are KL-regularized towards a standard normal, so they are approximately unit scale and are regressed without further normalization.
 
-where $M$ is the lumped (barycentric) mass matrix of the mesh.
-Flattened, this yields a $3k = 192$-element `np.ndarray`.
-Intuitively, $C$ is a frequency decomposition of the object's geometry: the low-order coefficients encode the object's position and coarse shape, while higher-order coefficients encode finer geometric detail.
-A smoothed version of the object can be reconstructed from a prediction $\hat{C}$ via $\hat{V} = \Phi \hat{C}$, which the environment uses to render the agent's current prediction as a translucent shadow object.
-
-The vertex positions $V$ are expressed in the platform frame, meaning that the prediction target jointly encodes the object's shape and its current (randomized and perturbed) pose on the platform.
-Hence, the agent has to simultaneously infer where the object is and what shape it has.
-Note that this is crucial in ABCShape, as the models of the ABC dataset have no canonical orientation, so a prediction target in the model frame would not be identifiable from touch observations alone.
-Furthermore, unlike a factored pose-plus-shape representation, this joint representation remains well-defined even for (rotationally) symmetric objects, for which the pose alone would be ambiguous.
-The sign of each eigenvector is fixed deterministically, making the target a well-defined function of the object and its pose.
-
-The targets are normalized per dimension to have a mean of 0 and a standard deviation of 1 across the training set under random object poses.
-Note that when running the environment for the first time, computing these normalization statistics from the training dataset might take some time, as it requires a sparse eigendecomposition for every mesh in the dataset.
-However, this is only done once and the values are cached for future runs.
-
-The number of spectral coefficients can be changed via the `num_coefficients` argument:
+The COD-VAE model can be changed via the `model` argument, which accepts a Hugging Face Hub repository id or a local npz checkpoint:
 
 ```python
 import ap_gym
 
-env = ap_gym.make("ABCShape-v0", num_coefficients=32)
+env = ap_gym.make("ABCShape-v0", model="TimSchneider42/cod-vae-4x32")
 ```
 
 ## Metrics
 
 On top of the standard regression metrics, this environment logs the following metrics in the `info` dictionary:
 
-- `reconstruction_error_mm`: the mass-weighted RMS error between the predicted and the target reconstruction of the object's surface in millimeters.
-- `rel_error`: the reconstruction error relative to the object's RMS radius.
-
-Since the prediction target jointly encodes shape and pose, the environment additionally decomposes the reconstruction error into a position, a rotation, and a residual shape component:
-
-- `position_error_mm`: the distance between the centroids of the predicted and the target reconstruction in millimeters.
-- `rotation_error`: the angle (in radians) of the Z-rotation that optimally aligns the centered predicted reconstruction with the centered target reconstruction (2D orthogonal Procrustes).
-- `shape_error_mm`: the mass-weighted RMS error remaining after removing the position and rotation components, i.e. the pure shape error, in millimeters.
+- `latent_rmse`: the RMS error between the predicted and the target latent.
+- `rel_error`: the Euclidean norm of the latent error relative to the norm of the target latent.
 
 ## Example Usage
 
