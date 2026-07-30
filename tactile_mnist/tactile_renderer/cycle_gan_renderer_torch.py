@@ -4,7 +4,7 @@ from importlib.resources import files
 from pathlib import Path
 
 import torch
-from torchvision.transforms import transforms
+from torchvision.transforms import transforms, InterpolationMode
 
 from tactile_mnist.tactile_renderer.depth_renderer_torch import DepthRendererTorch
 from tactile_mnist.tactile_renderer.tactile_renderer_torch import TactileRendererTorch
@@ -79,4 +79,6 @@ class CycleGANRendererTorch(TactileRendererTorch):
             nocs_coords_norm = self.__preprocess_depth(depth_scaled)
             tactile_img_norm = self.__g_model(nocs_coords_norm)
             tactile_img = (tactile_img_norm + 1.0) / 2.0
-            return transforms.Resize(output_size)(tactile_img)
+            return transforms.Resize(
+                output_size, interpolation=InterpolationMode.BICUBIC
+            )(tactile_img)
