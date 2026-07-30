@@ -813,9 +813,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                         pyrender_mesh.primitives[0].positions.copy()
                     )
                     meshes.append(pyrender_mesh)
-                self.__camera_scene.set_mesh(
-                    self.__camera_shadow_object_node, meshes
-                )
+                self.__camera_scene.set_mesh(self.__camera_shadow_object_node, meshes)
             if new_shadow_object_scales is not None:
                 for obj, node, scale in zip(
                     self.__objects,

@@ -63,7 +63,9 @@ class TactileShapeReconstructionVectorEnv(
     ):
         self.__vae = CODVAE.from_pretrained(model, backend=backend, device=device)
         dims = self.__vae.config.num_latents * self.__vae.config.latent_dim
-        self.__latent_cache: dict[tuple[Any, bytes], tuple[np.ndarray, CubeTransform]] = {}
+        self.__latent_cache: dict[
+            tuple[Any, bytes], tuple[np.ndarray, CubeTransform]
+        ] = {}
 
         # COD-VAE latents are KL-regularized towards a standard normal, so they are approximately unit-scale by
         # construction and are regressed without further normalization.

@@ -249,7 +249,13 @@ def register_envs():
                         ),
                     )
 
-                for env_name, ds_name, smallest_dim_up, allow_sensor_rotation, step_limit in [
+                for (
+                    env_name,
+                    ds_name,
+                    smallest_dim_up,
+                    allow_sensor_rotation,
+                    step_limit,
+                ) in [
                     ("TactileMNIST", "mnist3d", False, False, 16),
                     ("ABC", "abc-dataset-small", True, True, 32),
                 ]:
@@ -364,7 +370,13 @@ def register_envs():
                     ),
                 )
 
-                for env_name, ds_name, smallest_dim_up, allow_sensor_rotation, step_limit in [
+                for (
+                    env_name,
+                    ds_name,
+                    smallest_dim_up,
+                    allow_sensor_rotation,
+                    step_limit,
+                ) in [
                     ("ABC", "abc-dataset-small", True, True, 32),
                     ("TactileMNIST", "mnist3d", False, False, 16),
                 ]:

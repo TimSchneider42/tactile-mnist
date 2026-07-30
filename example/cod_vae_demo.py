@@ -47,9 +47,7 @@ def place_on_platform(
         angle = rng.uniform(-np.pi, np.pi)
         mesh.apply_transform(trimesh.transformations.rotation_matrix(angle, [0, 0, 1]))
     bounds_center = (mesh.bounds[0] + mesh.bounds[1]) / 2
-    mesh.apply_translation(
-        [-bounds_center[0], -bounds_center[1], -mesh.bounds[0][2]]
-    )
+    mesh.apply_translation([-bounds_center[0], -bounds_center[1], -mesh.bounds[0][2]])
     if rng is not None:
         margin = 0.01
         max_offset = np.maximum(
@@ -120,7 +118,7 @@ def main():
         type=str,
         default="TimSchneider42/cod-vae",
         help="Model to load: a Hugging Face Hub repo id, a local npz checkpoint, or a "
-             "directory containing an official COD-VAE release (config.yaml + *.pt).",
+        "directory containing an official COD-VAE release (config.yaml + *.pt).",
     )
     parser.add_argument(
         "--backend",
@@ -175,7 +173,9 @@ def main():
             print(f"  Chamfer distance: {chamfer * 1000:.2f} mm")
 
         scene = build_side_by_side_scene(mesh, reconstruction, cell_size)
-        print("  Showing original (left) and reconstruction (right); close the window to continue.")
+        print(
+            "  Showing original (left) and reconstruction (right); close the window to continue."
+        )
         scene.show(
             caption=f"{dp.id}: original (left) vs COD-VAE reconstruction (right)"
         )
