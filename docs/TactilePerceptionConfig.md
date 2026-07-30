@@ -34,3 +34,35 @@ It contains the following settings:
 | `cell_size`                           | `tuple[float, float]`                      | `(0.12, 0.12)`     | Size of the platform in m.                                                                                                                                                                                                |
 | `cell_padding`                        | `tuple[float, float]`                      | `(0.0215, 0.0195)` | Padding of the platform in m. The sensor may not enter the padding area of the platform. The values are set such that the effective sensor movement range is a square when factoring in the sensor case size.             |
 | `snap_touch_positions`                | `int \| None`                              | `None`             | If set, the sensor cannot be positioned freely. Instead, in every step, the given number of touch positions is sampled uniformly over the cell and the one closest to the requested target position is chosen. This simulates the behavior of the [TactileMNISTRealSnap](TactileMNISTRealSnap.md) environment, where each touch is chosen from a window of prerecorded touches.  |
+| `sensor_noise`                        | `SensorNoiseConfig \| None`                 | `None`             | If set, the per-episode and per-frame appearance variations of a real sensor are simulated on top of the rendered tactile images (see [Sensor Noise](#sensor-noise)). Every simulated environment is registered twice: without this option and, under a `-DR` suffix, with it.                                                                                                                                       |
+
+## Sensor Noise
+
+Simulated tactile images are a deterministic function of the contact geometry, so all images taken without contact are exactly identical.
+Real tactile images never are: every frame carries sensor noise, and every round is recorded with a slightly different gel and illumination state.
+A policy trained on noise-free images can therefore learn "image == background => no contact", a cue that does not exist on the real sensor, which hurts sim-to-real transfer to the [TactileMNISTRealSnap](TactileMNISTRealSnap.md) environment.
+
+Setting `sensor_noise` to a `SensorNoiseConfig` instance makes the environment apply
+
+```
+img_out = mean(img) + (img - mean(img)) * gain + offset + pattern + noise
+```
+
+to every tactile image, where `gain`, `offset`, and `pattern` are drawn once per episode and `noise` is drawn per frame.
+`pattern` and `noise` are Gaussian random fields with a `1 / f^spectrum_exponent` power spectrum.
+Additionally, the depth by which the sensor is pressed into the surface is randomized, as the real robot presses down until a force threshold is reached instead of penetrating the surface by a fixed amount.
+
+| Parameter                             | Type      | Default   | Description                                                                                                                                                                        |
+|---------------------------------------|-----------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `frame_noise_std`                     | `float`   | `0.0042`  | Standard deviation of the per-frame sensor noise (in image intensity units).                                                                                                        |
+| `frame_noise_spectrum_exponent`       | `float`   | `1.4`     | Power spectrum exponent of the per-frame sensor noise. Larger values yield spatially smoother noise.                                                                                 |
+| `frame_noise_channel_correlation`     | `float`   | `0.3`     | Correlation of the per-frame sensor noise between the color channels.                                                                                                               |
+| `episode_pattern_std`                 | `float`   | `0.0093`  | RMS of the static background pattern that is drawn once per episode.                                                                                                                |
+| `episode_pattern_spectrum_exponent`   | `float`   | `4.0`     | Power spectrum exponent of the static background pattern.                                                                                                                           |
+| `episode_pattern_channel_correlation` | `float`   | `0.3`     | Correlation of the static background pattern between the color channels.                                                                                                            |
+| `episode_gain_std`                    | `float`   | `0.047`   | Standard deviation of the per-episode contrast gain.                                                                                                                                |
+| `episode_offset_std`                  | `float`   | `0.0094`  | Standard deviation of the per-episode brightness offset.                                                                                                                            |
+| `penetration_depth_reduction_std`     | `float`   | `0.00065` | Scale (in m) of the per-touch reduction of the penetration depth. `GEL_PENETRATION_DEPTH_MM` is treated as the deepest press and each touch is less deep by the absolute value of a normally distributed variable with this scale. |
+
+The defaults are calibrated on the [tactile-mnist-touch-real-single-t256-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-single-t256-64x64) dataset:
+for each round, the background image (per-round pixel-wise median) was fitted against the global background image with a contrast gain and an offset, and the per-frame residuals of the frames without contact were used to characterize the noise.

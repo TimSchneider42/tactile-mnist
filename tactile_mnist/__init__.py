@@ -28,6 +28,7 @@ from .constants import (
 )
 from .dataset import Dataset
 from .constants import *
+from .sensor_noise import SensorNoiseConfig, SensorNoiseModel
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
     TactilePerceptionConfig,

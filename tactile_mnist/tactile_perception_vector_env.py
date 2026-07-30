@@ -35,8 +35,10 @@ from tactile_mnist import (
     MeshDataPoint,
     MeshDataset,
     GELSIGHT_MINI_SENSOR_SURFACE_SIZE,
+    GELSIGHT_MINI_GEL_THICKNESS_MM,
     GEL_PENETRATION_DEPTH_MM,
 )
+from .sensor_noise import SensorNoiseConfig, SensorNoiseModel
 from .tactile_perception_renderer import TactilePerceptionRenderer
 from .tactile_renderer import mk_tactile_renderer
 from .util import OverridableStaticField, transformation_where
@@ -85,6 +87,11 @@ class TactilePerceptionConfig:
     smallest_dimension_up: bool = False
     translation_perturbation_scale: float = 1e-3
     rotation_perturbation_scale: float = 5e-2
+    # If sensor_noise is set, the per-episode and per-frame appearance variations of a real sensor are simulated on
+    # top of the rendered tactile images (see SensorNoiseConfig). Without it, tactile images are a deterministic
+    # function of the contact geometry and all images without contact are exactly identical, which does not happen on
+    # a real sensor.
+    sensor_noise: SensorNoiseConfig | None = None
     # If snap_touch_positions is set, the sensor cannot be positioned freely. Instead, in each step, the given
     # number of positions is sampled uniformly over the cell and the one closest to the requested target position is
     # chosen. This simulates the behavior of the TactileMNISTRealSnap environment, where each touch is chosen from a
@@ -255,6 +262,16 @@ class TactilePerceptionVectorEnv(
                 show_orig_mesh_colors=self.__config.renderer_show_orig_mesh_colors,
             )
         )
+
+        if self.__config.sensor_noise is None:
+            self.__sensor_noise_model: SensorNoiseModel | None = None
+        else:
+            self.__sensor_noise_model = SensorNoiseModel(
+                self.__config.sensor_noise,
+                num_envs,
+                sensor_output_size,
+                self.__sensor.channels,
+            )
 
         # Calculate the maximum distance the sensor can travel in one step
         self.__max_distance_linear = self.__calculate_max_distance_scalar(
@@ -453,6 +470,9 @@ class TactilePerceptionVectorEnv(
             self.__renderer.objects = self.__current_data_points
             self._set_object_poses(Transformation.batch_concatenate(object_poses_lst))
             self.__current_step[mask] = np.zeros(np.sum(mask), dtype=np.float32)
+            if self.__sensor_noise_model is not None:
+                # Every episode sees a slightly different gel and illumination state
+                self.__sensor_noise_model.reset(mask, self.np_random)
 
     @abstractmethod
     def _get_prediction_targets(self) -> np.ndarray:
@@ -738,9 +758,16 @@ class TactilePerceptionVectorEnv(
         depth_gel_frame_shifted = self.__renderer.render_sensor_depths(
             sensor_target_poses
         )
-        offset = GEL_PENETRATION_DEPTH_MM / 1000 - np.min(
-            depth_gel_frame_shifted, axis=(-1, -2)
+        penetration_depth = np.full(
+            depth_gel_frame_shifted.shape[:-2], GEL_PENETRATION_DEPTH_MM / 1000
         )
+        if self.__sensor_noise_model is not None:
+            penetration_depth = self.__sensor_noise_model.sample_penetration_depths(
+                self.np_random,
+                penetration_depth,
+                GELSIGHT_MINI_GEL_THICKNESS_MM / 1000,
+            )
+        offset = penetration_depth - np.min(depth_gel_frame_shifted, axis=(-1, -2))
         depth_gel_frame = depth_gel_frame_shifted + offset[:, None, None]
 
         sensor_pose_target_frame = Transformation(
@@ -762,6 +789,11 @@ class TactilePerceptionVectorEnv(
             )
             sensor_output = res.tactile_image
             depth_output = res.depth_map
+
+        if self.__sensor_noise_model is not None:
+            sensor_output = self.__sensor_noise_model.apply(
+                sensor_output, self.np_random
+            )
 
         return sensor_output, depth_output, sensor_poses
 
