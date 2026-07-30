@@ -219,11 +219,10 @@ def register_envs():
                         ),
                     )
 
-                for env_name, ds_name, smallest_dim_up, allow_sensor_rotation in [
-                    ("TactileMNIST", "mnist3d", False, False),
-                    ("ABC", "abc-dataset-small", True, True),
+                for env_name, ds_name, smallest_dim_up, allow_sensor_rotation, step_limit in [
+                    ("TactileMNIST", "mnist3d", False, False, 16),
+                    ("ABC", "abc-dataset-small", True, True, 32),
                 ]:
-                    step_limit = 16 if env_name == "TactileMNIST" else 32
                     # Snap variants are only registered for the TactileMNIST environments
                     snap_variants = [("", None)]
                     if env_name == "TactileMNIST":
@@ -332,11 +331,10 @@ def register_envs():
                     ),
                 )
 
-                for env_name, ds_name, smallest_dim_up, allow_sensor_rotation in [
-                    ("ABC", "abc-dataset-small", True, True),
-                    ("TactileMNIST", "mnist3d", False, False),
+                for env_name, ds_name, smallest_dim_up, allow_sensor_rotation, step_limit in [
+                    ("ABC", "abc-dataset-small", True, True, 32),
+                    ("TactileMNIST", "mnist3d", False, False, 16),
                 ]:
-                    step_limit = 16 if env_name == "TactileMNIST" else 32
                     # Snap variants are only registered for the TactileMNIST environments
                     snap_variants = [("", None)]
                     if env_name == "TactileMNIST":
