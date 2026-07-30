@@ -31,6 +31,7 @@ from tactile_mnist import CELL_SIZE
 from tactile_mnist.colormap import viridis_colormap
 from tactile_mnist.tactile_renderer import TactileRenderer
 from .mesh_dataset import MeshDataPoint
+from .shared_egl import SharedContextOffscreenRenderer, make_offscreen_renderer
 from .util import transformation_where
 
 
@@ -182,7 +183,7 @@ def camera_frame_to_image(camera: PerspectiveCamera, pos: np.ndarray) -> np.ndar
 
 @dataclass
 class _SensorRenderer:
-    renderer: OffscreenRenderer
+    renderer: OffscreenRenderer | SharedContextOffscreenRenderer
     camera: OrthographicCamera
     camera_node: MultiNode
     scene: BatchScene
@@ -266,7 +267,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         Node = partial(MultiNode, batch_size=num_envs)
 
         def mk_sensor_renderer(res: tuple[int, int], pixmm: tuple[float, float]):
-            sensor_renderer = OffscreenRenderer(*res)
+            sensor_renderer = make_offscreen_renderer(*res)
 
             m_per_px = np.array(pixmm) / 1000
             mag = np.array(res) / 2 * m_per_px
@@ -296,9 +297,13 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 sensor_renderer, sensor_camera, sensor_camera_node, sensor_scene
             )
 
-        self.__observation_sensor_renderer = mk_sensor_renderer(
-            depth_map_resolution, depth_map_mm_per_pixel
+        # Sensor renderers are built lazily on first use, so envs that never
+        # render them (e.g. the RealSnap envs) do not pay for their scenes and
+        # meshes.
+        self.__mk_observation_sensor_renderer = partial(
+            mk_sensor_renderer, depth_map_resolution, depth_map_mm_per_pixel
         )
+        self.__observation_sensor_renderer: _SensorRenderer | None = None
 
         render_camera_target = self.__platform_pose.translation + np.array(
             [-0.02, -0.02, 0.0]
@@ -404,15 +409,19 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 self.__tactile_screen_size_rel * np.array(external_camera_resolution)
             ).astype(np.int_)
         )
-        depth_map_size_px = np.array(
-            self.__tactile_renderer.get_desired_depth_map_size(
-                self.__tactile_screen_size_px
+        if show_tactile_image:
+            depth_map_size_px = np.array(
+                self.__tactile_renderer.get_desired_depth_map_size(
+                    self.__tactile_screen_size_px
+                )
             )
-        )
-        render_pixmm = sensor_size_mm / depth_map_size_px
-        self.__render_sensor_renderer = mk_sensor_renderer(
-            tuple(depth_map_size_px), tuple(render_pixmm)
-        )
+            render_pixmm = sensor_size_mm / depth_map_size_px
+            self.__mk_render_sensor_renderer = partial(
+                mk_sensor_renderer, tuple(depth_map_size_px), tuple(render_pixmm)
+            )
+        else:
+            self.__mk_render_sensor_renderer = None
+        self.__render_sensor_renderer: _SensorRenderer | None = None
 
         screen_dist = 0.01
 
@@ -478,12 +487,16 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
 
         if show_viewer:
             self.__viewer = Viewer(self.__camera_scene, run_in_thread=True)
-            self.__camera_renderer: OffscreenRenderer | None = None
+            self.__camera_renderer: (
+                OffscreenRenderer | SharedContextOffscreenRenderer | None
+            ) = None
             # For some reason it is necessary to wait here
             time.sleep(0.5)
         else:
             # Variables needed for camera rendering
-            self.__camera_renderer = OffscreenRenderer(*external_camera_resolution)
+            self.__camera_renderer = make_offscreen_renderer(
+                *external_camera_resolution
+            )
             self.__viewer: Viewer | None = None
         self.__object_color = object_color
         self.class_weights: np.ndarray | None = None
@@ -535,7 +548,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
 
         if self.__show_tactile_image:
             tactile_img = self.__tactile_renderer(
-                self.__render_sensor_depths(self.__render_sensor_renderer),
+                self.__render_sensor_depths(self.__get_render_sensor_renderer()),
                 self.__tactile_screen_size_px,
             )
             if tactile_img.shape[-1] == 1:
@@ -642,6 +655,60 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
 
         return img
 
+    def __existing_sensor_renderers(self) -> tuple[_SensorRenderer, ...]:
+        return tuple(
+            r
+            for r in (
+                self.__observation_sensor_renderer,
+                self.__render_sensor_renderer,
+            )
+            if r is not None
+        )
+
+    def __set_sensor_renderer_objects(
+        self, renderer: _SensorRenderer, meshes: Sequence[trimesh.Trimesh]
+    ):
+        if renderer.object_node is not None:
+            renderer.scene.remove_node(renderer.object_node)
+        renderer.object_node = MultiNode(
+            self.__num_envs,
+            mesh=[
+                # Needed to remove color information
+                Mesh.from_trimesh(trimesh.Trimesh(mesh.vertices, mesh.faces))
+                for mesh in meshes
+            ],
+            individual_args=True,
+        )
+        renderer.scene.add_node(renderer.object_node)
+
+    def __build_sensor_renderer(self, factory) -> _SensorRenderer:
+        renderer = factory()
+        # A lazily-built renderer must catch up on the current objects and
+        # poses, which are otherwise only forwarded to existing renderers.
+        if self.__objects is not None:
+            with self.__get_render_lock():
+                self.__set_sensor_renderer_objects(
+                    renderer, [dp.mesh.copy() for dp in self.__objects]
+                )
+                renderer.scene.set_pose(
+                    renderer.object_node, self.__platform_pose * self.__object_poses
+                )
+        return renderer
+
+    def __get_observation_sensor_renderer(self) -> _SensorRenderer:
+        if self.__observation_sensor_renderer is None:
+            self.__observation_sensor_renderer = self.__build_sensor_renderer(
+                self.__mk_observation_sensor_renderer
+            )
+        return self.__observation_sensor_renderer
+
+    def __get_render_sensor_renderer(self) -> _SensorRenderer:
+        if self.__render_sensor_renderer is None:
+            self.__render_sensor_renderer = self.__build_sensor_renderer(
+                self.__mk_render_sensor_renderer
+            )
+        return self.__render_sensor_renderer
+
     def __render_sensor_depths(
         self,
         sensor_renderer: _SensorRenderer,
@@ -669,7 +736,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         self, virtual_sensor_poses: Transformation | None = None
     ) -> np.ndarray:
         return self.__render_sensor_depths(
-            sensor_renderer=self.__observation_sensor_renderer,
+            sensor_renderer=self.__get_observation_sensor_renderer(),
             virtual_sensor_poses=virtual_sensor_poses,
         )
 
@@ -684,10 +751,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         object_poses_world = self.__platform_pose * self.__object_poses
         with self.__get_render_lock():
             self.__camera_scene.set_pose(self.__camera_object_node, object_poses_world)
-            for renderer in [
-                self.__observation_sensor_renderer,
-                self.__render_sensor_renderer,
-            ]:
+            for renderer in self.__existing_sensor_renderers():
                 renderer.scene.set_pose(renderer.object_node, object_poses_world)
 
     def update_shadow_objects(
@@ -826,19 +890,5 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             self.__camera_scene.add_node(
                 self.__camera_shadow_object_node, invisible=True
             )
-            for renderer in [
-                self.__observation_sensor_renderer,
-                self.__render_sensor_renderer,
-            ]:
-                if renderer.object_node is not None:
-                    renderer.scene.remove_node(renderer.object_node)
-                renderer.object_node = MultiNode(
-                    self.__num_envs,
-                    mesh=[
-                        # Needed to remove color information
-                        Mesh.from_trimesh(trimesh.Trimesh(mesh.vertices, mesh.faces))
-                        for mesh in current_meshes
-                    ],
-                    individual_args=True,
-                )
-                renderer.scene.add_node(renderer.object_node)
+            for renderer in self.__existing_sensor_renderers():
+                self.__set_sensor_renderer_objects(renderer, current_meshes)
