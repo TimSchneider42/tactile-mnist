@@ -44,10 +44,12 @@ if __name__ == "__main__":
                 "prediction": env.prediction_space.sample(),
             }
 
-            obs, _, terminated, _, info = env.step(action)
+            obs, _, terminated, truncated, info = env.step(action)
             camera_img = env.render()
             img_plot.set_data(obs["sensor_img"])
             camera_plot.set_data(camera_img)
             plt.pause(1 / env.metadata["render_fps"])
-        assert terminated
+            if truncated:
+                break
+        assert terminated or truncated
         obs, _ = env.reset()
