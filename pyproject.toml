@@ -25,7 +25,8 @@ dependencies = [
     "opencv-python",
     "av",
     "objaverse",
-    "datasets"
+    "datasets",
+    "cod-vae[hub]"
 ]
 
 [project.urls]
