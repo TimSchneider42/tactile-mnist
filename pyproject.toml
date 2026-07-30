@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tactile-mnist"
 version = "0.12.0"
-description = "The Tactile MNIST benchmark for active tactile perception."
+description = "The Tactile MNIST benchmark suite for active tactile perception."
 readme = "README.md"
 authors = [
     { name = "Tim Schneider", email = "tim@robot-learning.de" }
