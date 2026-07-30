@@ -157,6 +157,22 @@ class BatchScene:
                 s.set_pose(n, self.__poses[node][i].matrix)
         self.__visibility[node] = mask
 
+    def set_mesh(self, node: MultiNode, meshes: Sequence[Mesh | None]):
+        assert node in self.__nodes
+        assert len(meshes) == len(node.nodes)
+        for i, (s, n, mesh) in enumerate(zip(self.__scenes, node.nodes, meshes)):
+            if mesh is None:
+                continue
+            if self.__visibility[node][i]:
+                # The scene's internal bookkeeping is keyed by the node's mesh object, so the node has to be
+                # removed from the scene while its mesh is replaced.
+                s.remove_node(n)
+                n.mesh = mesh
+                s.add_node(n)
+                s.set_pose(n, self.__poses[node][i].matrix)
+            else:
+                n.mesh = mesh
+
     def set_pose(self, node: MultiNode, pose: Transformation):
         if pose.single:
             pose = Transformation.batch_concatenate([pose] * len(node.nodes))
@@ -775,12 +791,31 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         new_shadow_object_scales: Sequence[float] | None = None,
         shadow_object_visible: Sequence[bool] | None = None,
         new_shadow_object_vertices: Sequence[np.ndarray | None] | None = None,
+        new_shadow_object_meshes: Sequence[trimesh.Trimesh | None] | None = None,
     ):
         if shadow_object_visible is None:
             shadow_object_visible = np.ones(self.__num_envs, dtype=np.bool_)
         self.__shadow_object_poses = new_shadow_object_poses
         shadow_object_poses_world = self.__platform_pose * self.__shadow_object_poses
         with self.__get_render_lock():
+            if new_shadow_object_meshes is not None:
+                # Unlike new_shadow_object_vertices, which updates the vertex buffer of the existing shadow mesh
+                # in-place, this replaces the shadow meshes entirely and thus supports arbitrary topologies.
+                meshes = []
+                for mesh in new_shadow_object_meshes:
+                    if mesh is None:
+                        meshes.append(None)
+                        continue
+                    pyrender_mesh = Mesh.from_trimesh(
+                        self.__process_object_mesh(mesh, alpha=100), smooth=False
+                    )
+                    pyrender_mesh.primitives[0].orig_positions = (
+                        pyrender_mesh.primitives[0].positions.copy()
+                    )
+                    meshes.append(pyrender_mesh)
+                self.__camera_scene.set_mesh(
+                    self.__camera_shadow_object_node, meshes
+                )
             if new_shadow_object_scales is not None:
                 for obj, node, scale in zip(
                     self.__objects,

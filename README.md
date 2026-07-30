@@ -138,7 +138,7 @@ However, instead of 3D MNIST models, the objects in ABCVolume are randomly sampl
 Similar to ABCCenterOfMass, we give the agent control over the sensor's rotation in ABCVolume.
 
 Finally, the _TactileMNISTShape_, _ABCShape_, and _MinecraftShape_ environments challenge the agent to reconstruct the full 3D shape of an object from the [3D MNIST](docs/datasets.md#mnist-3d) dataset, the [ABC](docs/datasets.md#abc-dataset) dataset, and the set of Minecraft items, respectively.
-The shape is encoded as a truncated spectral (Laplacian) representation of the object's mesh, which the agent has to regress to and from which a smoothed version of the object can be reconstructed.
+The shape is encoded as a compact latent embedding of a COD-VAE shape autoencoder, which the agent has to regress to and from which the object can be reconstructed.
 Since every touch reveals only a small patch of the object's surface, the agent has to integrate information from many touches to build up a complete picture of the object's geometry.
 
 A detailed description of the environments can be found [here](docs/TactilePerceptionEnv.md).

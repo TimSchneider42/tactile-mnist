@@ -43,11 +43,6 @@ from .tactile_pose_estimation_env import (
     TactilePoseEstimationEnv,
     TactilePoseEstimationVectorEnv,
 )
-from .mesh_laplacian import (
-    SpectralShapeRepresentation,
-    compute_spectral_representation,
-    cotangent_laplacian,
-)
 from .tactile_shape_reconstruction_env import (
     TactileShapeReconstructionEnv,
     TactileShapeReconstructionVectorEnv,
