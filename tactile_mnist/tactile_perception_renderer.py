@@ -94,17 +94,32 @@ class BatchScene:
         }
 
     def render(
-        self, renderer: OffscreenRenderer, flags=RenderFlags.NONE, seg_node_map=None
+        self,
+        renderer: OffscreenRenderer,
+        flags=RenderFlags.NONE,
+        seg_node_map=None,
+        read_depth: bool = True,
     ):
         if self.__dummy_scene is not None:
             # This is a workaround for a bug, where the renderer does not consider the updates to mesh vertices
             # if it does not render another scene in between (probably some caching issue). In case where there is
             # only one scene, we render a dummy scene.
             renderer.render(self.__dummy_scene, flags=RenderFlags.DEPTH_ONLY)
-        res = [
-            renderer.render(s, flags=flags, seg_node_map=seg_node_map)
-            for s in self.__scenes
-        ]
+        if not read_depth and isinstance(renderer, SharedContextOffscreenRenderer):
+            # Skips the depth readback entirely instead of discarding it.
+            res = [
+                renderer.render(
+                    s, flags=flags, seg_node_map=seg_node_map, read_depth=False
+                )
+                for s in self.__scenes
+            ]
+        else:
+            res = [
+                renderer.render(s, flags=flags, seg_node_map=seg_node_map)
+                for s in self.__scenes
+            ]
+            if not read_depth:
+                res = [r[0] if isinstance(r, tuple) else r for r in res]
         if isinstance(res[0], tuple):
             return tuple(np.stack(t, axis=0) for t in zip(*res))
         return np.stack(res, axis=0)
@@ -542,8 +557,8 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                         [self.__screen_corners[c1], self.__screen_corners[c2], o]
                     )
             img = self.__camera_scene.render(
-                self.__camera_renderer, flags=RenderFlags.RGBA
-            )[0]
+                self.__camera_renderer, flags=RenderFlags.RGBA, read_depth=False
+            )
         img_size = np.flip(np.array(img.shape[1:3]))
 
         if self.__show_tactile_image:
