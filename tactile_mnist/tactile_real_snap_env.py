@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -12,14 +13,10 @@ from typing import (
 )
 
 import PIL.Image
+import ap_gym
 import gymnasium as gym
 import numpy as np
 import scipy.special
-from gymnasium.envs.registration import EnvSpec
-from gymnasium.vector.utils import batch_space
-from transformation import Transformation
-
-import ap_gym
 from ap_gym import (
     ActivePerceptionActionSpace,
     ActivePerceptionVectorEnv,
@@ -31,6 +28,10 @@ from ap_gym import (
 )
 from ap_gym.types import PredType, PredTargetType
 from ap_gym.util import update_info_metrics_vec
+from gymnasium.envs.registration import EnvSpec
+from gymnasium.vector.utils import batch_space
+from transformation import Transformation
+
 from .constants import (
     CELL_PADDING,
     CELL_SIZE,
@@ -41,7 +42,9 @@ from .mesh_dataset import MeshDataPoint, MeshDataset
 from .tactile_perception_renderer import TactilePerceptionRenderer
 from .tactile_renderer import mk_tactile_renderer
 from .touch_data import TouchSingle, TouchSingleDataset
-from .util import get_dataset_stats
+from .util import get_dataset_stats, int_binary_search_right, compute_touch_window_size
+
+logger = logging.getLogger(__file__)
 
 ObsType = dict[str, np.ndarray]
 ActType = dict[str, np.ndarray]
@@ -50,9 +53,6 @@ ActType = dict[str, np.ndarray]
 @dataclass(frozen=True)
 class TactileRealSnapConfig:
     dataset: TouchSingleDataset | Sequence[TouchSingleDataset]
-    # In every step, the touch closest to the requested target position is chosen from the next touch_window_size
-    # prerecorded touches. The episode is truncated once no full window of touches remains.
-    touch_window_size: int = 32
     step_limit: int = 16
     sensor_output_size: Sequence[int] | None = None
     randomize_initial_sensor_pose: bool = True
@@ -83,6 +83,13 @@ class TactileRealSnapConfig:
     renderer_show_class_weights: bool = False
     render_transparent_background: bool = False
     renderer_external_camera_resolution: tuple[int, int] = (640, 480)
+    # The touch window size will be chosen such that the probability of running into an early truncation is
+    # approximately this value. There is one caveat: the model used to compute the window size assumes that samples are
+    # chosen uniformly at random from the window. However, this assumption neglects the fact that the distribution is
+    # skewed. Due to survivor bias, the distribution favors later samples: if a sample was already in the previous
+    # window and not chosen, it is likely far away and won't be chosen again. So the actual truncation probability will
+    # be slightly above this value.
+    approx_truncation_probability: float = 0.1
 
 
 class TactileRealSnapVectorEnv(
@@ -117,6 +124,19 @@ class TactileRealSnapVectorEnv(
         else:
             assert len(config.dataset) == num_envs
             self.__datasets = list(config.dataset)
+
+        self.__available_touches_per_sequence = (
+            config.dataset.huggingface_dataset.features["pos_in_cell"].length
+        )
+
+        self.__touch_window_size = compute_touch_window_size(
+            self.__available_touches_per_sequence,
+            config.step_limit,
+            config.approx_truncation_probability,
+        )
+        logger.info(
+            f"Determined touch sequence window size to be {self.__touch_window_size}."
+        )
 
         if config.sensor_output_size is None:
             first_image = np.asarray(self.__datasets[0][0].sensor_image[0])
@@ -187,7 +207,6 @@ class TactileRealSnapVectorEnv(
             [Transformation()] * num_envs
         )
         self.__current_touch_idx = np.zeros(num_envs, dtype=np.int_)
-        self.__exhausted = np.zeros(num_envs, dtype=np.bool_)
         self.__current_sensor_pos = np.zeros((num_envs, 3), dtype=np.float64)
         self.__sensor_z_offset = np.zeros(num_envs, dtype=np.float64)
         self.__current_sensor_target_pos = np.zeros((num_envs, 3), dtype=np.float64)
@@ -252,23 +271,16 @@ class TactileRealSnapVectorEnv(
     def __select_touch(
         self, i: int, target_pos_xy: np.ndarray, first: bool = False
     ) -> None:
-        dp = self.__current_data_points[i]
-        touch_positions = np.asarray(dp.pos_in_cell)
-        num_touches = touch_positions.shape[0]
         window_start = 0 if first else int(self.__current_touch_idx[i]) + 1
-        window_end = min(window_start + self.__config.touch_window_size, num_touches)
-        if window_end <= window_start:
-            # No touches left, so we keep the previous touch and flag exhaustion
-            self.__exhausted[i] = True
-            return
+        window_end = window_start + self.__touch_window_size
+        if window_end > self.__available_touches_per_sequence:
+            raise ValueError("Window does not fit in remaining data.")
         window = np.arange(window_start, window_end)
-        distances = np.linalg.norm(touch_positions[window] - target_pos_xy, axis=-1)
+        distances = np.linalg.norm(
+            self.__current_data_points[i].pos_in_cell[window] - target_pos_xy, axis=-1
+        )
         touch_idx = int(window[np.argmin(distances)])
         self.__current_touch_idx[i] = touch_idx
-        # The episode ends once no full window of touches remains after the current touch
-        self.__exhausted[i] = (
-            touch_idx + 1 + self.__config.touch_window_size > num_touches
-        )
         self.__current_sensor_pos[i] = self.__get_sensor_pose(i, touch_idx).translation
 
     def __get_sensor_pose(self, i: int, touch_idx: int) -> Transformation:
@@ -410,7 +422,6 @@ class TactileRealSnapVectorEnv(
         super().reset(seed=seed, options=options)
         self.__current_step = np.zeros(self.num_envs, dtype=np.int_)
         self.__prev_done = np.zeros(self.num_envs, dtype=np.bool_)
-        self.__exhausted = np.zeros(self.num_envs, dtype=np.bool_)
         self.__current_data_points = [None] * self.num_envs
         self.__current_mesh_data_points = [None] * self.num_envs
         self.__reset_partial(np.ones(self.num_envs, dtype=np.bool_), options=options)
@@ -447,11 +458,18 @@ class TactileRealSnapVectorEnv(
         self.__current_step[active] += 1
         time_out = self.__current_step >= self.__config.step_limit
         terminated = np.zeros(self.num_envs, dtype=np.bool_)
-        truncated = self.__exhausted.copy()
+        truncated = np.zeros(self.num_envs, dtype=np.bool_)
         if self.__config.timeout_behavior == "terminate":
             terminated = time_out
         else:
             truncated |= time_out
+
+        # The episode ends once no full window of touches remains after the current touch
+        exhausted = (
+            self.__current_touch_idx + 1 + self.__touch_window_size
+            > self.__available_touches_per_sequence
+        )
+        truncated |= exhausted & ~terminated
 
         obs, info = self.__get_obs_info()
 

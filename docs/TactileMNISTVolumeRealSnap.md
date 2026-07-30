@@ -17,8 +17,8 @@ Refer to the [tactile regression environments overview](TactileRegressionEnv.md)
 
 In the TactileMNISTVolumeRealSnap environment, the agent's objective is to estimate the volume of 3D printed handwritten digits by touch alone, just as in the [TactileMNISTVolume](TactileMNISTVolume.md) environment.
 However, instead of simulating tactile images, this environment replays real touch data collected with a GelSight Mini sensor, using the same touch selection scheme as the [TactileMNISTRealSnap](TactileMNISTRealSnap.md) environment:
-in every step, the environment considers a window of the next 32 prerecorded touches of the current round and selects the touch whose position is closest to the position the agent requested.
-The selection always moves forward in the recorded data, and once no full window of 32 touches remains, the episode is truncated.
+in every step, the environment considers a window of the next prerecorded touches of the current round and selects the touch whose position is closest to the position the agent requested.
+The selection always moves forward in the recorded data, and once no full window of touches remains, the episode is truncated.
 Refer to the [TactileMNISTRealSnap](TactileMNISTRealSnap.md) documentation for a detailed description of the touch selection scheme, the `TactileRealSnapConfig` class, and the rendering.
 
 The prediction target is the volume of the touched object, normalized by the statistics of the mesh dataset.
