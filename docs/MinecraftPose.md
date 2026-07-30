@@ -52,4 +52,6 @@ envs = ap_gym.make_vec("MinecraftPose-v0", num_envs=4)
 
 | Environment ID         | Description                                             | Preview                                                                                     |
 |------------------------|---------------------------------------------------------|---------------------------------------------------------------------------------------------|
+| MinecraftPose-DR-v0 | Same as MinecraftPose-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/MinecraftPose-DR-v0.webp" alt="MinecraftPose-DR-v0" width="200px"/> |
 | MinecraftPose-Depth-v0 | Uses a depth image instead of rendering tactile images. | <img src="img/env/MinecraftPose-Depth-v0.webp" alt="MinecraftPose-Depth-v0" width="200px"/> |
+| MinecraftPose-Depth-DR-v0 | Same as MinecraftPose-Depth-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/MinecraftPose-Depth-DR-v0.webp" alt="MinecraftPose-Depth-DR-v0" width="200px"/> |
