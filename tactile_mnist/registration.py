@@ -34,6 +34,21 @@ from .tactile_real_snap_env import (
     TactileRealSnapVolumeEstimationVectorEnv,
 )
 from .touch_data import TouchSingleDataset
+from .util import compute_touch_window_size
+
+# The snap variants mimic the touch selection of the TactileMNISTRealSnap environment, which chooses each touch from a
+# window of the prerecorded touches of the current round. All real touch datasets contain 256 touches per round.
+SNAP_TOUCH_SEQUENCE_LENGTH = 256
+
+
+def mk_snap_touch_positions(step_limit: int) -> int:
+    """
+    Determine how many touch positions the snap variants sample in every step.
+
+    The number matches the window size the TactileMNISTRealSnap environment ends up with for a touch sequence of
+    SNAP_TOUCH_SEQUENCE_LENGTH touches and the given step limit.
+    """
+    return compute_touch_window_size(SNAP_TOUCH_SEQUENCE_LENGTH, step_limit)
 
 
 def mk_config(
@@ -167,7 +182,11 @@ def register_envs():
                 ("-CycleGAN", "cycle_gan"),
                 ("-Depth", "depth"),
             ]:
-                for snap_suffix, snap_touch_positions in [("", None), ("Snap", 32)]:
+                step_limit = 16
+                for snap_suffix, snap_touch_positions in [
+                    ("", None),
+                    ("Snap", mk_snap_touch_positions(step_limit)),
+                ]:
                     ap_gym.register(
                         id=f"TactileMNIST{snap_suffix}{sensor_type_name}{s}-v0",
                         entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
@@ -191,6 +210,7 @@ def register_envs():
                                 sensor_output_size=(64, 64),
                                 allow_sensor_rotation=False,
                                 max_initial_angle_perturbation=np.pi / 8,
+                                step_limit=step_limit,
                                 renderer_show_class_weights=True,
                                 sensor_type=sensor_type,
                                 snap_touch_positions=snap_touch_positions,
@@ -203,10 +223,13 @@ def register_envs():
                     ("TactileMNIST", "mnist3d", False, False),
                     ("ABC", "abc-dataset-small", True, True),
                 ]:
+                    step_limit = 16 if env_name == "TactileMNIST" else 32
                     # Snap variants are only registered for the TactileMNIST environments
                     snap_variants = [("", None)]
                     if env_name == "TactileMNIST":
-                        snap_variants.append(("Snap", 32))
+                        snap_variants.append(
+                            ("Snap", mk_snap_touch_positions(step_limit))
+                        )
                     for snap_suffix, snap_touch_positions in snap_variants:
                         ap_gym.register(
                             id=f"{env_name}Volume{snap_suffix}{sensor_type_name}{s}-v0",
@@ -230,9 +253,7 @@ def register_envs():
                                 default_config=dict(
                                     sensor_output_size=(64, 64),
                                     allow_sensor_rotation=allow_sensor_rotation,
-                                    step_limit=(
-                                        16 if env_name == "TactileMNIST" else 32
-                                    ),
+                                    step_limit=step_limit,
                                     sensor_type=sensor_type,
                                     cell_size=CELL_SIZE,
                                     smallest_dimension_up=smallest_dim_up,
@@ -265,9 +286,7 @@ def register_envs():
                                 default_config=dict(
                                     sensor_output_size=(64, 64),
                                     allow_sensor_rotation=allow_sensor_rotation,
-                                    step_limit=(
-                                        16 if env_name == "TactileMNIST" else 32
-                                    ),
+                                    step_limit=step_limit,
                                     sensor_type=sensor_type,
                                     cell_size=CELL_SIZE,
                                     smallest_dimension_up=smallest_dim_up,
@@ -317,10 +336,13 @@ def register_envs():
                     ("ABC", "abc-dataset-small", True, True),
                     ("TactileMNIST", "mnist3d", False, False),
                 ]:
+                    step_limit = 16 if env_name == "TactileMNIST" else 32
                     # Snap variants are only registered for the TactileMNIST environments
                     snap_variants = [("", None)]
                     if env_name == "TactileMNIST":
-                        snap_variants.append(("Snap", 32))
+                        snap_variants.append(
+                            ("Snap", mk_snap_touch_positions(step_limit))
+                        )
                     for snap_suffix, snap_touch_positions in snap_variants:
                         ap_gym.register(
                             id=f"{env_name}CenterOfMass{snap_suffix}{sensor_type_name}{s}-v0",
@@ -352,9 +374,7 @@ def register_envs():
                                 default_config=dict(
                                     sensor_output_size=(64, 64),
                                     allow_sensor_rotation=allow_sensor_rotation,
-                                    step_limit=(
-                                        16 if env_name == "TactileMNIST" else 32
-                                    ),
+                                    step_limit=step_limit,
                                     cell_size=CELL_SIZE,
                                     sensor_type=sensor_type,
                                     smallest_dimension_up=smallest_dim_up,

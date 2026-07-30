@@ -5,7 +5,7 @@ import json
 import logging
 import multiprocessing
 import pickle
-from functools import partial
+from functools import partial, lru_cache
 from typing import Sequence, Any, Callable, TypeVar, Generic, overload
 
 import filelock
@@ -149,3 +149,67 @@ def get_dataset_stats(
             json.dump(statistics, f)
 
         return statistics
+
+
+def int_binary_search_right(
+    f: Callable[[int], float], a: int, b: int, target_lower_bound: float
+):
+    f = lru_cache(f)
+    if f(a) > target_lower_bound:
+        raise ValueError(
+            f"Expected f(a) ({f(a)}) to be smaller or equal to the target ({target_lower_bound})."
+        )
+    if target_lower_bound > f(b):
+        raise ValueError(
+            f"Expected f(b) ({f(b)}) to be larger or equal to the target ({target_lower_bound})."
+        )
+    while True:
+        if a == b:
+            return a
+        if abs(a - b) == 1:
+            if f(a) == target_lower_bound:
+                return a
+            else:
+                return b
+        else:
+            mid = (a + b) // 2
+
+        if f(mid) <= target_lower_bound:
+            a = mid
+        else:
+            b = mid
+
+
+def compute_touch_window_size(
+    touch_sequence_length: int,
+    step_limit: int,
+    approx_truncation_probability: float = 0.1,
+) -> int:
+    def get_termination_prob(window_size: float):
+        distribution = np.zeros(touch_sequence_length)
+        distribution[0] = 1.0
+        likelihood = np.zeros((touch_sequence_length, touch_sequence_length + 1))
+        likelihood[
+            np.arange(touch_sequence_length)[:, None],
+            np.minimum(
+                np.arange(touch_sequence_length)[:, None]
+                + np.arange(window_size)[None]
+                + 1,
+                touch_sequence_length,
+            ),
+        ] = (
+            1 / window_size
+        )
+        likelihood = likelihood[:, :-1]
+        # Including the initial glance
+        for _ in range(step_limit):
+            distribution = likelihood.T @ distribution
+        # The final touch must have the full window still available
+        return distribution[:-window_size].sum()
+
+    return int_binary_search_right(
+        get_termination_prob,
+        touch_sequence_length,
+        1,
+        1 - approx_truncation_probability,
+    )
