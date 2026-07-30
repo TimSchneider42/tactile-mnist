@@ -87,6 +87,10 @@ class TactilePerceptionConfig:
     smallest_dimension_up: bool = False
     translation_perturbation_scale: float = 1e-3
     rotation_perturbation_scale: float = 5e-2
+    # Distance the object is kept away from the cell borders when its initial pose is randomized. Note that the sensor
+    # can only reach positions that are at least cell_padding away from the cell borders, so a margin smaller than
+    # cell_padding allows the object to be placed in regions the sensor cannot reach.
+    object_placement_margin: float = 0.01
     # If sensor_noise is set, the per-episode and per-frame appearance variations of a real sensor are simulated on
     # top of the rendered tactile images (see SensorNoiseConfig). Without it, tactile images are a deterministic
     # function of the contact geometry and all images without contact are exactly identical, which does not happen on
@@ -372,6 +376,7 @@ class TactilePerceptionVectorEnv(
         randomize_initial_pose: bool,
         max_initial_angle_perturbation: float,
         cell_size: tuple[float, float],
+        object_placement_margin: float,
         rotation_perturbation_norm: np.ndarray | None = None,
         translation_perturbation_norm: np.ndarray | None = None,
         np_random: np.random.Generator | None = None,
@@ -403,7 +408,7 @@ class TactilePerceptionVectorEnv(
             )[..., :2, 0]
             xy_min = np.min(xy_pos, axis=1)
             xy_max = np.max(xy_pos, axis=1)
-            margin = 0.01
+            margin = object_placement_margin
             low = -np.array(cell_size) / 2 + margin - xy_min
             high = np.array(cell_size) / 2 - margin - xy_max
             conflict = low > high
@@ -461,6 +466,7 @@ class TactilePerceptionVectorEnv(
                         self.__config.max_initial_angle_perturbation,
                         self.__config.cell_size,
                         np_random=self.np_random,
+                        object_placement_margin=self.__config.object_placement_margin,
                     )[0]
                 else:
                     object_poses_lst[i] = initial_object_poses[i]
