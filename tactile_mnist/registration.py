@@ -14,6 +14,7 @@ from tactile_mnist.tactile_volume_estimation_env import (
 )
 from .constants import *
 from .minecraft_dataset import load_minecraft_item_mesh_dataset
+from .sensor_noise import SensorNoiseConfig
 from .simple_mesh_dataset import SimpleMeshDataset
 from .tactile_classification_env import (
     TactileClassificationEnv,
@@ -74,6 +75,34 @@ def mk_config(
         # Values given in config override the defaults of the environment
         **{**default_config, **({} if config is None else config)},
     )
+
+
+def register_with_dr_variant(
+    id_prefix: str,
+    id_suffix: str = "-v0",
+    *,
+    kwargs: dict[str, Any],
+    **register_kwargs: Any,
+):
+    """
+    Register a simulated environment twice: once as it is and once with domain randomization.
+
+    The domain randomized variant carries a "-DR" suffix between id_prefix and id_suffix (e.g.
+    TactileMNIST-CycleGAN-DR-train-v0) and simulates the per-episode and per-frame variations of a real sensor on top
+    of the rendered tactile images (see SensorNoiseConfig).
+    """
+    for dr_suffix, sensor_noise in (("", None), ("-DR", SensorNoiseConfig())):
+        ap_gym.register(
+            id=f"{id_prefix}{dr_suffix}{id_suffix}",
+            kwargs={
+                **kwargs,
+                "default_config": {
+                    **kwargs["default_config"],
+                    "sensor_noise": sensor_noise,
+                },
+            },
+            **register_kwargs,
+        )
 
 
 def mk_real_snap_config(
@@ -187,8 +216,9 @@ def register_envs():
                     ("", None),
                     ("Snap", mk_snap_touch_positions(step_limit)),
                 ]:
-                    ap_gym.register(
-                        id=f"TactileMNIST{snap_suffix}{sensor_type_name}{s}-v0",
+                    register_with_dr_variant(
+                        f"TactileMNIST{snap_suffix}{sensor_type_name}",
+                        f"{s}-v0",
                         entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                             TactileClassificationEnv(
                                 mk_config(
@@ -230,8 +260,9 @@ def register_envs():
                             ("Snap", mk_snap_touch_positions(step_limit))
                         )
                     for snap_suffix, snap_touch_positions in snap_variants:
-                        ap_gym.register(
-                            id=f"{env_name}Volume{snap_suffix}{sensor_type_name}{s}-v0",
+                        register_with_dr_variant(
+                            f"{env_name}Volume{snap_suffix}{sensor_type_name}",
+                            f"{s}-v0",
                             entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                                 TactileVolumeEstimationEnv(
                                     mk_config(
@@ -263,8 +294,9 @@ def register_envs():
                             ),
                         )
 
-                        ap_gym.register(
-                            id=f"{env_name}Shape{snap_suffix}{sensor_type_name}{s}-v0",
+                        register_with_dr_variant(
+                            f"{env_name}Shape{snap_suffix}{sensor_type_name}",
+                            f"{s}-v0",
                             entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                                 TactileShapeReconstructionEnv(
                                     mk_config(
@@ -300,8 +332,9 @@ def register_envs():
                 ("", "taxim"),
                 ("-Depth", "depth"),
             ]:
-                ap_gym.register(
-                    id=f"Starstruck{sensor_type_name}{s}-v0",
+                register_with_dr_variant(
+                    f"Starstruck{sensor_type_name}",
+                    f"{s}-v0",
                     entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                         TactileClassificationEnv(
                             mk_config(
@@ -342,8 +375,9 @@ def register_envs():
                             ("Snap", mk_snap_touch_positions(step_limit))
                         )
                     for snap_suffix, snap_touch_positions in snap_variants:
-                        ap_gym.register(
-                            id=f"{env_name}CenterOfMass{snap_suffix}{sensor_type_name}{s}-v0",
+                        register_with_dr_variant(
+                            f"{env_name}CenterOfMass{snap_suffix}{sensor_type_name}",
+                            f"{s}-v0",
                             entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                                 TactilePoseEstimationEnv(
                                     mk_config(
@@ -393,8 +427,8 @@ def register_envs():
         ("", "taxim"),
         ("-Depth", "depth"),
     ]:
-        ap_gym.register(
-            id=f"Minecraft{sensor_type_name}-v0",
+        register_with_dr_variant(
+            f"Minecraft{sensor_type_name}",
             entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                 TactileClassificationEnv(
                     mk_config(
@@ -432,8 +466,8 @@ def register_envs():
             ),
         )
 
-        ap_gym.register(
-            id=f"MinecraftShape{sensor_type_name}-v0",
+        register_with_dr_variant(
+            f"MinecraftShape{sensor_type_name}",
             entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                 TactileShapeReconstructionEnv(
                     mk_config(
@@ -478,8 +512,8 @@ def register_envs():
             ("MinecraftPose", minecraft_items, (("", 0.2),), 64, True),
         ]:
             for size_name, size in sizes:
-                ap_gym.register(
-                    id=f"{env_name}{size_name}{sensor_type_name}-v0",
+                register_with_dr_variant(
+                    f"{env_name}{size_name}{sensor_type_name}",
                     entry_point=lambda *args, default_config, config=None, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                         TactilePoseEstimationEnv(
                             mk_config(

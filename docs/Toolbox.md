@@ -46,4 +46,10 @@ envs = ap_gym.make_vec("Toolbox-v0", num_envs=4)
 
 | Environment ID   | Description                                             | Preview                                                                        |
 |------------------|---------------------------------------------------------|--------------------------------------------------------------------------------|
+| Toolbox-DR-v0 | Same as Toolbox-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/Toolbox-DR-v0.webp" alt="Toolbox-DR-v0" width="200px"/> |
+| Toolbox-small-v0 | Uses a smaller platform (0.25m instead of 0.3m). | <img src="img/env/Toolbox-small-v0.webp" alt="Toolbox-small-v0" width="200px"/> |
+| Toolbox-small-DR-v0 | Same as Toolbox-small-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/Toolbox-small-DR-v0.webp" alt="Toolbox-small-DR-v0" width="200px"/> |
 | Toolbox-Depth-v0 | Uses a depth image instead of rendering tactile images. | <img src="img/env/Toolbox-Depth-v0.webp" alt="Toolbox-Depth-v0" width="200px"/> |
+| Toolbox-Depth-DR-v0 | Same as Toolbox-Depth-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/Toolbox-Depth-DR-v0.webp" alt="Toolbox-Depth-DR-v0" width="200px"/> |
+| Toolbox-small-Depth-v0 | Same as Toolbox-small-v0 but uses a depth image instead of rendering tactile images. | <img src="img/env/Toolbox-small-Depth-v0.webp" alt="Toolbox-small-Depth-v0" width="200px"/> |
+| Toolbox-small-Depth-DR-v0 | Same as Toolbox-small-Depth-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/Toolbox-small-Depth-DR-v0.webp" alt="Toolbox-small-Depth-DR-v0" width="200px"/> |

@@ -76,4 +76,6 @@ envs = ap_gym.make_vec("MinecraftShape-v0", num_envs=4)
 
 | Environment ID          | Description                                             | Preview                                                                                       |
 |-------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| MinecraftShape-DR-v0 | Same as MinecraftShape-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/MinecraftShape-DR-v0.webp" alt="MinecraftShape-DR-v0" width="200px"/> |
 | MinecraftShape-Depth-v0 | Uses a depth image instead of rendering tactile images. | <img src="img/env/MinecraftShape-Depth-v0.webp" alt="MinecraftShape-Depth-v0" width="200px"/> |
+| MinecraftShape-Depth-DR-v0 | Same as MinecraftShape-Depth-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/MinecraftShape-Depth-DR-v0.webp" alt="MinecraftShape-Depth-DR-v0" width="200px"/> |
