@@ -56,8 +56,8 @@ def mk_config(
             **({} if mesh_dataset_config is None else mesh_dataset_config),
         ),
         *args,
-        **default_config,
-        **({} if config is None else config),
+        # Values given in config override the defaults of the environment
+        **{**default_config, **({} if config is None else config)},
     )
 
 
