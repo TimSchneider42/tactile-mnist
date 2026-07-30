@@ -45,6 +45,7 @@ def _compute_object_pose_distribution_stats(
     rotation_mode: Literal["model", "inertia_frame"],
     predict_position: bool,
     predict_rotation: bool,
+    object_placement_margin: float,
 ) -> dict[str, float]:
     ds = SimpleMeshDataset(ds)
     dp = TactilePerceptionVectorEnv._pre_process_dp(
@@ -62,6 +63,7 @@ def _compute_object_pose_distribution_stats(
         cell_size,
         rotation_perturbation_norm=rotation_perturbations,
         translation_perturbation_norm=translation_perturbation_limits,
+        object_placement_margin=object_placement_margin,
     )
     frame = TactilePoseEstimationVectorEnv._compute_object_frame(
         dp, position_mode or "model", rotation_mode or "model"
@@ -162,6 +164,7 @@ class TactilePoseEstimationVectorEnv(
             "rotation_mode": frame_rotation_mode,
             "predict_position": self.__predict_position,
             "predict_rotation": self.__predict_rotation,
+            "object_placement_margin": config.object_placement_margin,
         }
 
         statistics = get_dataset_stats(
