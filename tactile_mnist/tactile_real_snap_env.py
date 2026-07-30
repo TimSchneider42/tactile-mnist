@@ -34,6 +34,7 @@ from ap_gym.util import update_info_metrics_vec
 from .constants import (
     CELL_PADDING,
     CELL_SIZE,
+    GEL_PENETRATION_DEPTH_MM,
     GELSIGHT_MINI_SENSOR_SURFACE_SIZE,
 )
 from .mesh_dataset import MeshDataPoint, MeshDataset
@@ -68,6 +69,14 @@ class TactileRealSnapConfig:
     # actual object pose is not known), the effective sensor pose of the selected touch, and the requested target
     # sensor position.
     mesh_dataset: MeshDataset | Sequence[MeshDataset] | None = None
+    # The zero of the recorded gel z-positions drifts between rounds (by up to 3mm), as it depends on the state of the
+    # gel and the calibration of the robot at the time of recording. If recalibrate_sensor_z is set, the recorded
+    # z-positions of each round are re-zeroed on the deepest touch of that round, which is the platform surface (each
+    # round contains touches that miss the object), and shifted such that touching the platform yields the same
+    # sensor z-position as it does in the simulated environments (GEL_PENETRATION_DEPTH_MM above the platform).
+    # Without this correction, the z-component of the sensor_pos observation is offset by an unknown per-round
+    # constant and does not match the simulated environments.
+    recalibrate_sensor_z: bool = True
     enable_rendering: bool = True
     show_sensor_target_pos: bool = True
     renderer_show_tactile_image: bool = True
@@ -180,6 +189,7 @@ class TactileRealSnapVectorEnv(
         self.__current_touch_idx = np.zeros(num_envs, dtype=np.int_)
         self.__exhausted = np.zeros(num_envs, dtype=np.bool_)
         self.__current_sensor_pos = np.zeros((num_envs, 3), dtype=np.float64)
+        self.__sensor_z_offset = np.zeros(num_envs, dtype=np.float64)
         self.__current_sensor_target_pos = np.zeros((num_envs, 3), dtype=np.float64)
         self.__current_step = np.zeros(num_envs, dtype=np.int_)
         self.__prev_done = np.zeros(num_envs, dtype=np.bool_)
@@ -259,7 +269,16 @@ class TactileRealSnapVectorEnv(
         self.__exhausted[i] = (
             touch_idx + 1 + self.__config.touch_window_size > num_touches
         )
-        self.__current_sensor_pos[i] = dp.gel_pose_cell_frame[touch_idx].translation
+        self.__current_sensor_pos[i] = self.__get_sensor_pose(i, touch_idx).translation
+
+    def __get_sensor_pose(self, i: int, touch_idx: int) -> Transformation:
+        pose = self.__current_data_points[i].gel_pose_cell_frame[touch_idx]
+        if self.__sensor_z_offset[i] == 0.0:
+            return pose
+        return Transformation(
+            pose.translation + np.array([0.0, 0.0, self.__sensor_z_offset[i]]),
+            pose.rotation,
+        )
 
     def __reset_partial(
         self, mask: Sequence[bool], options: dict[str, Any] | None = None
@@ -278,6 +297,15 @@ class TactileRealSnapVectorEnv(
                     else datapoint_idx[i]
                 )
                 self.__current_data_points[i] = self.__datasets[i][idx]
+                if self.__config.recalibrate_sensor_z:
+                    # The deepest touch of the round is the one that went down to the platform surface, which
+                    # corresponds to a sensor z-position of GEL_PENETRATION_DEPTH_MM in the simulated environments
+                    recorded_z = self.__current_data_points[
+                        i
+                    ].gel_pose_cell_frame.translation[:, 2]
+                    self.__sensor_z_offset[i] = (
+                        GEL_PENETRATION_DEPTH_MM / 1000 - np.min(recorded_z)
+                    )
                 if self.__mesh_datasets is not None:
                     object_id = self.__current_data_points[i].object_id
                     if object_id not in self.__mesh_id_maps[i]:
@@ -361,9 +389,7 @@ class TactileRealSnapVectorEnv(
 
         sensor_poses = Transformation.batch_concatenate(
             [
-                self.__current_data_points[i].gel_pose_cell_frame[
-                    int(self.__current_touch_idx[i])
-                ]
+                self.__get_sensor_pose(i, int(self.__current_touch_idx[i]))
                 for i in range(self.num_envs)
             ]
         )
@@ -499,6 +525,11 @@ class TactileRealSnapVectorEnv(
     @property
     def current_touch_indices(self) -> np.ndarray:
         return self.__current_touch_idx.copy()
+
+    @property
+    def current_sensor_z_offsets(self) -> np.ndarray:
+        """Offsets added to the recorded gel z-positions of the current rounds (see recalibrate_sensor_z)."""
+        return self.__sensor_z_offset.copy()
 
     @property
     def spec(self) -> EnvSpec | None:
