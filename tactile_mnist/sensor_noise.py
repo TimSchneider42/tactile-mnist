@@ -24,16 +24,24 @@ class SensorNoiseConfig:
 
     The default values are calibrated on the
     [tactile-mnist-touch-real-single-t256-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-single-t256-64x64)
-    dataset: for each round, the background image (per-round pixel-wise median) was fitted against the global
-    background image with a contrast gain and an offset, and the per-frame residuals of the frames without contact
-    were used to characterize the noise. Both `pattern` and `noise` are sampled as Gaussian random fields with a
-    `1 / f^spectrum_exponent` power spectrum (`f` in cycles per image), which reproduces the measured spatial
-    autocorrelation of the real residuals reasonably well.
+    dataset. The per-episode terms are obtained by fitting the background image of each round (its pixel-wise median)
+    against the global background image with a contrast gain and an offset, and taking the gain, the offset, and the
+    remaining difference as `gain`, `offset`, and `pattern`. The per-frame term is obtained by subtracting the
+    background image of a round from its individual frames, which removes everything the per-episode terms already
+    model. Only the frames that press down on the platform (the deepest touches of a round) enter both fits, as any
+    frame with contact would contribute the imprint rather than the sensor variation.
+
+    Both `pattern` and `noise` are sampled as Gaussian random fields with a `1 / f^spectrum_exponent` power spectrum
+    (`f` in cycles per image).
     """
 
-    # Per-frame sensor noise (measured: std 0.0042 per channel, inter-channel correlation 0.24-0.39, spatial
-    # autocorrelation 0.47/0.25/0.20 at a lag of 1/2/3 pixels, which an exponent of 1.4 reproduces)
-    frame_noise_std: float = 0.0042
+    # Per-frame sensor noise. The amplitude is measured on the residuals of the frames that press down on the
+    # platform (std 0.0038 per channel, inter-channel correlation 0.24-0.39), and the exponent is chosen such that
+    # the Laplacian energy of the residuals matches the measured 0.0064 (it comes out at 0.0066). Note that the
+    # exponent does not reproduce the measured short-lag autocorrelation of 0.34/0.10/0.06 at a lag of 1/2/3 pixels
+    # at the same time (it yields 0.47/0.25/0.19): the real noise is not exactly a power-law field. Matching the
+    # Laplacian energy is what keeps the simulated images from being separable from the real ones, so it wins.
+    frame_noise_std: float = 0.0038
     frame_noise_spectrum_exponent: float = 1.4
     frame_noise_channel_correlation: float = 0.3
     # Per-episode static background pattern (measured: rms 0.0093, spatial autocorrelation 0.98 at a lag of 1 pixel
