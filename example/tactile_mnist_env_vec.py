@@ -25,7 +25,7 @@ if __name__ == "__main__":
     camera_plot = [ax.imshow(img) for img, ax in zip(env.render(), axes[1])]
     plt.show(block=False)
 
-    terminated = np.zeros(env.num_envs, dtype=bool)
+    truncated = terminated = np.zeros(env.num_envs, dtype=bool)
     for s in range(100):
         # Generate a circle trajectory
         angles = (
@@ -47,12 +47,15 @@ if __name__ == "__main__":
                 "prediction": env.prediction_space.sample(),
             }
 
-            obs, _, terminated, _, info = env.step(action)
+            obs, _, terminated, truncated, info = env.step(action)
             camera_img = env.render()
             for i in range(env.num_envs):
                 img_plot[i].set_data(obs["sensor_img"][i])
                 camera_plot[i].set_data(camera_img[i])
             plt.pause(1 / env.metadata["render_fps"])
-        assert np.all(terminated)
-        # This will trigger the reset of the environments
-        obs, _, _, truncated, _ = env.step(env.action_space.sample())
+        if not np.all(terminated | truncated):
+            obs, _ = env.reset(seed=s + 1)
+            truncated = terminated = np.zeros(env.num_envs, dtype=bool)
+        else:
+            # This will trigger the reset of the environments
+            obs, _, terminated, truncated, _ = env.step(env.action_space.sample())
