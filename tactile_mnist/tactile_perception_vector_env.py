@@ -38,9 +38,9 @@ from tactile_mnist import (
     GELSIGHT_MINI_GEL_THICKNESS_MM,
     GEL_PENETRATION_DEPTH_MM,
 )
-from .sensor_noise import SensorNoiseConfig, SensorNoiseModel
+from .sensor_noise import SensorNoiseConfig, SensorNoiseRenderer
 from .tactile_perception_renderer import TactilePerceptionRenderer
-from .tactile_renderer import mk_tactile_renderer
+from .tactile_renderer import TactileRenderer, mk_tactile_renderer
 from .util import OverridableStaticField, transformation_where
 
 if TYPE_CHECKING:
@@ -176,12 +176,22 @@ class TactilePerceptionVectorEnv(
             assert len(self.__config.dataset) == num_envs
             self.__datasets = self.__config.dataset
         self.__current_data_points: tuple[GenericMeshDataPoint] | None = None
-        self.__sensor = mk_tactile_renderer(
+        raw_sensor = mk_tactile_renderer(
             renderer_type=self.__config.sensor_type,
             backend=self.__config.sensor_backend,
             device=self.__config.sensor_device,
             device_index=self.__config.sensor_device_index,
         )
+        self.__sensor: TactileRenderer = raw_sensor
+        if self.__config.sensor_noise is not None:
+            self.__sensor = SensorNoiseRenderer(
+                raw_sensor,
+                self.__config.sensor_noise,
+                num_envs,
+                sensor_output_size,
+                estimator_device=self.__config.sensor_device,
+                estimator_device_index=self.__config.sensor_device_index,
+            )
         dt = np.float32
         single_action_space = {
             # Target position of the sensor
@@ -259,7 +269,8 @@ class TactilePerceptionVectorEnv(
         self.__renderer: TactilePerceptionRenderer[GenericMeshDataPoint] = (
             TactilePerceptionRenderer(
                 self.num_envs,
-                self.__sensor,
+                # The external view re-renders its tactile image at display resolution, without sensor noise
+                raw_sensor,
                 depth_map_size,
                 mm_per_pixel,
                 show_viewer=render_mode == "human",
@@ -272,27 +283,6 @@ class TactilePerceptionVectorEnv(
                 show_orig_mesh_colors=self.__config.renderer_show_orig_mesh_colors,
             )
         )
-
-        if self.__config.sensor_noise is None:
-            self.__sensor_noise_model: SensorNoiseModel | None = None
-        else:
-            self.__sensor_noise_model = SensorNoiseModel(
-                self.__config.sensor_noise,
-                num_envs,
-                sensor_output_size,
-                self.__sensor.channels,
-            )
-            self.__sensor_noise_model.init(
-                num_envs,
-                depth_map_size,
-                estimator_backend=(
-                    "auto"
-                    if self.__sensor.backend_name == "numpy"
-                    else self.__sensor.backend_name
-                ),
-                estimator_device=self.__config.sensor_device,
-                estimator_device_index=self.__config.sensor_device_index,
-            )
 
         # Calculate the maximum distance the sensor can travel in one step
         self.__max_distance_linear = self.__calculate_max_distance_scalar(
@@ -493,12 +483,11 @@ class TactilePerceptionVectorEnv(
             self.__renderer.objects = self.__current_data_points
             self._set_object_poses(Transformation.batch_concatenate(object_poses_lst))
             self.__current_step[mask] = np.zeros(np.sum(mask), dtype=np.float32)
-            if self.__sensor_noise_model is not None:
-                # Every episode sees a slightly different gel and illumination state
-                # The noise model draws from a spawned generator, as spawning does not advance np_random. This way,
-                # enabling sensor noise does not change the object selection or any other random draws of the
-                # environment.
-                self.__sensor_noise_model.reset(mask, self.np_random.spawn(1)[0])
+            # Every episode sees a slightly different gel and illumination state
+            # The renderer draws from a spawned generator, as spawning does not advance np_random. This way,
+            # enabling sensor noise does not change the object selection or any other random draws of the
+            # environment.
+            self.__sensor.reset(mask, self.np_random.spawn(1)[0])
 
     @abstractmethod
     def _get_prediction_targets(self) -> np.ndarray:
@@ -781,8 +770,8 @@ class TactilePerceptionVectorEnv(
         self.__renderer.set_object_poses(new_poses, mask=mask)
 
     def touch(self, sensor_target_poses: Transformation):
-        # See __reset_partial for why the noise draws from a spawned generator
-        noise_rng = self.np_random.spawn(1)[0]
+        # See __reset_partial for why the renderer draws from a spawned generator
+        render_rng = self.np_random.spawn(1)[0]
         depth_gel_frame_shifted = self.__renderer.render_sensor_depths(
             sensor_target_poses
         )
@@ -794,7 +783,7 @@ class TactilePerceptionVectorEnv(
             observed_penetration_depth = np.minimum(
                 nominal_penetration_depth
                 + np.abs(
-                    noise_rng.normal(
+                    render_rng.normal(
                         scale=self.__config.penetration_depth_reduction_std,
                         size=nominal_penetration_depth.shape,
                     )
@@ -805,10 +794,6 @@ class TactilePerceptionVectorEnv(
         offset = nominal_penetration_depth - min_depth
         depth_gel_frame = depth_gel_frame_shifted + offset[:, None, None]
         observed_offset = observed_penetration_depth - min_depth
-        if self.__sensor_noise_model is not None:
-            depth_gel_frame = self.__sensor_noise_model.apply_base_depth(
-                depth_gel_frame
-            )
 
         sensor_pose_target_frame = Transformation(
             np.concatenate(
@@ -823,18 +808,15 @@ class TactilePerceptionVectorEnv(
 
         if self.__config.convert_image_to_numpy:
             sensor_output = self.__sensor(
-                depth_gel_frame, self.__sensor_output_size
+                depth_gel_frame, self.__sensor_output_size, render_rng
             ).astype(np.float32)
             depth_output = depth_gel_frame
         else:
             res = self.__sensor.render_direct(
-                depth_gel_frame, self.__sensor_output_size
+                depth_gel_frame, self.__sensor_output_size, render_rng
             )
             sensor_output = res.tactile_image
             depth_output = res.depth_map
-
-        if self.__sensor_noise_model is not None:
-            sensor_output = self.__sensor_noise_model.apply(sensor_output, noise_rng)
 
         return sensor_output, depth_output, sensor_poses
 
@@ -842,8 +824,7 @@ class TactilePerceptionVectorEnv(
         return self.__renderer.render_external_cameras()
 
     def close(self):
-        if self.__sensor_noise_model is not None:
-            self.__sensor_noise_model.destroy()
+        self.__sensor.close()
         super().close()
 
     @property
