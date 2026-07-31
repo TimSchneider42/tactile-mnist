@@ -19,6 +19,7 @@ from ap_gym import (
 )
 from ap_gym.util import update_info_metrics_vec
 from cod_vae import CODVAE, CubeTransform
+from .tactile_perception_renderer import MESH_INVISIBLE
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
     TactilePerceptionConfig,
@@ -145,32 +146,33 @@ class TactileShapeReconstructionVectorEnv(
                 self.__vae.config.num_latents,
                 self.__vae.config.latent_dim,
             )
-            reconstructions: list[Any] = [None] * self.num_envs
-            active = np.where(~prev_done)[0]
-            if len(active) > 0:
-                if self.__vae.backend == "jax":
-                    # Decode the full batch so the jitted decoder only ever sees a single batch size and is never
-                    # recompiled inside a host callback (see __init__). Inactive results are discarded below.
-                    decode_idx = np.arange(self.num_envs)
-                else:
-                    decode_idx = active
-                decoded = self.__vae.decode_mesh(
-                    prediction_clipped[decode_idx],
-                    resolution=self.__shadow_object_resolution,
-                    transform=[target_transforms[i] for i in decode_idx],
-                )
-                active_set = set(active)
-                for i, mesh in zip(decode_idx, decoded):
-                    if i in active_set:
-                        reconstructions[i] = mesh if len(mesh.faces) > 0 else None
+
+            def reconstruct_meshes():
+                reconstructions: list[Any] = [None] * self.num_envs
+                active = np.where(~prev_done)[0]
+                if len(active) > 0:
+                    if self.__vae.backend == "jax":
+                        # Decode the full batch so the jitted decoder only ever sees a single batch size and is never
+                        # recompiled inside a host callback (see __init__). Inactive results are discarded below.
+                        decode_idx = np.arange(self.num_envs)
+                    else:
+                        decode_idx = active
+                    decoded = self.__vae.decode_mesh(
+                        prediction_clipped[decode_idx],
+                        resolution=self.__shadow_object_resolution,
+                        transform=[target_transforms[i] for i in decode_idx],
+                    )
+                    active_set = set(active)
+                    for i, mesh in zip(decode_idx, decoded):
+                        if i in active_set:
+                            reconstructions[i] = mesh if len(mesh.faces) > 0 else MESH_INVISIBLE
+                return reconstructions
             self._renderer.update_shadow_objects(
                 Transformation.batch_concatenate(
                     [Transformation()] * self.num_envs,
                 ),
-                shadow_object_visible=np.array(
-                    [mesh is not None for mesh in reconstructions]
-                ),
-                new_shadow_object_meshes=reconstructions,
+                new_shadow_object_meshes=reconstruct_meshes,
+                shadow_object_visible=(True,) * self.num_envs
             )
 
         if np.any(terminated | truncated):

@@ -5,7 +5,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from functools import partial
 from importlib.resources import files
-from typing import Sequence, Iterable, Generic, Protocol, TypeVar
+from typing import Sequence, Iterable, Generic, Protocol, TypeVar, Callable
 
 import numpy as np
 import trimesh
@@ -87,7 +87,7 @@ class BatchScene:
             self.__dummy_scene = Scene([Node(camera=PerspectiveCamera(yfov=np.pi / 4))])
         else:
             self.__dummy_scene = None
-        self.__visibility = {n: np.ones(len(n.nodes)) for n in self.__nodes}
+        self.__visibility = {n: np.ones(len(n.nodes), dtype=np.bool_) for n in self.__nodes}
         self.__poses = {
             n: Transformation.batch_concatenate([Transformation()] * len(n.nodes))
             for n in self.__nodes
@@ -228,6 +228,35 @@ class HasMesh(Protocol):
 MeshDataPointType = TypeVar("MeshDataPointType", bound=HasMesh)
 
 
+@dataclass
+class _ShadowObjectsState:
+    poses: Transformation
+    visible: list[bool]
+    update_scales: list[float] | None
+    update_meshes: (
+        list[trimesh.Trimesh | None]
+        | Callable[[], tuple[trimesh.Trimesh | None, ...] | MeshInvisibleType | None]
+        | MeshInvisibleType
+        | None
+    )
+
+    @classmethod
+    def init_default(cls, num_envs: int):
+        return cls(
+            Transformation.batch_concatenate([Transformation()] * num_envs),
+            [False for _ in range(num_envs)],
+            None,
+            None,
+        )
+
+
+class MeshInvisibleType:
+    pass
+
+
+MESH_INVISIBLE = MeshInvisibleType()
+
+
 class TactilePerceptionRenderer(Generic[MeshDataPointType]):
     def __init__(
         self,
@@ -270,9 +299,6 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         self.__object_poses: Transformation = Transformation.batch_concatenate(
             [Transformation()] * num_envs
         )
-        self.__shadow_object_poses: Transformation = Transformation.batch_concatenate(
-            [Transformation()] * num_envs
-        )
         self.__show_sensor_target_pos = show_sensor_target_pos
         self.__false_class_color = false_class_color
         self.__true_class_color = true_class_color
@@ -287,6 +313,8 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 baseColorFactor=platform_color, metallicFactor=0.2, roughnessFactor=1.0
             )
         )
+
+        self.__shadow_objects_state = _ShadowObjectsState.init_default(num_envs)
 
         # Set the camera really far away from the gel. That way we can use it to find the first contact point of the
         # sensor when it is approaching the target.
@@ -539,6 +567,55 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         if self.__camera_renderer is None:
             return None
         with self.__get_render_lock():
+            shadow_object_poses_world = (
+                self.__platform_pose * self.__shadow_objects_state.poses
+            )
+            with self.__get_render_lock():
+                if self.__shadow_objects_state.update_meshes is not None:
+                    # Unlike new_shadow_object_vertices, which updates the vertex buffer of the existing shadow mesh
+                    # in-place, this replaces the shadow meshes entirely and thus supports arbitrary topologies.
+                    meshes = []
+                    update_meshes = self.__shadow_objects_state.update_meshes
+                    if callable(update_meshes):
+                        update_meshes = list(update_meshes())
+                    for i, mesh in enumerate(update_meshes):
+                        if mesh is None:
+                            meshes.append(None)
+                            continue
+                        if mesh is MESH_INVISIBLE:
+                            meshes.append(None)
+                            self.__shadow_objects_state.visible[i] = False
+                            continue
+                        pyrender_mesh = Mesh.from_trimesh(
+                            self.__process_object_mesh(mesh, alpha=100), smooth=False
+                        )
+                        pyrender_mesh.primitives[0].orig_positions = (
+                            pyrender_mesh.primitives[0].positions.copy()
+                        )
+                        meshes.append(pyrender_mesh)
+                    self.__camera_scene.set_mesh(
+                        self.__camera_shadow_object_node, meshes
+                    )
+                    self.__shadow_objects_state.update_meshes = None
+                if self.__shadow_objects_state.update_scales is not None:
+                    for obj, node, scale in zip(
+                        self.__objects,
+                        self.__camera_shadow_object_node.nodes,
+                        self.__shadow_objects_state.update_scales,
+                    ):
+                        c = obj.mesh.center_mass
+                        node.mesh.primitives[0].positions[:] = (
+                            node.mesh.primitives[0].orig_positions - c
+                        ) * scale + c
+                    self.__shadow_objects_state.update_scales = None
+                self.__camera_scene.set_pose(
+                    self.__camera_shadow_object_node, shadow_object_poses_world
+                )
+                self.__camera_scene.set_visibility(
+                    self.__camera_shadow_object_node,
+                    self.__shadow_objects_state.visible,
+                )
+
             self.__camera_scene.set_pose(self.__sensor_node, self.sensor_poses)
             if self.__show_sensor_target_pos:
                 self.__camera_scene.set_pose(
@@ -787,70 +864,27 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
 
     def update_shadow_objects(
         self,
-        new_shadow_object_poses: Transformation,
-        new_shadow_object_scales: Sequence[float] | None = None,
+        new_shadow_object_poses: Transformation | None = None,
         shadow_object_visible: Sequence[bool] | None = None,
-        new_shadow_object_vertices: Sequence[np.ndarray | None] | None = None,
-        new_shadow_object_meshes: Sequence[trimesh.Trimesh | None] | None = None,
+        new_shadow_object_scales: Sequence[float] | None = None,
+        new_shadow_object_meshes: (
+            Sequence[trimesh.Trimesh | None]
+            | Callable[[], Sequence[trimesh.Trimesh | None]]
+            | None
+        ) = None,
     ):
-        if shadow_object_visible is None:
-            shadow_object_visible = np.ones(self.__num_envs, dtype=np.bool_)
-        self.__shadow_object_poses = new_shadow_object_poses
-        shadow_object_poses_world = self.__platform_pose * self.__shadow_object_poses
-        with self.__get_render_lock():
-            if new_shadow_object_meshes is not None:
-                # Unlike new_shadow_object_vertices, which updates the vertex buffer of the existing shadow mesh
-                # in-place, this replaces the shadow meshes entirely and thus supports arbitrary topologies.
-                meshes = []
-                for mesh in new_shadow_object_meshes:
-                    if mesh is None:
-                        meshes.append(None)
-                        continue
-                    pyrender_mesh = Mesh.from_trimesh(
-                        self.__process_object_mesh(mesh, alpha=100), smooth=False
-                    )
-                    pyrender_mesh.primitives[0].orig_positions = (
-                        pyrender_mesh.primitives[0].positions.copy()
-                    )
-                    meshes.append(pyrender_mesh)
-                self.__camera_scene.set_mesh(self.__camera_shadow_object_node, meshes)
-            if new_shadow_object_scales is not None:
-                for obj, node, scale in zip(
-                    self.__objects,
-                    self.__camera_shadow_object_node.nodes,
-                    new_shadow_object_scales,
-                ):
-                    c = obj.mesh.center_mass
-                    node.mesh.primitives[0].positions[:] = (
-                        node.mesh.primitives[0].orig_positions - c
-                    ) * scale + c
-            if new_shadow_object_vertices is not None:
-                for obj, node, vertices in zip(
-                    self.__objects,
-                    self.__camera_shadow_object_node.nodes,
-                    new_shadow_object_vertices,
-                ):
-                    if vertices is None:
-                        continue
-                    # The shadow meshes are rendered with flat shading, so the primitive holds one position and normal
-                    # per face corner.
-                    primitive = node.mesh.primitives[0]
-                    triangles = vertices[obj.mesh.faces]
-                    primitive.positions[:] = triangles.reshape(-1, 3)
-                    face_normals = np.cross(
-                        triangles[:, 1] - triangles[:, 0],
-                        triangles[:, 2] - triangles[:, 0],
-                    )
-                    face_normals /= np.maximum(
-                        np.linalg.norm(face_normals, axis=-1, keepdims=True), 1e-12
-                    )
-                    primitive.normals[:] = np.repeat(face_normals, 3, axis=0)
-            self.__camera_scene.set_pose(
-                self.__camera_shadow_object_node, shadow_object_poses_world
+        if shadow_object_visible is not None:
+            self.__shadow_objects_state.visible = list(shadow_object_visible)
+        if new_shadow_object_scales is not None:
+            self.__shadow_objects_state.update_scales = list(new_shadow_object_scales)
+        if new_shadow_object_meshes is not None:
+            self.__shadow_objects_state.update_meshes = (
+                new_shadow_object_meshes
+                if callable(new_shadow_object_meshes)
+                else list(new_shadow_object_meshes)
             )
-            self.__camera_scene.set_visibility(
-                self.__camera_shadow_object_node, shadow_object_visible
-            )
+        if new_shadow_object_poses is not None:
+            self.__shadow_objects_state.poses = new_shadow_object_poses
 
     def close(self):
         if self.__viewer is not None:
@@ -940,3 +974,4 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             )
             for renderer in self.__existing_sensor_renderers():
                 self.__set_sensor_renderer_objects(renderer, current_meshes)
+            self.__shadow_objects_state.init_default(self.__num_envs)
