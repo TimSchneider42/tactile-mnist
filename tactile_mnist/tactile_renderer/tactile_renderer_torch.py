@@ -28,7 +28,12 @@ class TactileRendererTorch(TactileRenderer[torch.Tensor], ABC):
             channels=channels,
         )
 
-    def render(self, depth: np.ndarray, output_size: tuple[int, int]) -> np.ndarray:
+    def render(
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
         return np.moveaxis(
             self.render_direct(depth, output_size).tactile_image.cpu().numpy(),
             [-3],
@@ -36,7 +41,10 @@ class TactileRendererTorch(TactileRenderer[torch.Tensor], ABC):
         )
 
     def render_direct(
-        self, depth: np.ndarray, output_size: tuple[int, int]
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
     ) -> RenderDirectOutput[torch.Tensor]:
         depth_conv = torch.from_numpy(depth.astype(np.float32)).to(self.__torch_device)
         img = self._render_direct(depth_conv, output_size)

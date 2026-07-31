@@ -20,7 +20,10 @@ class DepthRendererNumpy(TactileRenderer[np.ndarray]):
         return output_size
 
     def render_direct(
-        self, depth: np.ndarray, output_size: tuple[int, int]
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
     ) -> RenderDirectOutput[np.ndarray]:
         gel_thickness_m = GELSIGHT_MINI_GEL_THICKNESS_MM / 1000
         gel_penetration_depth_m = GEL_PENETRATION_DEPTH_MM / 1000
@@ -31,5 +34,10 @@ class DepthRendererNumpy(TactileRenderer[np.ndarray]):
             depth,
         )
 
-    def render(self, depth: np.ndarray, output_size: tuple[int, int]) -> np.ndarray:
+    def render(
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
         return self.render_direct(depth, output_size).tactile_image
