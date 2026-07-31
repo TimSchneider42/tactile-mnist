@@ -16,6 +16,8 @@ done
 ENVS=(
   TactileMNISTRealSnap-v0
   TactileMNISTVolumeRealSnap-v0
+  TactileMNISTRealSnap-Taxim-v0
+  TactileMNISTVolumeRealSnap-Taxim-v0
   TactileMNIST-v0
   TactileMNIST-DR-v0
   TactileMNISTSnap-v0
@@ -26,6 +28,8 @@ ENVS=(
   TactileMNISTVolumeSnap-DR-v0
   ABCVolume-v0
   ABCVolume-DR-v0
+  TactileMNISTRealSnap-CycleGAN-v0
+  TactileMNISTVolumeRealSnap-CycleGAN-v0
   TactileMNIST-CycleGAN-v0
   TactileMNIST-CycleGAN-DR-v0
   TactileMNISTSnap-CycleGAN-v0
@@ -36,6 +40,8 @@ ENVS=(
   TactileMNISTVolumeSnap-CycleGAN-DR-v0
   ABCVolume-CycleGAN-v0
   ABCVolume-CycleGAN-DR-v0
+  TactileMNISTRealSnap-Depth-v0
+  TactileMNISTVolumeRealSnap-Depth-v0
   TactileMNIST-Depth-v0
   TactileMNIST-Depth-DR-v0
   TactileMNISTSnap-Depth-v0
@@ -64,6 +70,8 @@ ENVS=(
   TactileMNISTCenterOfMassSnap-Depth-DR-v0
   TactileMNISTRealSnap-test-v0
   TactileMNISTVolumeRealSnap-test-v0
+  TactileMNISTRealSnap-Taxim-test-v0
+  TactileMNISTVolumeRealSnap-Taxim-test-v0
   TactileMNIST-test-v0
   TactileMNIST-DR-test-v0
   TactileMNISTSnap-test-v0
@@ -74,6 +82,8 @@ ENVS=(
   TactileMNISTVolumeSnap-DR-test-v0
   ABCVolume-test-v0
   ABCVolume-DR-test-v0
+  TactileMNISTRealSnap-CycleGAN-test-v0
+  TactileMNISTVolumeRealSnap-CycleGAN-test-v0
   TactileMNIST-CycleGAN-test-v0
   TactileMNIST-CycleGAN-DR-test-v0
   TactileMNISTSnap-CycleGAN-test-v0
@@ -84,6 +94,8 @@ ENVS=(
   TactileMNISTVolumeSnap-CycleGAN-DR-test-v0
   ABCVolume-CycleGAN-test-v0
   ABCVolume-CycleGAN-DR-test-v0
+  TactileMNISTRealSnap-Depth-test-v0
+  TactileMNISTVolumeRealSnap-Depth-test-v0
   TactileMNIST-Depth-test-v0
   TactileMNIST-Depth-DR-test-v0
   TactileMNISTSnap-Depth-test-v0
