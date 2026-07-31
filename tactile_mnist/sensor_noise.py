@@ -15,7 +15,7 @@ from .depth_estimator import mk_depth_estimator
 # Touches whose recorded gel z stops within this distance of the round's minimum pressed down to the platform and
 # thus did not touch the object. The deepest touch of a round is always a platform press (see
 # TactileRealSnapConfig.recalibrate_sensor_z), and the per-touch spread of the platform presses (90th percentile
-# 1mm, see penetration_depth_reduction_std) stays below the height of the objects.
+# 1mm, see TactilePerceptionConfig.penetration_depth_reduction_std) stays below the height of the objects.
 EMPTY_TOUCH_Z_TOLERANCE_M = 0.001
 # Number of base depth map batches the feeder thread keeps ready for apply_base_depth
 BASE_DEPTH_PREFETCH_BATCHES = 2
@@ -71,16 +71,6 @@ class SensorNoiseConfig:
     # Per-episode contrast gain and brightness offset (measured: gain std 0.047, offset std 0.0094)
     episode_gain_std: float = 0.047
     episode_offset_std: float = 0.0094
-    # Per-touch variation of the depth the sensor is pressed into the surface. The simulation always presses the gel
-    # in by exactly GEL_PENETRATION_DEPTH_MM, so all touches that miss the object end up at exactly the same height,
-    # whereas the real robot presses down until a force threshold is reached and thus penetrates by an amount that
-    # depends on the contact area and the state of the gel. GEL_PENETRATION_DEPTH_MM is treated as the deepest press
-    # (that is what the recalibration of the real environment aligns it with, see
-    # TactileRealSnapConfig.recalibrate_sensor_z), and the penetration of each touch is reduced by the absolute value
-    # of a normally distributed variable with this scale. The default is calibrated such that the touches reaching
-    # the platform spread like they do in the real dataset (median 0.46mm and 90th percentile 1.0mm less deep than
-    # the deepest touch of the round).
-    penetration_depth_reduction_std: float = 0.00065
     # The re-rendering real-snap environments (see TactileRealSnapConfig.sensor_type) obtain their depth maps from
     # the CycleGAN depth estimator, which does not produce a clean no-contact estimate on real images: it writes a
     # phantom indentation into the bottom-right corner of every estimate (~8% of the frame, stable across recording
@@ -355,35 +345,6 @@ class SensorNoiseModel:
                 f"Expected depth maps of shape {base.shape} as announced to init(), but got {depth.shape}."
             )
         return np.minimum(depth, base)
-
-    def sample_penetration_depths(
-        self,
-        np_random: np.random.Generator,
-        nominal_depth: np.ndarray,
-        max_depth: float,
-    ) -> np.ndarray:
-        """
-        Sample the depth by which the sensor is pressed into the surface for a batch of touches.
-
-        Note that `nominal_depth` is the distance between the sensor frame and the closest point of the touched
-        surface, so it *decreases* as the sensor is pressed in further. Accordingly, the sampled depths are always
-        larger than the nominal ones, that is, the nominal depth is the deepest press.
-
-        :param np_random:       Random number generator used to sample the penetration depths.
-        :param nominal_depth:   Penetration depths the simulation would use without noise.
-        :param max_depth:       Maximum depth (the thickness of the gel, i.e. no contact at all).
-        :return:                Sampled penetration depths of the same shape as `nominal_depth`.
-        """
-        return np.minimum(
-            nominal_depth
-            + np.abs(
-                np_random.normal(
-                    scale=self.__config.penetration_depth_reduction_std,
-                    size=nominal_depth.shape,
-                )
-            ),
-            max_depth,
-        )
 
     def apply(self, images: Any, np_random: np.random.Generator) -> Any:
         """

@@ -87,6 +87,11 @@ class TactilePerceptionConfig:
     smallest_dimension_up: bool = False
     translation_perturbation_scale: float = 1e-3
     rotation_perturbation_scale: float = 5e-2
+    # Per-touch variation of the sensor height the agent observes. If set to a positive value, the gel is still
+    # pressed in by exactly GEL_PENETRATION_DEPTH_MM, but the reported penetration is reduced by the absolute value
+    # of a normally distributed variable with this scale, emulating a real robot, which presses down until a force
+    # threshold is reached and thus stops at a height that depends on the contact area and the state of the gel.
+    penetration_depth_reduction_std: float = 0.0
     # Distance the object is kept away from the cell borders when its initial pose is randomized. Note that the sensor
     # can only reach positions that are at least cell_padding away from the cell borders, so a margin smaller than
     # cell_padding allows the object to be placed in regions the sensor cannot reach.
@@ -776,23 +781,30 @@ class TactilePerceptionVectorEnv(
         self.__renderer.set_object_poses(new_poses, mask=mask)
 
     def touch(self, sensor_target_poses: Transformation):
-        if self.__sensor_noise_model is not None:
-            # See __reset_partial for why the noise draws from a spawned generator
-            noise_rng = self.np_random.spawn(1)[0]
+        # See __reset_partial for why the noise draws from a spawned generator
+        noise_rng = self.np_random.spawn(1)[0]
         depth_gel_frame_shifted = self.__renderer.render_sensor_depths(
             sensor_target_poses
         )
-        penetration_depth = np.full(
+        nominal_penetration_depth = np.full(
             depth_gel_frame_shifted.shape[:-2], GEL_PENETRATION_DEPTH_MM / 1000
         )
-        if self.__sensor_noise_model is not None:
-            penetration_depth = self.__sensor_noise_model.sample_penetration_depths(
-                noise_rng,
-                penetration_depth,
+        observed_penetration_depth = nominal_penetration_depth
+        if self.__config.penetration_depth_reduction_std > 0:
+            observed_penetration_depth = np.minimum(
+                nominal_penetration_depth
+                + np.abs(
+                    noise_rng.normal(
+                        scale=self.__config.penetration_depth_reduction_std,
+                        size=nominal_penetration_depth.shape,
+                    )
+                ),
                 GELSIGHT_MINI_GEL_THICKNESS_MM / 1000,
             )
-        offset = penetration_depth - np.min(depth_gel_frame_shifted, axis=(-1, -2))
+        min_depth = np.min(depth_gel_frame_shifted, axis=(-1, -2))
+        offset = nominal_penetration_depth - min_depth
         depth_gel_frame = depth_gel_frame_shifted + offset[:, None, None]
+        observed_offset = observed_penetration_depth - min_depth
         if self.__sensor_noise_model is not None:
             depth_gel_frame = self.__sensor_noise_model.apply_base_depth(
                 depth_gel_frame
@@ -800,7 +812,10 @@ class TactilePerceptionVectorEnv(
 
         sensor_pose_target_frame = Transformation(
             np.concatenate(
-                [np.zeros((offset.shape[0], 2), dtype=np.float32), offset[:, None]],
+                [
+                    np.zeros((observed_offset.shape[0], 2), dtype=np.float32),
+                    observed_offset[:, None],
+                ],
                 axis=-1,
             )
         )
