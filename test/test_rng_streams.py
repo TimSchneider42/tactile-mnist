@@ -91,29 +91,39 @@ def _rollout(
 
 def _rollout_images_and_positions(
     env: TactileClassificationVectorEnv, seed: int
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     obs, _ = env.reset(seed=seed)
     all_obs = [obs]
+    renders = [env.render()]
     env.action_space.seed(seed)
     for _ in range(NUM_STEPS):
         obs, _, _, _, _ = env.step(env.action_space.sample())
         all_obs.append(obs)
+        renders.append(env.render())
     return (
         np.array([o["sensor_img"] for o in all_obs]),
         np.array([o["sensor_pos"] for o in all_obs]),
+        np.array(renders),
     )
 
 
 def test_penetration_depth_randomization_only_affects_the_observed_height(dataset):
     """The imprint always presses the gel in by the nominal penetration depth; the randomization only perturbs the
-    sensor height the agent observes."""
+    sensor height the agent observes, so neither the tactile images nor the external camera view are affected."""
     plain = _mk_env(dataset)
     randomized = _mk_env(dataset, penetration_depth_reduction_std=0.00065)
-    plain_images, plain_pos = _rollout_images_and_positions(plain, seed=7)
-    rand_images, rand_pos = _rollout_images_and_positions(randomized, seed=7)
+    plain_images, plain_pos, plain_renders = _rollout_images_and_positions(plain, seed=7)
+    rand_images, rand_pos, rand_renders = _rollout_images_and_positions(
+        randomized, seed=7
+    )
     plain.close()
     randomized.close()
     np.testing.assert_array_equal(plain_images, rand_images)
+    # The scene renders show tiny rasterization differences even for identical scenes, so only substantial
+    # differences (such as the imprint of the sensor changing) count
+    np.testing.assert_allclose(
+        plain_renders.astype(np.int_), rand_renders.astype(np.int_), atol=5
+    )
     np.testing.assert_array_equal(plain_pos[..., :2], rand_pos[..., :2])
     assert np.abs(plain_pos[..., 2] - rand_pos[..., 2]).max() > 1e-4
 
