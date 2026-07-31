@@ -281,8 +281,8 @@ class TactileRealSnapVectorEnv(
         if self.__mesh_datasets is None or not config.enable_rendering:
             self.__renderer: TactilePerceptionRenderer | None = None
         else:
-            # The tactile renderer is only used by TactilePerceptionRenderer to lay out its (disabled) simulated
-            # tactile image display, as the tactile images of this environment come from the dataset
+            # The tactile renderer only determines the layout of the tactile image display, as the displayed images
+            # are the recorded ones, which render() hands to the renderer directly
             display_sensor = mk_tactile_renderer(renderer_type="depth", backend="numpy")
             depth_map_size = display_sensor.get_desired_depth_map_size(
                 sensor_output_size
@@ -297,7 +297,7 @@ class TactileRealSnapVectorEnv(
                 mm_per_pixel,
                 show_viewer=render_mode == "human",
                 show_sensor_target_pos=config.show_sensor_target_pos,
-                show_tactile_image=False,
+                show_tactile_image=config.renderer_show_tactile_image,
                 show_class_weights=config.renderer_show_class_weights,
                 transparent_background=config.render_transparent_background,
                 cell_size=config.cell_size,
@@ -561,42 +561,10 @@ class TactileRealSnapVectorEnv(
     def render(self) -> np.ndarray | None:
         if self.__renderer is None:
             return self.__last_sensor_images.copy()
-        img = self.__renderer.render_external_cameras()
-        if img is None:
-            # Human render mode: the viewer displays the scene itself
-            return None
-        if self.__config.renderer_show_tactile_image:
-            # Show the real tactile image of the current touch in the top right corner
-            frame_height, frame_width = img.shape[1:3]
-            inset_height = int(round(0.3 * frame_height))
-            inset_width = int(
-                round(
-                    inset_height
-                    * self.__sensor_output_size[0]
-                    / self.__sensor_output_size[1]
-                )
-            )
-            margin = int(round(0.02 * frame_height))
-            pos_y = margin
-            pos_x = frame_width - inset_width - margin
-            for i in range(self.num_envs):
-                sensor_image = self.__last_sensor_images[i]
-                if sensor_image.shape[-1] == 1:
-                    # The depth renderer produces single-channel images, which cannot be displayed directly
-                    sensor_image = np.repeat(sensor_image, 3, axis=-1)
-                inset = np.asarray(
-                    PIL.Image.fromarray(sensor_image).resize(
-                        (inset_width, inset_height), PIL.Image.Resampling.NEAREST
-                    )
-                )
-                img[
-                    i, pos_y : pos_y + inset_height, pos_x : pos_x + inset_width, :3
-                ] = inset
-                if img.shape[-1] == 4:
-                    img[
-                        i, pos_y : pos_y + inset_height, pos_x : pos_x + inset_width, 3
-                    ] = 255
-        return img
+        # The recorded images of the current touch are displayed instead of a simulated tactile image
+        return self.__renderer.render_external_cameras(
+            tactile_images=self.__last_sensor_images.astype(np.float32) / 255
+        )
 
     def close(self):
         if self.__renderer is not None:
