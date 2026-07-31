@@ -561,9 +561,27 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         self.class_weights: np.ndarray | None = None
         self.target_class_idx: np.ndarray | None = None
 
+    def __scale_to_tactile_screen(self, images: np.ndarray) -> np.ndarray:
+        width, height = self.__tactile_screen_size_px
+        if images.shape[1:3] == (height, width):
+            return images
+        # Nearest neighbor, as the provided images are usually of a much lower resolution than the screen and
+        # interpolating them would just blur the sensor pixels
+        rows = np.arange(height) * images.shape[1] // height
+        cols = np.arange(width) * images.shape[2] // width
+        return images[:, rows][:, :, cols]
+
     def render_external_cameras(
-        self,
+        self, tactile_images: np.ndarray | None = None
     ) -> np.ndarray | None:
+        """
+        Render the external camera view of every environment.
+
+        Parameters:
+            tactile_images: (num_envs, height, width, 1 or 3) images in [0, 1] to show on the tactile screen instead
+                of re-rendering the tactile image from the scene geometry. Used by environments whose tactile images
+                do not come from the scene, such as the real-snap ones.
+        """
         if self.__camera_renderer is None:
             return None
         with self.__get_render_lock():
@@ -655,10 +673,13 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         img_size = np.flip(np.array(img.shape[1:3]))
 
         if self.__show_tactile_image:
-            tactile_img = self.__tactile_renderer(
-                self.__render_sensor_depths(self.__get_render_sensor_renderer()),
-                self.__tactile_screen_size_px,
-            )
+            if tactile_images is None:
+                tactile_img = self.__tactile_renderer(
+                    self.__render_sensor_depths(self.__get_render_sensor_renderer()),
+                    self.__tactile_screen_size_px,
+                )
+            else:
+                tactile_img = self.__scale_to_tactile_screen(tactile_images)
             if tactile_img.shape[-1] == 1:
                 tactile_img = viridis_colormap(tactile_img[..., 0])
             t_size = np.flip(np.array(tactile_img.shape[1:3]))
