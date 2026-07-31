@@ -41,6 +41,20 @@ from .util import compute_touch_window_size
 # window of the prerecorded touches of the current round. All real touch datasets contain 256 touches per round.
 SNAP_TOUCH_SEQUENCE_LENGTH = 256
 
+# All real-snap environments read the full-resolution recordings and scale them down to their output size. The
+# re-rendering variants estimate a depth map from every image at 256x256, so anything smaller would upscale first.
+REAL_TOUCH_DATASET = "touch-real-single-t256-320x240"
+REAL_SNAP_OUTPUT_SIZE = (64, 64)
+
+# Re-rendering variants of the real-snap environments: the recorded tactile images are mapped into the domain of the
+# corresponding simulated environment (see TactileRealSnapConfig.sensor_type). The suffixes mirror the ones the
+# simulated environments use, except that the plain suffix stays reserved for the unmodified recordings.
+REAL_SNAP_SENSOR_TYPES = [
+    ("-Taxim", "taxim"),
+    ("-CycleGAN", "cycle_gan"),
+    ("-Depth", "depth"),
+]
+
 
 def mk_snap_touch_positions(step_limit: int) -> int:
     """
@@ -105,6 +119,36 @@ def register_with_dr_variant(
         )
 
 
+def register_real_snap_with_rerender_variants(
+    id_prefix: str,
+    id_suffix: str = "-v0",
+    *,
+    kwargs: dict[str, Any],
+    **register_kwargs: Any,
+):
+    """
+    Register a real-snap environment once per sensor type.
+
+    The plain variant returns the recorded tactile images unchanged. The re-rendering variants (e.g.
+    TactileMNISTRealSnap-CycleGAN-v0) estimate a depth map from every recorded image and render it with the same
+    tactile renderer the simulated environments use, which maps the real images into the simulated domain (see
+    TactileRealSnapConfig.sensor_type).
+    """
+    for sensor_type_name, sensor_type in [("", "direct")] + REAL_SNAP_SENSOR_TYPES:
+        ap_gym.register(
+            id=f"{id_prefix}{sensor_type_name}{id_suffix}",
+            kwargs={
+                **kwargs,
+                "default_config": {
+                    **kwargs["default_config"],
+                    "sensor_type": sensor_type,
+                    "sensor_output_size": REAL_SNAP_OUTPUT_SIZE,
+                },
+            },
+            **register_kwargs,
+        )
+
+
 def mk_real_snap_config(
     dataset_name: str,
     mesh_dataset_name: str,
@@ -136,12 +180,13 @@ def register_envs():
         if split == "train":
             suffixes.append("")
         for s in suffixes:
-            ap_gym.register(
-                id=f"TactileMNISTRealSnap{s}-v0",
+            register_real_snap_with_rerender_variants(
+                "TactileMNISTRealSnap",
+                f"{s}-v0",
                 entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                     TactileRealSnapClassificationEnv(
                         mk_real_snap_config(
-                            "touch-real-single-t256-64x64",
+                            REAL_TOUCH_DATASET,
                             "mnist3d",
                             _split,
                             f"printed_{_split}",
@@ -155,7 +200,7 @@ def register_envs():
                 vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                     TactileRealSnapClassificationVectorEnv(
                         mk_real_snap_config(
-                            "touch-real-single-t256-64x64",
+                            REAL_TOUCH_DATASET,
                             "mnist3d",
                             _split,
                             f"printed_{_split}",
@@ -171,12 +216,13 @@ def register_envs():
                 ),
             )
 
-            ap_gym.register(
-                id=f"TactileMNISTVolumeRealSnap{s}-v0",
+            register_real_snap_with_rerender_variants(
+                "TactileMNISTVolumeRealSnap",
+                f"{s}-v0",
                 entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                     TactileRealSnapVolumeEstimationEnv(
                         mk_real_snap_config(
-                            "touch-real-single-t256-64x64",
+                            REAL_TOUCH_DATASET,
                             "mnist3d",
                             _split,
                             f"printed_{_split}",
@@ -190,7 +236,7 @@ def register_envs():
                 vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
                     TactileRealSnapVolumeEstimationVectorEnv(
                         mk_real_snap_config(
-                            "touch-real-single-t256-64x64",
+                            REAL_TOUCH_DATASET,
                             "mnist3d",
                             _split,
                             f"printed_{_split}",
