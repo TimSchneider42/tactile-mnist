@@ -56,6 +56,11 @@ REAL_BASE_DEPTH_DATASET = f"TimSchneider42/tactile-mnist-{REAL_TOUCH_DATASET}"
 # 90th percentile 1.0mm less deep than the deepest touch of a round).
 DR_PENETRATION_DEPTH_REDUCTION_STD = 0.00065
 
+# Platform penetration limit of the -DR variants (see TactilePerceptionConfig.max_platform_penetration). Only applied
+# to environments without sensor rotation, as the limit constrains the sensor position rather than the deepest point
+# of the gel.
+DR_MAX_PLATFORM_PENETRATION = 0.0
+
 # Re-rendering variants of the real-snap environments: the recorded tactile images are mapped into the domain of the
 # corresponding simulated environment (see TactileRealSnapConfig.sensor_type). The suffixes mirror the ones the
 # simulated environments use, except that the plain suffix stays reserved for the unmodified recordings.
@@ -118,7 +123,9 @@ def register_with_dr_variant(
     emulates the artifacts of the depth estimator used by the re-rendering real-snap environments by overlaying
     estimated depth maps of recorded touches without object contact from that dataset. The depth sensor mode outputs
     depth maps rather than tactile images, which the image-space noise terms do not apply to, so its -DR variants
-    only emulate the depth estimator artifacts (and the sensor height randomization).
+    only emulate the depth estimator artifacts (and the sensor height randomization). Additionally, the domain
+    randomized variants randomize the sensor height the agent observes and, if the sensor cannot rotate, limit how
+    far the gel may be pressed into the platform.
     """
     if kwargs["default_config"].get("sensor_type") == "depth":
         dr_sensor_noise = (
@@ -136,19 +143,36 @@ def register_with_dr_variant(
         dr_sensor_noise = SensorNoiseConfig(
             real_base_depth_dataset=real_base_depth_dataset
         )
-    for dr_suffix, sensor_noise, penetration_depth_reduction_std in (
-        ("", None, 0.0),
-        ("-DR", dr_sensor_noise, DR_PENETRATION_DEPTH_REDUCTION_STD),
+    # The platform penetration limit constrains the sensor position, which coincides with the deepest point of the gel
+    # only if the sensor points straight down
+    dr_max_platform_penetration = (
+        None
+        if kwargs["default_config"].get("allow_sensor_rotation", True)
+        else DR_MAX_PLATFORM_PENETRATION
+    )
+    for dr_suffix, dr_config in (
+        (
+            "",
+            dict(
+                sensor_noise=None,
+                penetration_depth_reduction_std=0.0,
+                max_platform_penetration=None,
+            ),
+        ),
+        (
+            "-DR",
+            dict(
+                sensor_noise=dr_sensor_noise,
+                penetration_depth_reduction_std=DR_PENETRATION_DEPTH_REDUCTION_STD,
+                max_platform_penetration=dr_max_platform_penetration,
+            ),
+        ),
     ):
         ap_gym.register(
             id=f"{id_prefix}{dr_suffix}{id_suffix}",
             kwargs={
                 **kwargs,
-                "default_config": {
-                    **kwargs["default_config"],
-                    "sensor_noise": sensor_noise,
-                    "penetration_depth_reduction_std": penetration_depth_reduction_std,
-                },
+                "default_config": {**kwargs["default_config"], **dr_config},
             },
             **register_kwargs,
         )
