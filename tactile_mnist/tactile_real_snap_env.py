@@ -38,9 +38,10 @@ from .constants import (
     GEL_PENETRATION_DEPTH_MM,
     GELSIGHT_MINI_SENSOR_SURFACE_SIZE,
 )
+from .depth_estimator import DepthEstimator, mk_depth_estimator
 from .mesh_dataset import MeshDataPoint, MeshDataset
 from .tactile_perception_renderer import TactilePerceptionRenderer
-from .tactile_renderer import mk_tactile_renderer
+from .tactile_renderer import TactileRenderer, mk_tactile_renderer
 from .touch_data import TouchSingle, TouchSingleDataset
 from .util import get_dataset_stats, int_binary_search_right, compute_touch_window_size
 
@@ -77,6 +78,20 @@ class TactileRealSnapConfig:
     # Without this correction, the z-component of the sensor_pos observation is offset by an unknown per-round
     # constant and does not match the simulated environments.
     recalibrate_sensor_z: bool = True
+    # With the default sensor type "direct", the recorded tactile images are returned as they are. With any other one,
+    # a depth map is estimated from every image with a DepthEstimator and re-rendered with the given TactileRenderer,
+    # which maps the real images into the domain of the corresponding simulated environment (e.g.
+    # sensor_type="cycle_gan" produces images that look like the ones TactileMNISTSnap-CycleGAN-v0 renders). The
+    # renderer is selected exactly as in the simulated environments. Note that the estimator predicts the depth from
+    # the tactile image alone, so it cannot recover the depth of large flat contacts, which produce no gradients in
+    # the tactile image.
+    sensor_type: Literal["direct", "taxim", "depth", "cycle_gan"] = "direct"
+    sensor_backend: Literal["torch", "jax", "numpy", "auto"] = "auto"
+    sensor_device: str | None = None
+    sensor_device_index: int = 0
+    depth_estimator_type: Literal["cycle_gan"] = "cycle_gan"
+    # The depth estimator does not support the numpy backend, so it falls back to "auto" if sensor_backend is "numpy"
+    depth_estimator_backend: Literal["torch", "jax", "auto"] | None = None
     enable_rendering: bool = True
     show_sensor_target_pos: bool = True
     renderer_show_tactile_image: bool = True
@@ -145,6 +160,32 @@ class TactileRealSnapVectorEnv(
             sensor_output_size = tuple(map(int, config.sensor_output_size))
         self.__sensor_output_size = sensor_output_size
 
+        if config.sensor_type == "direct":
+            self.__depth_estimator = None
+            self.__sensor = None
+            sensor_channels = 3
+        else:
+            depth_estimator_backend = config.depth_estimator_backend
+            if depth_estimator_backend is None:
+                # The depth estimators have no numpy implementation
+                depth_estimator_backend = (
+                    "auto" if config.sensor_backend == "numpy" else config.sensor_backend
+                )
+            self.__depth_estimator = mk_depth_estimator(
+                estimator_type=config.depth_estimator_type,
+                backend=depth_estimator_backend,
+                device=config.sensor_device,
+                device_index=config.sensor_device_index,
+            )
+            self.__sensor = mk_tactile_renderer(
+                renderer_type=config.sensor_type,
+                backend=config.sensor_backend,
+                device=config.sensor_device,
+                device_index=config.sensor_device_index,
+            )
+            sensor_channels = self.__sensor.channels
+        self.__sensor_channels = sensor_channels
+
         dt = np.float32
         single_action_space = {
             # Target position of the sensor
@@ -155,7 +196,7 @@ class TactileRealSnapVectorEnv(
         single_observation_space = {
             "sensor_pos": gym.spaces.Box(-np.ones(3, dtype=dt), np.ones(3, dtype=dt)),
             "sensor_img": ImageSpace(
-                sensor_output_size[0], sensor_output_size[1], 3, dtype=dt
+                sensor_output_size[0], sensor_output_size[1], sensor_channels, dtype=dt
             ),
         }
         if config.timeout_behavior == "terminate":
@@ -213,7 +254,8 @@ class TactileRealSnapVectorEnv(
         self.__current_step = np.zeros(num_envs, dtype=np.int_)
         self.__prev_done = np.zeros(num_envs, dtype=np.bool_)
         self.__last_sensor_images = np.zeros(
-            (num_envs, sensor_output_size[1], sensor_output_size[0], 3), dtype=np.uint8
+            (num_envs, sensor_output_size[1], sensor_output_size[0], sensor_channels),
+            dtype=np.uint8,
         )
         self.__spec: EnvSpec | None = None
 
@@ -365,19 +407,58 @@ class TactileRealSnapVectorEnv(
     def _get_prediction_targets(self) -> np.ndarray:
         pass
 
-    def __get_sensor_image(self, i: int) -> np.ndarray:
+    def __get_recorded_sensor_image(self, i: int) -> np.ndarray:
         dp = self.__current_data_points[i]
-        img = np.asarray(dp.sensor_image[int(self.__current_touch_idx[i])])
+        return np.asarray(dp.sensor_image[int(self.__current_touch_idx[i])])
+
+    def __get_sensor_images(self) -> np.ndarray:
+        recorded = [
+            self.__get_recorded_sensor_image(i) for i in range(self.num_envs)
+        ]
         w, h = self.__sensor_output_size
-        if img.shape[:2] != (h, w):
-            img = np.asarray(
-                PIL.Image.fromarray(img).resize((w, h), PIL.Image.Resampling.BILINEAR)
+
+        if self.__depth_estimator is None:
+            return np.stack(
+                [
+                    (
+                        img
+                        if img.shape[:2] == (h, w)
+                        else np.asarray(
+                            PIL.Image.fromarray(img).resize(
+                                (w, h), PIL.Image.Resampling.BICUBIC
+                            )
+                        )
+                    )
+                    for img in recorded
+                ]
             )
-        return img
+
+        # Scale the recorded images to the size the depth estimator expects here rather than inside the estimator,
+        # as the rounds of the individual environments may come from datasets of different resolutions
+        estimator_w, estimator_h = self.__depth_estimator.input_size
+        images = np.stack(
+            [
+                (
+                    img
+                    if img.shape[:2] == (estimator_h, estimator_w)
+                    else np.asarray(
+                        PIL.Image.fromarray(img).resize(
+                            (estimator_w, estimator_h), PIL.Image.Resampling.BICUBIC
+                        )
+                    )
+                )
+                for img in recorded
+            ]
+        )
+        depth = self.__depth_estimator.estimate(
+            images,
+            self.__sensor.get_desired_depth_map_size(self.__sensor_output_size),
+        )
+        rendered = self.__sensor.render(depth, self.__sensor_output_size)
+        return np.round(np.clip(rendered, 0, 1) * 255).astype(np.uint8)
 
     def __get_obs_info(self) -> tuple[ObsType, dict[str, Any]]:
-        for i in range(self.num_envs):
-            self.__last_sensor_images[i] = self.__get_sensor_image(i)
+        self.__last_sensor_images[:] = self.__get_sensor_images()
 
         sensor_pos_min, sensor_pos_max = self.__sensor_pos_limits
         sensor_pos_normalized = np.clip(
@@ -499,8 +580,12 @@ class TactileRealSnapVectorEnv(
             pos_y = margin
             pos_x = frame_width - inset_width - margin
             for i in range(self.num_envs):
+                sensor_image = self.__last_sensor_images[i]
+                if sensor_image.shape[-1] == 1:
+                    # The depth renderer produces single-channel images, which cannot be displayed directly
+                    sensor_image = np.repeat(sensor_image, 3, axis=-1)
                 inset = np.asarray(
-                    PIL.Image.fromarray(self.__last_sensor_images[i]).resize(
+                    PIL.Image.fromarray(sensor_image).resize(
                         (inset_width, inset_height), PIL.Image.Resampling.NEAREST
                     )
                 )
@@ -562,6 +647,16 @@ class TactileRealSnapVectorEnv(
     @property
     def config(self) -> TactileRealSnapConfig:
         return self.__config
+
+    @property
+    def sensor(self) -> TactileRenderer | None:
+        """Renderer the recorded images are re-rendered with, or None if sensor_type is "direct"."""
+        return self.__sensor
+
+    @property
+    def depth_estimator(self) -> DepthEstimator | None:
+        """Estimator the depth maps are recovered with, or None if sensor_type is "direct"."""
+        return self.__depth_estimator
 
     @property
     def _prev_done(self) -> np.ndarray:
