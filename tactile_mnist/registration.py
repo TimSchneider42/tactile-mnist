@@ -51,6 +51,11 @@ REAL_SNAP_OUTPUT_SIZE = (64, 64)
 # TactileMNIST* environment. The other environment families have no real recordings to draw from.
 REAL_BASE_DEPTH_DATASET = f"TimSchneider42/tactile-mnist-{REAL_TOUCH_DATASET}"
 
+# Sensor height randomization of the -DR variants (see TactilePerceptionConfig.penetration_depth_reduction_std),
+# calibrated such that touches reaching the platform spread like they do in the real recordings (median 0.46mm and
+# 90th percentile 1.0mm less deep than the deepest touch of a round).
+DR_PENETRATION_DEPTH_REDUCTION_STD = 0.00065
+
 # Re-rendering variants of the real-snap environments: the recorded tactile images are mapped into the domain of the
 # corresponding simulated environment (see TactileRealSnapConfig.sensor_type). The suffixes mirror the ones the
 # simulated environments use, except that the plain suffix stays reserved for the unmodified recordings.
@@ -113,9 +118,13 @@ def register_with_dr_variant(
     emulates the artifacts of the depth estimator used by the re-rendering real-snap environments by overlaying
     estimated depth maps of recorded touches without object contact from that dataset.
     """
-    for dr_suffix, sensor_noise in (
-        ("", None),
-        ("-DR", SensorNoiseConfig(real_base_depth_dataset=real_base_depth_dataset)),
+    for dr_suffix, sensor_noise, penetration_depth_reduction_std in (
+        ("", None, 0.0),
+        (
+            "-DR",
+            SensorNoiseConfig(real_base_depth_dataset=real_base_depth_dataset),
+            DR_PENETRATION_DEPTH_REDUCTION_STD,
+        ),
     ):
         ap_gym.register(
             id=f"{id_prefix}{dr_suffix}{id_suffix}",
@@ -124,6 +133,7 @@ def register_with_dr_variant(
                 "default_config": {
                     **kwargs["default_config"],
                     "sensor_noise": sensor_noise,
+                    "penetration_depth_reduction_std": penetration_depth_reduction_std,
                 },
             },
             **register_kwargs,

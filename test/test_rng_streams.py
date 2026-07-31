@@ -89,6 +89,35 @@ def _rollout(
         obs, _, _, _, _ = env.step(env.action_space.sample())
 
 
+def _rollout_images_and_positions(
+    env: TactileClassificationVectorEnv, seed: int
+) -> tuple[np.ndarray, np.ndarray]:
+    obs, _ = env.reset(seed=seed)
+    all_obs = [obs]
+    env.action_space.seed(seed)
+    for _ in range(NUM_STEPS):
+        obs, _, _, _, _ = env.step(env.action_space.sample())
+        all_obs.append(obs)
+    return (
+        np.array([o["sensor_img"] for o in all_obs]),
+        np.array([o["sensor_pos"] for o in all_obs]),
+    )
+
+
+def test_penetration_depth_randomization_only_affects_the_observed_height(dataset):
+    """The imprint always presses the gel in by the nominal penetration depth; the randomization only perturbs the
+    sensor height the agent observes."""
+    plain = _mk_env(dataset)
+    randomized = _mk_env(dataset, penetration_depth_reduction_std=0.00065)
+    plain_images, plain_pos = _rollout_images_and_positions(plain, seed=7)
+    rand_images, rand_pos = _rollout_images_and_positions(randomized, seed=7)
+    plain.close()
+    randomized.close()
+    np.testing.assert_array_equal(plain_images, rand_images)
+    np.testing.assert_array_equal(plain_pos[..., :2], rand_pos[..., :2])
+    assert np.abs(plain_pos[..., 2] - rand_pos[..., 2]).max() > 1e-4
+
+
 def test_sensor_noise_does_not_change_the_object_sequence(dataset):
     """The -DR variants only add sensor noise, so they see the same objects in the same poses as the plain ones."""
     plain = _mk_env(dataset)

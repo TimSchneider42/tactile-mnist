@@ -161,21 +161,6 @@ def test_torch_images_are_supported():
     assert float((noisy - images).abs().mean()) > 1e-4
 
 
-def test_penetration_depths_are_never_deeper_than_nominal():
-    config = SensorNoiseConfig()
-    model = _mk_model()
-    np_random = np.random.default_rng(0)
-    nominal = np.full(4096, 0.002125)
-    depths = model.sample_penetration_depths(np_random, nominal, 0.00425)
-    # The nominal depth is the deepest press, all other touches are less deep (i.e. further away from the surface)
-    assert np.all(depths >= nominal)
-    assert np.all(depths <= 0.00425)
-    reduction = depths - nominal
-    assert np.median(reduction) == pytest.approx(
-        0.6745 * config.penetration_depth_reduction_std, rel=0.1
-    )
-
-
 REAL_TOUCH_DATASET = "TimSchneider42/tactile-mnist-touch-real-single-t256-320x240"
 
 
