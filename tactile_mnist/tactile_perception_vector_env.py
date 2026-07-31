@@ -490,7 +490,10 @@ class TactilePerceptionVectorEnv(
             self.__current_step[mask] = np.zeros(np.sum(mask), dtype=np.float32)
             if self.__sensor_noise_model is not None:
                 # Every episode sees a slightly different gel and illumination state
-                self.__sensor_noise_model.reset(mask, self.np_random)
+                # The noise model draws from a spawned generator, as spawning does not advance np_random. This way,
+                # enabling sensor noise does not change the object selection or any other random draws of the
+                # environment.
+                self.__sensor_noise_model.reset(mask, self.np_random.spawn(1)[0])
 
     @abstractmethod
     def _get_prediction_targets(self) -> np.ndarray:
@@ -773,6 +776,9 @@ class TactilePerceptionVectorEnv(
         self.__renderer.set_object_poses(new_poses, mask=mask)
 
     def touch(self, sensor_target_poses: Transformation):
+        if self.__sensor_noise_model is not None:
+            # See __reset_partial for why the noise draws from a spawned generator
+            noise_rng = self.np_random.spawn(1)[0]
         depth_gel_frame_shifted = self.__renderer.render_sensor_depths(
             sensor_target_poses
         )
@@ -781,7 +787,7 @@ class TactilePerceptionVectorEnv(
         )
         if self.__sensor_noise_model is not None:
             penetration_depth = self.__sensor_noise_model.sample_penetration_depths(
-                self.np_random,
+                noise_rng,
                 penetration_depth,
                 GELSIGHT_MINI_GEL_THICKNESS_MM / 1000,
             )
@@ -813,9 +819,7 @@ class TactilePerceptionVectorEnv(
             depth_output = res.depth_map
 
         if self.__sensor_noise_model is not None:
-            sensor_output = self.__sensor_noise_model.apply(
-                sensor_output, self.np_random
-            )
+            sensor_output = self.__sensor_noise_model.apply(sensor_output, noise_rng)
 
         return sensor_output, depth_output, sensor_poses
 
