@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import io
 import queue
 import threading
 from dataclasses import dataclass
 from typing import Any, Sequence
 
 import numpy as np
-from datasets import load_dataset
+import PIL.Image
+from datasets import Image, List, load_dataset
 
 from .depth_estimator import mk_depth_estimator
 
@@ -149,12 +151,10 @@ class SensorNoiseModel:
         self.__offset = np.zeros(num_envs)
         self.__pattern = np.zeros((num_envs, *self.__image_shape))
         if config.real_base_depth_dataset is not None:
-            self.__base_depth_dataset = load_dataset(
-                config.real_base_depth_dataset, split="train"
-            )
+            dataset = load_dataset(config.real_base_depth_dataset, split="train")
             empty_touches = []
             for round_idx, positions in enumerate(
-                self.__base_depth_dataset["gel_pose_cell_frame.position"]
+                dataset["gel_pose_cell_frame.position"]
             ):
                 z = np.asarray(positions)[:, 2]
                 for touch_idx in np.flatnonzero(
@@ -162,6 +162,12 @@ class SensorNoiseModel:
                 ):
                     empty_touches.append((round_idx, touch_idx))
             self.__base_depth_empty_touches = np.array(empty_touches)
+            # Each drawn touch requires one image of one round, but materializing a row of the dataset decodes all
+            # images of that round (256 of them), which takes about 45 times as long as decoding a single one. Hence,
+            # keep the images undecoded and decode the drawn one manually in __feed_base_depth.
+            self.__base_depth_dataset = dataset.select_columns(
+                ["sensor_image"]
+            ).cast_column("sensor_image", List(Image(decode=False)))
         self.__base_depth_estimator: Any = None
         self.__base_depth_feeder: threading.Thread | None = None
         self.__base_depth_queue: queue.Queue[np.ndarray] | None = None
@@ -285,6 +291,15 @@ class SensorNoiseModel:
         self.__base_depth_stop = None
         self.__base_depth_estimator = None
 
+    def __load_base_depth_frame(self, round_idx: int, touch_idx: int) -> np.ndarray:
+        """Load a single recorded sensor image of the base depth dataset."""
+        entry = self.__base_depth_dataset[round_idx]["sensor_image"][touch_idx]
+        if entry["bytes"] is None:
+            image = PIL.Image.open(entry["path"])
+        else:
+            image = PIL.Image.open(io.BytesIO(entry["bytes"]))
+        return np.asarray(image.convert("RGB"))
+
     def __feed_base_depth(
         self, num_envs: int, depth_map_size: tuple[int, int]
     ) -> None:
@@ -296,11 +311,7 @@ class SensorNoiseModel:
             ]
             frames = np.stack(
                 [
-                    np.asarray(
-                        self.__base_depth_dataset[int(round_idx)]["sensor_image"][
-                            int(touch_idx)
-                        ].convert("RGB")
-                    )
+                    self.__load_base_depth_frame(int(round_idx), int(touch_idx))
                     for round_idx, touch_idx in picks
                 ]
             )
