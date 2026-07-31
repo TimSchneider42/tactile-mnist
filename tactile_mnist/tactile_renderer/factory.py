@@ -22,6 +22,7 @@ _TACTILE_RENDERERS_STR = {
     "jax": {
         "depth": ("depth_renderer_jax", "DepthRendererJAX"),
         "taxim": ("taxim_renderer_jax", "TaximRendererJAX"),
+        "cycle_gan": ("cycle_gan_renderer_jax", "CycleGANRendererJAX"),
     },
     "torch": {
         "depth": ("depth_renderer_torch", "DepthRendererTorch"),
