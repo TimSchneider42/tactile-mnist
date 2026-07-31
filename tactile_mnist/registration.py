@@ -46,6 +46,11 @@ SNAP_TOUCH_SEQUENCE_LENGTH = 256
 REAL_TOUCH_DATASET = "touch-real-single-t256-320x240"
 REAL_SNAP_OUTPUT_SIZE = (64, 64)
 
+# Base depth dataset of the DR variants of the TactileMNIST environments (see SensorNoiseConfig): recorded touches
+# without object contact carry no information about the touched objects, so the real MNIST recordings serve every
+# TactileMNIST* environment. The other environment families have no real recordings to draw from.
+REAL_BASE_DEPTH_DATASET = f"TimSchneider42/tactile-mnist-{REAL_TOUCH_DATASET}"
+
 # Re-rendering variants of the real-snap environments: the recorded tactile images are mapped into the domain of the
 # corresponding simulated environment (see TactileRealSnapConfig.sensor_type). The suffixes mirror the ones the
 # simulated environments use, except that the plain suffix stays reserved for the unmodified recordings.
@@ -96,6 +101,7 @@ def register_with_dr_variant(
     id_suffix: str = "-v0",
     *,
     kwargs: dict[str, Any],
+    real_base_depth_dataset: str | None = None,
     **register_kwargs: Any,
 ):
     """
@@ -103,9 +109,14 @@ def register_with_dr_variant(
 
     The domain randomized variant carries a "-DR" suffix between id_prefix and id_suffix (e.g.
     TactileMNIST-CycleGAN-DR-train-v0) and simulates the per-episode and per-frame variations of a real sensor on top
-    of the rendered tactile images (see SensorNoiseConfig).
+    of the rendered tactile images (see SensorNoiseConfig). If real_base_depth_dataset is given, it additionally
+    emulates the artifacts of the depth estimator used by the re-rendering real-snap environments by overlaying
+    estimated depth maps of recorded touches without object contact from that dataset.
     """
-    for dr_suffix, sensor_noise in (("", None), ("-DR", SensorNoiseConfig())):
+    for dr_suffix, sensor_noise in (
+        ("", None),
+        ("-DR", SensorNoiseConfig(real_base_depth_dataset=real_base_depth_dataset)),
+    ):
         ap_gym.register(
             id=f"{id_prefix}{dr_suffix}{id_suffix}",
             kwargs={
@@ -293,6 +304,7 @@ def register_envs():
                                 show_sensor_target_pos=snap_touch_positions is not None,
                             )
                         ),
+                        real_base_depth_dataset=REAL_BASE_DEPTH_DATASET,
                     )
 
                 for (
@@ -301,9 +313,10 @@ def register_envs():
                     smallest_dim_up,
                     allow_sensor_rotation,
                     step_limit,
+                    real_base_depth_dataset,
                 ) in [
-                    ("TactileMNIST", "mnist3d", False, False, 16),
-                    ("ABC", "abc-dataset-small", True, True, 32),
+                    ("TactileMNIST", "mnist3d", False, False, 16, REAL_BASE_DEPTH_DATASET),
+                    ("ABC", "abc-dataset-small", True, True, 32, None),
                 ]:
                     # Snap variants are only registered for the TactileMNIST environments
                     snap_variants = [("", None)]
@@ -344,6 +357,7 @@ def register_envs():
                                     is not None,
                                 )
                             ),
+                            real_base_depth_dataset=real_base_depth_dataset,
                         )
 
                         register_with_dr_variant(
@@ -378,6 +392,7 @@ def register_envs():
                                     is not None,
                                 )
                             ),
+                            real_base_depth_dataset=real_base_depth_dataset,
                         )
 
             for sensor_type_name, sensor_type in [
@@ -422,9 +437,10 @@ def register_envs():
                     smallest_dim_up,
                     allow_sensor_rotation,
                     step_limit,
+                    real_base_depth_dataset,
                 ) in [
-                    ("ABC", "abc-dataset-small", True, True, 32),
-                    ("TactileMNIST", "mnist3d", False, False, 16),
+                    ("ABC", "abc-dataset-small", True, True, 32, None),
+                    ("TactileMNIST", "mnist3d", False, False, 16, REAL_BASE_DEPTH_DATASET),
                 ]:
                     # Snap variants are only registered for the TactileMNIST environments
                     snap_variants = [("", None)]
@@ -475,6 +491,7 @@ def register_envs():
                                 frame_position_mode="inertia_frame",
                                 frame_rotation_mode=None,
                             ),
+                            real_base_depth_dataset=real_base_depth_dataset,
                         )
 
     # Minecraft item meshes are generated on the fly from Mojang's official

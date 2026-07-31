@@ -91,10 +91,11 @@ class TactilePerceptionConfig:
     # can only reach positions that are at least cell_padding away from the cell borders, so a margin smaller than
     # cell_padding allows the object to be placed in regions the sensor cannot reach.
     object_placement_margin: float = 0.01
-    # If sensor_noise is set, the per-episode and per-frame appearance variations of a real sensor are simulated on
-    # top of the rendered tactile images (see SensorNoiseConfig). Without it, tactile images are a deterministic
-    # function of the contact geometry and all images without contact are exactly identical, which does not happen on
-    # a real sensor.
+    # If sensor_noise is set, the per-episode and per-frame appearance variations of a real sensor and the artifacts
+    # of the depth estimator used by the re-rendering real-snap environments are simulated on top of the rendered
+    # depth maps and tactile images (see SensorNoiseConfig). Without it, tactile images are a deterministic function
+    # of the contact geometry and all images without contact are exactly identical, which does not happen on a real
+    # sensor.
     sensor_noise: SensorNoiseConfig | None = None
     # If snap_touch_positions is set, the sensor cannot be positioned freely. Instead, in each step, the given
     # number of positions is sampled uniformly over the cell and the one closest to the requested target position is
@@ -275,6 +276,17 @@ class TactilePerceptionVectorEnv(
                 num_envs,
                 sensor_output_size,
                 self.__sensor.channels,
+            )
+            self.__sensor_noise_model.init(
+                num_envs,
+                depth_map_size,
+                estimator_backend=(
+                    "auto"
+                    if self.__sensor.backend_name == "numpy"
+                    else self.__sensor.backend_name
+                ),
+                estimator_device=self.__config.sensor_device,
+                estimator_device_index=self.__config.sensor_device_index,
             )
 
         # Calculate the maximum distance the sensor can travel in one step
@@ -775,6 +787,10 @@ class TactilePerceptionVectorEnv(
             )
         offset = penetration_depth - np.min(depth_gel_frame_shifted, axis=(-1, -2))
         depth_gel_frame = depth_gel_frame_shifted + offset[:, None, None]
+        if self.__sensor_noise_model is not None:
+            depth_gel_frame = self.__sensor_noise_model.apply_base_depth(
+                depth_gel_frame
+            )
 
         sensor_pose_target_frame = Transformation(
             np.concatenate(
@@ -805,6 +821,11 @@ class TactilePerceptionVectorEnv(
 
     def render(self) -> np.ndarray | None:
         return self.__renderer.render_external_cameras()
+
+    def close(self):
+        if self.__sensor_noise_model is not None:
+            self.__sensor_noise_model.destroy()
+        super().close()
 
     @property
     def render_mode(self):

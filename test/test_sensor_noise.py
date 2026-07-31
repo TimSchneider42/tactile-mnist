@@ -176,6 +176,74 @@ def test_penetration_depths_are_never_deeper_than_nominal():
     )
 
 
+REAL_TOUCH_DATASET = "TimSchneider42/tactile-mnist-touch-real-single-t256-320x240"
+
+
+@pytest.fixture(scope="module")
+def base_depth_model() -> SensorNoiseModel:
+    model = _mk_model(real_base_depth_dataset=REAL_TOUCH_DATASET)
+    model.init(NUM_ENVS, (256, 256))
+    yield model
+    model.destroy()
+
+
+def test_base_depth_overlay_is_an_elementwise_minimum(base_depth_model):
+    # A no-contact depth map picks up the artifacts of the depth estimator, most prominently the phantom
+    # indentation in the bottom-right corner
+    no_contact = np.full((NUM_ENVS, 256, 256), 0.00425, dtype=np.float32)
+    composed = base_depth_model.apply_base_depth(no_contact)
+    assert composed.shape == no_contact.shape
+    assert np.all(composed <= no_contact + 1e-9)
+    assert composed[:, 192:, 192:].mean() < 0.0035
+    assert composed[:, :64, :64].mean() > 0.0040
+    # Simulated contact deeper than the artifacts shows through unchanged
+    deep_contact = np.full((NUM_ENVS, 256, 256), 0.002125, dtype=np.float32)
+    np.testing.assert_allclose(
+        base_depth_model.apply_base_depth(deep_contact), deep_contact
+    )
+
+
+def test_base_depth_varies_between_touches_and_environments(base_depth_model):
+    no_contact = np.full((NUM_ENVS, 256, 256), 0.00425, dtype=np.float32)
+    first = base_depth_model.apply_base_depth(no_contact)
+    second = base_depth_model.apply_base_depth(no_contact)
+    # Every touch draws a fresh empty frame, like the real sensor sees a fresh frame in every step
+    assert np.abs(first - second).max() > 1e-5
+    # and the environments draw their frames independently, so they cannot all be identical
+    assert any(
+        np.abs(first[i] - first[j]).max() > 1e-5
+        for i in range(NUM_ENVS)
+        for j in range(i + 1, NUM_ENVS)
+    )
+
+
+def test_base_depth_matches_the_depth_map_size():
+    model = _mk_model(real_base_depth_dataset=REAL_TOUCH_DATASET)
+    model.init(NUM_ENVS, (32, 24))
+    try:
+        no_contact = np.full((NUM_ENVS, 24, 32), 0.00425, dtype=np.float32)
+        composed = model.apply_base_depth(no_contact)
+        assert composed.shape == no_contact.shape
+        assert composed[:, 18:, 24:].mean() < 0.0035
+    finally:
+        model.destroy()
+
+
+def test_base_depth_requires_init():
+    model = _mk_model(real_base_depth_dataset=REAL_TOUCH_DATASET)
+    with pytest.raises(RuntimeError):
+        model.apply_base_depth(np.full((NUM_ENVS, 256, 256), 0.00425, dtype=np.float32))
+
+
+def test_base_depth_is_disabled_by_default():
+    model = _mk_model()
+    # init and destroy are no-ops without a dataset, and the depth maps pass through unchanged
+    model.init(NUM_ENVS, (256, 256))
+    no_contact = np.full((NUM_ENVS, 256, 256), 0.00425, dtype=np.float32)
+    np.testing.assert_array_equal(model.apply_base_depth(no_contact), no_contact)
+    model.destroy()
+
+
 def test_noise_is_reproducible_for_a_given_seed():
     def rollout() -> np.ndarray:
         model = _mk_model()
