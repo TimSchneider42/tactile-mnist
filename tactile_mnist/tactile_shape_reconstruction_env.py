@@ -10,6 +10,7 @@ from typing import (
 
 import gymnasium as gym
 import numpy as np
+import trimesh
 from transformation import Transformation
 
 from ap_gym import (
@@ -84,6 +85,19 @@ class TactileShapeReconstructionVectorEnv(
         self.__shadow_object_resolution = shadow_object_resolution
         self.__metrics: dict[str, tuple[deque[float], ...]] | None = None
 
+        if self.__vae.backend == "jax":
+            # As with Taxim (see TactilePerceptionVectorEnv.__init__), JITing COD-VAE inside a host callback
+            # deadlocks, so we trigger the compilation here. Since JAX recompiles for every new batch size, encoding
+            # and decoding always use batches of exactly num_envs elements (see __get_targets and _step), so a single
+            # warmup call per direction covers all shapes the model will ever see.
+            dummy_latents = self.__vae.encode_mesh(
+                [trimesh.creation.icosphere(subdivisions=1)] * num_envs, seed=0
+            )
+            if self.__renderer_show_shadow_objects:
+                self.__vae.decode_mesh(
+                    dummy_latents, resolution=self.__shadow_object_resolution
+                )
+
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any | None] = None
     ) -> tuple[ObsType, dict[str, Any]]:
@@ -134,13 +148,21 @@ class TactileShapeReconstructionVectorEnv(
             reconstructions: list[Any] = [None] * self.num_envs
             active = np.where(~prev_done)[0]
             if len(active) > 0:
+                if self.__vae.backend == "jax":
+                    # Decode the full batch so the jitted decoder only ever sees a single batch size and is never
+                    # recompiled inside a host callback (see __init__). Inactive results are discarded below.
+                    decode_idx = np.arange(self.num_envs)
+                else:
+                    decode_idx = active
                 decoded = self.__vae.decode_mesh(
-                    prediction_clipped[active],
+                    prediction_clipped[decode_idx],
                     resolution=self.__shadow_object_resolution,
-                    transform=[target_transforms[i] for i in active],
+                    transform=[target_transforms[i] for i in decode_idx],
                 )
-                for i, mesh in zip(active, decoded):
-                    reconstructions[i] = mesh if len(mesh.faces) > 0 else None
+                active_set = set(active)
+                for i, mesh in zip(decode_idx, decoded):
+                    if i in active_set:
+                        reconstructions[i] = mesh if len(mesh.faces) > 0 else None
             self._renderer.update_shadow_objects(
                 Transformation.batch_concatenate(
                     [Transformation()] * self.num_envs,
@@ -187,6 +209,10 @@ class TactileShapeReconstructionVectorEnv(
                 mesh = dp.mesh.copy()
                 mesh.apply_transform(pose.matrix)
                 meshes.append(mesh)
+            if self.__vae.backend == "jax":
+                # Pad the batch to num_envs so the jitted encoder only ever sees a single batch size and is never
+                # recompiled inside a host callback (see __init__). zip below drops the padding entries.
+                meshes += [meshes[0]] * (self.num_envs - len(meshes))
             latents, transforms = self.__vae.encode_mesh(
                 meshes, seed=0, return_transform=True
             )
