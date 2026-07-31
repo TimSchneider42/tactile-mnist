@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+import queue
+import threading
 from dataclasses import dataclass
 from typing import Any, Sequence
 
 import numpy as np
+from datasets import load_dataset
+
+from .depth_estimator import mk_depth_estimator
+
+# Touches whose recorded gel z stops within this distance of the round's minimum pressed down to the platform and
+# thus did not touch the object. The deepest touch of a round is always a platform press (see
+# TactileRealSnapConfig.recalibrate_sensor_z), and the per-touch spread of the platform presses (90th percentile
+# 1mm, see penetration_depth_reduction_std) stays below the height of the objects.
+EMPTY_TOUCH_Z_TOLERANCE_M = 0.001
+# Number of base depth map batches the feeder thread keeps ready for apply_base_depth
+BASE_DEPTH_PREFETCH_BATCHES = 2
 
 
 @dataclass(frozen=True)
@@ -33,6 +46,10 @@ class SensorNoiseConfig:
 
     Both `pattern` and `noise` are sampled as Gaussian random fields with a `1 / f^spectrum_exponent` power spectrum
     (`f` in cycles per image).
+
+    Besides these image-space terms, the model can also emulate the artifacts of the depth estimator that the
+    re-rendering real-snap environments use (see `real_base_depth_dataset`), which operates on the depth maps before
+    they are rendered rather than on the rendered images.
     """
 
     # Per-frame sensor noise. The amplitude is measured on the residuals of the frames that press down on the
@@ -62,6 +79,19 @@ class SensorNoiseConfig:
     # the platform spread like they do in the real dataset (median 0.46mm and 90th percentile 1.0mm less deep than
     # the deepest touch of the round).
     penetration_depth_reduction_std: float = 0.00065
+    # The re-rendering real-snap environments (see TactileRealSnapConfig.sensor_type) obtain their depth maps from
+    # the CycleGAN depth estimator, which does not produce a clean no-contact estimate on real images: it writes a
+    # phantom indentation into the bottom-right corner of every estimate (~8% of the frame, stable across recording
+    # sessions) and a spatially structured noise floor elsewhere. Neither artifact varies enough with the actual
+    # contact to be removed by the cycle-consistency training, so real-snap observations carry them in every frame
+    # while purely simulated depth maps do not. If real_base_depth_dataset names a touch dataset (e.g.
+    # "TimSchneider42/tactile-mnist-touch-real-single-t256-320x240"), every simulated touch draws one recorded touch
+    # without object contact from its train split, estimates its depth map with the CycleGAN depth estimator on the
+    # fly, and overlays it onto the simulated depth map via an element-wise minimum, so simulated contact deeper
+    # than the artifacts still shows through, exactly like real contact does in the real-snap environments. Touches
+    # without object contact are identified by their recorded gel z stopping within EMPTY_TOUCH_Z_TOLERANCE_M of the
+    # round's minimum, which means that they pressed down to the platform.
+    real_base_depth_dataset: str | None = None
 
 
 def _as_type_of(array: np.ndarray, reference: Any) -> Any:
@@ -93,6 +123,9 @@ class SensorNoiseModel:
 
     The noise is always sampled in numpy (using the environment's random number generator) and converted to the array
     type of the images it is applied to, so it works with the numpy, PyTorch, and JAX sensor backends alike.
+
+    If `real_base_depth_dataset` is set, the environment has to call `init` before the first touch and `destroy`
+    when it is closed; the base depth maps are prefetched by a feeder thread in between.
     """
 
     def __init__(
@@ -115,6 +148,24 @@ class SensorNoiseModel:
         self.__gain = np.ones(num_envs)
         self.__offset = np.zeros(num_envs)
         self.__pattern = np.zeros((num_envs, *self.__image_shape))
+        if config.real_base_depth_dataset is not None:
+            self.__base_depth_dataset = load_dataset(
+                config.real_base_depth_dataset, split="train"
+            )
+            empty_touches = []
+            for round_idx, positions in enumerate(
+                self.__base_depth_dataset["gel_pose_cell_frame.position"]
+            ):
+                z = np.asarray(positions)[:, 2]
+                for touch_idx in np.flatnonzero(
+                    z <= z.min() + EMPTY_TOUCH_Z_TOLERANCE_M
+                ):
+                    empty_touches.append((round_idx, touch_idx))
+            self.__base_depth_empty_touches = np.array(empty_touches)
+        self.__base_depth_estimator: Any = None
+        self.__base_depth_feeder: threading.Thread | None = None
+        self.__base_depth_queue: queue.Queue[np.ndarray] | None = None
+        self.__base_depth_stop: threading.Event | None = None
 
     @staticmethod
     def __mk_spectrum_scale(
@@ -182,6 +233,117 @@ class SensorNoiseModel:
             )
             * self.__config.episode_pattern_std
         )
+    def init(
+        self,
+        num_envs: int,
+        depth_map_size: tuple[int, int],
+        estimator_backend: str = "auto",
+        estimator_device: str | None = None,
+        estimator_device_index: int = 0,
+    ) -> None:
+        """
+        Load the depth estimator and start the feeder thread that keeps base depth map batches ready.
+
+        The environment has to call this before the first touch if `real_base_depth_dataset` is set (a no-op
+        otherwise) and `destroy` when it is closed.
+
+        :param num_envs:                Number of depth maps per prefetched batch, i.e. the batch size of the
+                                        environment.
+        :param depth_map_size:          Size (width, height) of the depth maps the environment renders.
+        :param estimator_backend:       Backend of the depth estimator. Environments should pass the backend of
+                                        their tactile renderer here, so that both share a single framework on the
+                                        GPU.
+        :param estimator_device:        Device to run the depth estimator on (None selects automatically).
+        :param estimator_device_index:  Index of the device to run the depth estimator on.
+        """
+        if self.__config.real_base_depth_dataset is None:
+            return
+        if self.__base_depth_feeder is not None:
+            raise RuntimeError("init() was called twice without destroy() in between.")
+        self.__base_depth_estimator = mk_depth_estimator(
+            backend=estimator_backend,
+            device=estimator_device,
+            device_index=estimator_device_index,
+        )
+        self.__base_depth_queue = queue.Queue(maxsize=BASE_DEPTH_PREFETCH_BATCHES)
+        self.__base_depth_stop = threading.Event()
+        self.__base_depth_feeder = threading.Thread(
+            target=self.__feed_base_depth,
+            args=(num_envs, tuple(depth_map_size)),
+            daemon=True,
+        )
+        self.__base_depth_feeder.start()
+
+    def destroy(self) -> None:
+        """Stop the feeder thread and release the depth estimator. The counterpart of `init`."""
+        if self.__base_depth_feeder is None:
+            return
+        self.__base_depth_stop.set()
+        self.__base_depth_feeder.join()
+        self.__base_depth_feeder = None
+        self.__base_depth_queue = None
+        self.__base_depth_stop = None
+        self.__base_depth_estimator = None
+
+    def __feed_base_depth(
+        self, num_envs: int, depth_map_size: tuple[int, int]
+    ) -> None:
+        """Continuously estimate batches of base depth maps from random empty touches into the queue."""
+        rng = np.random.default_rng()
+        while not self.__base_depth_stop.is_set():
+            picks = self.__base_depth_empty_touches[
+                rng.integers(len(self.__base_depth_empty_touches), size=num_envs)
+            ]
+            frames = np.stack(
+                [
+                    np.asarray(
+                        self.__base_depth_dataset[int(round_idx)]["sensor_image"][
+                            int(touch_idx)
+                        ].convert("RGB")
+                    )
+                    for round_idx, touch_idx in picks
+                ]
+            )
+            batch = self.__base_depth_estimator.estimate(frames, depth_map_size)
+            while not self.__base_depth_stop.is_set():
+                try:
+                    self.__base_depth_queue.put(batch, timeout=0.1)
+                    break
+                except queue.Full:
+                    pass
+
+    def apply_base_depth(self, depth: np.ndarray) -> np.ndarray:
+        """
+        Overlay depth estimates of real touches without object contact onto a batch of simulated depth maps.
+
+        Every touch receives the estimate of a freshly drawn recorded touch without object contact, prefetched by
+        the feeder thread `init` spawned. The depth estimator producing the estimates is the one whose artifacts the
+        overlay is meant to emulate. The overlay is an element-wise minimum, so any simulated contact deeper than
+        the artifacts of the depth estimator still shows through, exactly like real contact does in the
+        re-rendering real-snap environments.
+
+        :param depth:   (num_envs, height, width) batch of depth maps in meters.
+        :return:        Batch of depth maps of the same shape with the empty-frame estimates overlaid, or `depth`
+                        unchanged if `real_base_depth_dataset` is not set.
+        """
+        if self.__config.real_base_depth_dataset is None:
+            return depth
+        if self.__base_depth_feeder is None:
+            raise RuntimeError(
+                "apply_base_depth() requires init() to be called first."
+            )
+        while True:
+            try:
+                base = self.__base_depth_queue.get(timeout=1.0)
+                break
+            except queue.Empty:
+                if not self.__base_depth_feeder.is_alive():
+                    raise RuntimeError("The base depth feeder thread died unexpectedly.")
+        if base.shape != depth.shape:
+            raise ValueError(
+                f"Expected depth maps of shape {base.shape} as announced to init(), but got {depth.shape}."
+            )
+        return np.minimum(depth, base)
 
     def sample_penetration_depths(
         self,
