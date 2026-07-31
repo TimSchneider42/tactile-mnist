@@ -92,6 +92,14 @@ class TactilePerceptionConfig:
     # of a normally distributed variable with this scale, emulating a real robot, which presses down until a force
     # threshold is reached and thus stops at a height that depends on the contact area and the state of the gel.
     penetration_depth_reduction_std: float = 0.0
+    # Maximum depth (in m) by which the gel surface may be pressed below the surface of the platform. Unlike an
+    # object, the platform is rigid and spans the entire sensor, so a real robot that presses down until a force
+    # threshold is reached stops right at it instead of penetrating it by GEL_PENETRATION_DEPTH_MM like every other
+    # surface. If set, the sensor z-position is limited from below accordingly, which reduces the imprint of objects
+    # lower than GEL_PENETRATION_DEPTH_MM - max_platform_penetration, as the platform around them carries part of the
+    # contact force. Note that the limit constrains the sensor position, which coincides with the deepest point of
+    # the gel only if the sensor points straight down (allow_sensor_rotation=False).
+    max_platform_penetration: float | None = None
     # Distance the object is kept away from the cell borders when its initial pose is randomized. Note that the sensor
     # can only reach positions that are at least cell_padding away from the cell borders, so a margin smaller than
     # cell_padding allows the object to be placed in regions the sensor cannot reach.
@@ -802,8 +810,22 @@ class TactilePerceptionVectorEnv(
             )
         min_depth = np.min(depth_gel_frame_shifted, axis=(-1, -2))
         offset = nominal_penetration_depth - min_depth
-        depth_gel_frame = depth_gel_frame_shifted + offset[:, None, None]
         observed_offset = observed_penetration_depth - min_depth
+        if self.__config.max_platform_penetration is not None:
+            # The gel surface sits GELSIGHT_MINI_GEL_THICKNESS_MM below the sensor position, and the platform surface
+            # is the zero of the platform frame
+            min_sensor_z = (
+                GELSIGHT_MINI_GEL_THICKNESS_MM / 1000
+                - self.__config.max_platform_penetration
+            )
+            # The offset moves the sensor along its local z-axis, whose world z-component is the [2, 2] entry of the
+            # sensor's rotation matrix (positive, as the sensor always points downwards)
+            min_offset = (
+                min_sensor_z - sensor_target_poses.translation[..., 2]
+            ) / sensor_target_poses.rotation.as_matrix()[..., 2, 2]
+            offset = np.maximum(offset, min_offset)
+            observed_offset = np.maximum(observed_offset, min_offset)
+        depth_gel_frame = depth_gel_frame_shifted + offset[:, None, None]
 
         def mk_sensor_poses(offsets: np.ndarray) -> Transformation:
             return sensor_target_poses * Transformation(
