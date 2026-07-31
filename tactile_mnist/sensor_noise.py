@@ -4,13 +4,14 @@ import io
 import queue
 import threading
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any, Generic, Sequence, TypeVar
 
 import numpy as np
 import PIL.Image
 from datasets import Image, List, load_dataset
 
 from .depth_estimator import mk_depth_estimator
+from .tactile_renderer import RenderDirectOutput, TactileRenderer
 
 # Touches whose recorded gel z stops within this distance of the round's minimum pressed down to the platform and
 # thus did not touch the object. The deepest touch of a round is always a platform press (see
@@ -388,3 +389,108 @@ class SensorNoiseModel:
     @property
     def config(self) -> SensorNoiseConfig:
         return self.__config
+
+
+OutputType = TypeVar("OutputType")
+
+
+class SensorNoiseRenderer(TactileRenderer[OutputType], Generic[OutputType]):
+    """
+    TactileRenderer wrapper that adds the sensor variations described by [SensorNoiseConfig] to another renderer:
+    the base depth overlay to the depth maps before rendering and the per-episode and per-frame noise to the
+    rendered images. The noise is sized for a fixed batch size and output size, so `render`/`render_direct` have to
+    be called with the `output_size` the wrapper was constructed with, and `close` has to be called when the
+    renderer is no longer needed, as the base depth overlay runs a feeder thread.
+    """
+
+    def __init__(
+        self,
+        inner: TactileRenderer[OutputType],
+        config: SensorNoiseConfig,
+        num_envs: int,
+        output_size: tuple[int, int],
+        estimator_backend: str | None = None,
+        estimator_device: str | None = None,
+        estimator_device_index: int = 0,
+    ):
+        """
+        :param inner:                   Renderer the sensor noise is added to.
+        :param config:                  Configuration of the sensor noise.
+        :param num_envs:                Number of environments, i.e. the batch size of the rendered images.
+        :param output_size:             Size (width, height) of the rendered images.
+        :param estimator_backend:       Backend of the depth estimator of the base depth overlay. Defaults to the
+                                        backend of the wrapped renderer, so that both share a single framework on
+                                        the GPU ("auto" if the wrapped renderer runs on numpy, as the estimator has
+                                        no numpy implementation).
+        :param estimator_device:        Device to run the depth estimator on (None selects automatically).
+        :param estimator_device_index:  Index of the device to run the depth estimator on.
+        """
+        super().__init__(
+            device=inner.device,
+            backend_name=inner.backend_name,
+            channels=inner.channels,
+        )
+        self.__inner = inner
+        self.__model = SensorNoiseModel(config, num_envs, output_size, inner.channels)
+        if estimator_backend is None:
+            estimator_backend = (
+                "auto" if inner.backend_name == "numpy" else inner.backend_name
+            )
+        self.__model.init(
+            num_envs,
+            inner.get_desired_depth_map_size(output_size),
+            estimator_backend=estimator_backend,
+            estimator_device=estimator_device,
+            estimator_device_index=estimator_device_index,
+        )
+
+    @staticmethod
+    def __require_rng(rng: np.random.Generator | None) -> np.random.Generator:
+        if rng is None:
+            raise ValueError(
+                "SensorNoiseRenderer requires an RNG to be passed to render()/render_direct()."
+            )
+        return rng
+
+    def get_desired_depth_map_size(
+        self, output_size: tuple[int, int]
+    ) -> tuple[int, int]:
+        return self.__inner.get_desired_depth_map_size(output_size)
+
+    def render(
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
+        rng = self.__require_rng(rng)
+        depth = self.__model.apply_base_depth(depth)
+        return self.__model.apply(self.__inner.render(depth, output_size), rng)
+
+    def render_direct(
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
+    ) -> RenderDirectOutput[OutputType]:
+        rng = self.__require_rng(rng)
+        depth = self.__model.apply_base_depth(depth)
+        res = self.__inner.render_direct(depth, output_size)
+        return RenderDirectOutput(
+            self.__model.apply(res.tactile_image, rng), res.depth_map
+        )
+
+    def reset(self, mask: Sequence[bool], rng: np.random.Generator) -> None:
+        self.__model.reset(mask, rng)
+
+    def close(self) -> None:
+        self.__model.destroy()
+        self.__inner.close()
+
+    @property
+    def inner(self) -> TactileRenderer[OutputType]:
+        return self.__inner
+
+    @property
+    def config(self) -> SensorNoiseConfig:
+        return self.__model.config

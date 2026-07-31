@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
-from typing import Generic, TypeVar, Literal
+from typing import Generic, Sequence, TypeVar
 
 import numpy as np
 
@@ -26,6 +26,13 @@ class RenderDirectOutput(Generic[OutputType]):
 
 
 class TactileRenderer(ABC, Generic[OutputType]):
+    """
+    Renders batches of depth maps into tactile images.
+
+    Renderers may be randomized (see SensorNoiseRenderer): all random draws happen through the `rng` argument of
+    `render`/`render_direct` and the `reset` hook, which deterministic renderers ignore.
+    """
+
     def __init__(self, device: Device, backend_name: str, channels: int = 3):
         self.__channels = channels
         self.__device = device
@@ -38,17 +45,36 @@ class TactileRenderer(ABC, Generic[OutputType]):
         pass
 
     @abstractmethod
-    def render(self, depth: np.ndarray, output_size: tuple[int, int]) -> np.ndarray:
+    def render(
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
         pass
 
     @abstractmethod
     def render_direct(
-        self, depth: np.ndarray, output_size: tuple[int, int]
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
     ) -> RenderDirectOutput[OutputType]:
         pass
 
-    def __call__(self, depth: np.ndarray, output_size: tuple[int, int]) -> np.ndarray:
-        return self.render(depth, output_size)
+    def reset(self, mask: Sequence[bool], rng: np.random.Generator) -> None:
+        """Notify the renderer that the environments selected by `mask` start a new episode. No-op by default."""
+
+    def close(self) -> None:
+        """Release any resources the renderer holds. No-op by default."""
+
+    def __call__(
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
+        return self.render(depth, output_size, rng)
 
     @property
     def channels(self) -> int:

@@ -29,11 +29,19 @@ class TactileRendererJAX(TactileRenderer[jax.Array], ABC):
             )
         )
 
-    def render(self, depth: np.ndarray, output_size: tuple[int, int]) -> np.ndarray:
+    def render(
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
         return np.array(self.__render_direct_fn(depth, output_size)[0])
 
     def render_direct(
-        self, depth: np.ndarray, output_size: tuple[int, int]
+        self,
+        depth: np.ndarray,
+        output_size: tuple[int, int],
+        rng: np.random.Generator | None = None,
     ) -> RenderDirectOutput[jax.Array]:
         return RenderDirectOutput(*self.__render_direct_fn(depth, output_size))
 
