@@ -3,6 +3,7 @@ from __future__ import annotations
 from importlib.resources import files
 from pathlib import Path
 
+import numpy as np
 import torch
 from torchvision.transforms import transforms, InterpolationMode
 
@@ -11,18 +12,24 @@ from tactile_mnist.tactile_renderer.tactile_renderer_torch import TactileRendere
 from .cycle_gan_torch import create_g_net
 from .tactile_renderer import Device
 
+CYCLE_GAN_CHECKPOINT = Path(
+    files("tactile_mnist.resources").joinpath("cycle_gan_tactile_mnist_v0.npz")
+)
+
+
+def load_generator_state_dict_torch(
+    path: Path | str, device: torch.device
+) -> dict[str, torch.Tensor]:
+    with np.load(path) as data:
+        return {k: torch.from_numpy(data[k]).to(device) for k in data.files}
+
 
 class CycleGANRendererTorch(TactileRendererTorch):
     def __init__(self, device: Device | None = None):
         super().__init__(channels=3, device=device)
 
-        state_dict = torch.load(
-            Path(
-                files("tactile_mnist.resources").joinpath(
-                    "cycle_gan_tactile_mnist_v0.pth"
-                )
-            ),
-            map_location=self.torch_device,
+        state_dict = load_generator_state_dict_torch(
+            CYCLE_GAN_CHECKPOINT, self.torch_device
         )
 
         self.__g_model = torch.jit.script(
