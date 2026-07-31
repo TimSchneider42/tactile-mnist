@@ -116,15 +116,29 @@ def register_with_dr_variant(
     TactileMNIST-CycleGAN-DR-train-v0) and simulates the per-episode and per-frame variations of a real sensor on top
     of the rendered tactile images (see SensorNoiseConfig). If real_base_depth_dataset is given, it additionally
     emulates the artifacts of the depth estimator used by the re-rendering real-snap environments by overlaying
-    estimated depth maps of recorded touches without object contact from that dataset.
+    estimated depth maps of recorded touches without object contact from that dataset. The depth sensor mode outputs
+    depth maps rather than tactile images, which the image-space noise terms do not apply to, so its -DR variants
+    only emulate the depth estimator artifacts (and the sensor height randomization).
     """
+    if kwargs["default_config"].get("sensor_type") == "depth":
+        dr_sensor_noise = (
+            None
+            if real_base_depth_dataset is None
+            else SensorNoiseConfig(
+                frame_noise_std=0.0,
+                episode_pattern_std=0.0,
+                episode_gain_std=0.0,
+                episode_offset_std=0.0,
+                real_base_depth_dataset=real_base_depth_dataset,
+            )
+        )
+    else:
+        dr_sensor_noise = SensorNoiseConfig(
+            real_base_depth_dataset=real_base_depth_dataset
+        )
     for dr_suffix, sensor_noise, penetration_depth_reduction_std in (
         ("", None, 0.0),
-        (
-            "-DR",
-            SensorNoiseConfig(real_base_depth_dataset=real_base_depth_dataset),
-            DR_PENETRATION_DEPTH_REDUCTION_STD,
-        ),
+        ("-DR", dr_sensor_noise, DR_PENETRATION_DEPTH_REDUCTION_STD),
     ):
         ap_gym.register(
             id=f"{id_prefix}{dr_suffix}{id_suffix}",
