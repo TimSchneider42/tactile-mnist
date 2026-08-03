@@ -16,6 +16,8 @@ jobs:
     - uses: actions/checkout@v4
       with:
         lfs: true
+        # setuptools-scm needs the full history and tags to derive the version.
+        fetch-depth: 0
 
     - uses: actions/setup-python@v5
 

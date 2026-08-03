@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=64", "setuptools_scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "tactile-mnist"
-version = "0.12.0"
+dynamic = ["version"]
 description = "The Tactile MNIST benchmark suite for active tactile perception."
 readme = "README.md"
 authors = [
@@ -56,3 +56,10 @@ include = ["tactile_mnist*"]
 
 [tool.setuptools.package-data]
 tactile_mnist = ["resources/*"]
+
+[tool.setuptools_scm]
+# Version is inferred from the latest "v*" git tag; between tags this yields
+# development versions like 0.1.1.dev3+g1a2b3c4 (tagged builds are plain X.Y.Z).
+version_file = "tactile_mnist/_version.py"
+fallback_version = "0.0.0"
+version_scheme = "guess-next-dev"
