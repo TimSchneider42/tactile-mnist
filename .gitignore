@@ -11,3 +11,6 @@ __pycache__
 
 /build
 *.egg-info
+
+/venv
+tactile_mnist/_version.py
