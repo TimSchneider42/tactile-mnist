@@ -235,6 +235,6 @@ def test_transformed_data_point_forwards_the_volume():
     mesh.apply_transform(
         np.block([[rotation.as_matrix(), np.zeros((3, 1))], [np.zeros((1, 3)), 1]])
     )
-    transformed = TransformedDataPoint(dp, mesh)
+    transformed = TransformedDataPoint(dp, mesh, rotation)
     assert transformed.volume == dp.volume
     assert transformed.volume == pytest.approx(mesh.volume, rel=1e-9)
