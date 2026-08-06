@@ -26,7 +26,8 @@ dependencies = [
     "av",
     "objaverse",
     "datasets",
-    "cod-vae[hub]"
+    "cod-vae[hub,preprocess]",
+    "point-cloud-utils"
 ]
 
 [project.urls]
