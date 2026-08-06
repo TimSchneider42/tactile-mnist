@@ -462,40 +462,44 @@ def register_envs():
                             real_base_depth_dataset=real_base_depth_dataset,
                         )
 
-                        register_with_dr_variant(
-                            f"{env_name}Shape{snap_suffix}{sensor_type_name}",
-                            f"{s}-v0",
-                            entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionLogWrapper(
-                                TactileShapeReconstructionEnv(
-                                    mk_config(
-                                        _ds_name, _split, args, default_config, config
-                                    ),
-                                    **kwargs,
-                                )
-                            ),
-                            vector_entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
-                                TactileShapeReconstructionVectorEnv(
+                        # No regression log wrapper here: the shape reconstruction
+                        # targets are dicts identifying the ground-truth geometry, not
+                        # regression vectors; the environment logs its own metrics.
+                        for static_suffix, perturb_object_pose in [
+                            ("", True),
+                            ("Static", False),
+                        ]:
+                            register_with_dr_variant(
+                                f"{env_name}Shape{static_suffix}{snap_suffix}{sensor_type_name}",
+                                f"{s}-v0",
+                                entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: TactileShapeReconstructionEnv(
                                     mk_config(
                                         _ds_name, _split, args, default_config, config
                                     ),
                                     **kwargs,
                                 ),
-                            ),
-                            kwargs=dict(
-                                default_config=dict(
-                                    sensor_output_size=(64, 64),
-                                    allow_sensor_rotation=allow_sensor_rotation,
-                                    step_limit=step_limit,
-                                    sensor_type=sensor_type,
-                                    cell_size=CELL_SIZE,
-                                    smallest_dimension_up=smallest_dim_up,
-                                    snap_touch_positions=snap_touch_positions,
-                                    show_sensor_target_pos=snap_touch_positions
-                                    is not None,
-                                )
-                            ),
-                            real_base_depth_dataset=real_base_depth_dataset,
-                        )
+                                vector_entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: TactileShapeReconstructionVectorEnv(
+                                    mk_config(
+                                        _ds_name, _split, args, default_config, config
+                                    ),
+                                    **kwargs,
+                                ),
+                                kwargs=dict(
+                                    default_config=dict(
+                                        sensor_output_size=(64, 64),
+                                        allow_sensor_rotation=allow_sensor_rotation,
+                                        step_limit=step_limit,
+                                        sensor_type=sensor_type,
+                                        cell_size=CELL_SIZE,
+                                        smallest_dimension_up=smallest_dim_up,
+                                        snap_touch_positions=snap_touch_positions,
+                                        show_sensor_target_pos=snap_touch_positions
+                                        is not None,
+                                        perturb_object_pose=perturb_object_pose,
+                                    )
+                                ),
+                                real_base_depth_dataset=real_base_depth_dataset,
+                            )
 
             for sensor_type_name, sensor_type in [
                 ("", "taxim"),
