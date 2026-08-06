@@ -1,8 +1,9 @@
 """Tests for TactileShapeReconstructionVectorEnv.
 
-The COD-VAE encoder/decoder must never be JIT-compiled after __init__ when the JAX backend is used, as compiling
-inside a host callback deadlocks (see TactilePerceptionVectorEnv.__init__). Since JAX recompiles for every new batch
-size, the environment pads/expands all encode and decode batches to num_envs and warms both paths up in __init__.
+The COD-VAE decoder must never be JIT-compiled after __init__ when the JAX backend is used, as compiling inside a
+host callback deadlocks (see TactilePerceptionVectorEnv.__init__). Since JAX recompiles for every new batch size,
+the environment pads/expands all decode batches to num_envs (with query batches padded to a fixed chunk size) and
+warms both decode functions up in __init__. The encoder is not used by this environment.
 """
 
 import os
@@ -13,6 +14,8 @@ import datasets
 import numpy as np
 import pytest
 import trimesh
+from cod_vae import pack_cube_transform, points_to_cube_transform
+from scipy.spatial.transform import Rotation
 
 from tactile_mnist import (
     SimpleMeshDataset,
@@ -25,7 +28,7 @@ NUM_OBJECTS = 4
 STEP_LIMIT = 2
 NUM_STEPS = 6
 
-JIT_FNS = ("_jit_encode", "_jit_decode_planes", "_jit_decode_logits")
+JIT_FNS = ("_jit_decode_planes", "_jit_decode_logits", "_jit_decode_logits_full")
 
 
 @pytest.fixture(scope="module")
@@ -71,36 +74,75 @@ def test_jax_vae_does_not_compile_after_init(dataset):
             allow_sensor_rotation=False,
             sensor_type="depth",
             sensor_backend="numpy",
+            smallest_dimension_up=True,
         ),
         NUM_ENVS,
         backend="jax",
         renderer_show_shadow_objects=True,
         shadow_object_resolution=64,
+        loss_fn_kwargs=dict(
+            num_vol_queries=256,
+            vol_pool_size=2048,
+            vol_database_size=16384,
+            num_near_points=256,
+        ),
     )
     try:
         assert env.vae.backend == "jax"
         after_init = _jit_cache_sizes(env.vae)
         assert all(size == 1 for size in after_init.values()), after_init
+        # The encoder is never used, so it must never be compiled.
+        assert env.vae._jit_encode._cache_size() == 0
 
         # Roll through several episodes (multiple resets) and check nothing recompiles.
         env.reset(seed=0)
         env.action_space.seed(0)
         for _ in range(NUM_STEPS):
-            env.step(env.action_space.sample())
+            _, _, _, _, info = env.step(env.action_space.sample())
             assert _jit_cache_sizes(env.vae) == after_init
+            assert env.vae._jit_encode._cache_size() == 0
+            assert np.all(np.isfinite(info["prediction"]["loss"]))
 
-        # Force the encode padding path: sync the latent cache to the current poses, then evict one entry so
-        # only a single latent is missing. The padded batch must neither recompile nor change the result.
-        env._get_prediction_targets()
-        latent_cache = env._TactileShapeReconstructionVectorEnv__latent_cache
-        assert len(latent_cache) == NUM_ENVS
-        evicted_key = next(iter(latent_cache))
-        evicted_latent, _ = latent_cache.pop(evicted_key)
-        env._get_prediction_targets()
-        assert _jit_cache_sizes(env.vae) == after_init
-        latent_cache = env._TactileShapeReconstructionVectorEnv__latent_cache
+        # The targets identify the ground-truth geometry.
+        targets = env._get_prediction_targets()
+        assert set(targets) == {"mesh_index", "position", "quaternion", "box"}
+        assert targets["mesh_index"].shape == (NUM_ENVS,)
+        assert np.all((0 <= targets["mesh_index"]) & (targets["mesh_index"] < NUM_OBJECTS))
+        assert targets["position"].shape == (NUM_ENVS, 3)
+        assert targets["quaternion"].shape == (NUM_ENVS, 4)
+        assert targets["box"].shape == (NUM_ENVS, 4)
         np.testing.assert_allclose(
-            latent_cache[evicted_key][0], evicted_latent, rtol=1e-5, atol=1e-6
+            np.linalg.norm(targets["quaternion"], axis=-1), 1.0, atol=1e-5
         )
+        # The target quaternion maps the raw dataset mesh into the platform frame:
+        # the smallest-dimension-up pre-processing rotation must be composed into it.
+        poses = env.current_object_poses_platform_frame
+        for i in range(NUM_ENVS):
+            mesh = dataset[int(targets["mesh_index"][i])].mesh
+            expected = (
+                Rotation.from_quat(poses.quaternion[i])
+                * TactileShapeReconstructionVectorEnv._smallest_dimension_up_rotation(
+                    mesh
+                )
+            ).as_quat()
+            assert (
+                min(
+                    np.linalg.norm(targets["quaternion"][i] - expected),
+                    np.linalg.norm(targets["quaternion"][i] + expected),
+                )
+                < 1e-5
+            )
+            # The target box is the posed object's normalized bounding box, computed
+            # with the exact functions COD-VAE's encoding uses.
+            posed_vertices = (
+                Rotation.from_quat(targets["quaternion"][i]).apply(mesh.vertices)
+                + targets["position"][i]
+            )
+            expected_box = pack_cube_transform(
+                points_to_cube_transform(posed_vertices, 0.9),
+                frame_half_size=env.frame_half_size,
+                object_scale=0.9,
+            )
+            np.testing.assert_allclose(targets["box"][i], expected_box, atol=1e-5)
     finally:
         env.close()

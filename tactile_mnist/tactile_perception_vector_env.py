@@ -127,6 +127,7 @@ class GenericMeshDataPoint(Protocol):
 class TransformedDataPoint:
     original_dp: MeshDataPoint
     mesh: trimesh.Trimesh
+    applied_rotation: Rotation
 
     @property
     def id(self):
@@ -184,6 +185,7 @@ class TactilePerceptionVectorEnv(
             assert len(self.__config.dataset) == num_envs
             self.__datasets = self.__config.dataset
         self.__current_data_points: tuple[GenericMeshDataPoint] | None = None
+        self.__current_data_point_indices: np.ndarray | None = None
         raw_sensor = mk_tactile_renderer(
             renderer_type=self.__config.sensor_type,
             backend=self.__config.sensor_backend,
@@ -354,38 +356,47 @@ class TactilePerceptionVectorEnv(
         return sensor_poses
 
     @staticmethod
+    def _smallest_dimension_up_rotation(mesh: trimesh.Trimesh) -> Rotation:
+        """
+        The rotation applied to a mesh's vertices to point its smallest oriented
+        bounding box dimension up (as applied by _pre_process_dp when
+        smallest_dimension_up is set).
+        """
+        bb_oriented: trimesh.primitives.Box = mesh.bounding_box_oriented
+        bb_rotation: Rotation = Rotation.from_matrix(bb_oriented.transform[:3, :3])
+        bb_vertices_local = bb_rotation.inv().apply(bb_oriented.vertices)
+        extents = np.max(bb_vertices_local, axis=0) - np.min(bb_vertices_local, axis=0)
+        axes = bb_rotation.as_matrix().T
+
+        extends_idx_sorted = np.argsort(extents)
+        z_axis = axes[extends_idx_sorted[0]]
+        if z_axis[-1] < 0:
+            z_axis = -z_axis
+        remaining_axes = axes[extends_idx_sorted[1:]]
+
+        if np.abs(remaining_axes[0, 0]) > np.abs(remaining_axes[1, 0]):
+            x_axis = remaining_axes[0]
+        else:
+            x_axis = remaining_axes[1]
+
+        y_axis = np.cross(z_axis, x_axis)
+
+        target_rotation = Rotation.from_matrix(
+            np.stack([x_axis, y_axis, z_axis], axis=-1)
+        )
+        return target_rotation.inv()
+
+    @staticmethod
     def _pre_process_dp(
         dp: GenericMeshDataPoint, smallest_dimension_up: bool = False
     ) -> GenericMeshDataPoint:
         if smallest_dimension_up:
-            bb_oriented: trimesh.primitives.Box = dp.mesh.bounding_box_oriented
-            bb_rotation: Rotation = Rotation.from_matrix(bb_oriented.transform[:3, :3])
-            bb_vertices_local = bb_rotation.inv().apply(bb_oriented.vertices)
-            extents = np.max(bb_vertices_local, axis=0) - np.min(
-                bb_vertices_local, axis=0
+            rotation = TactilePerceptionVectorEnv._smallest_dimension_up_rotation(
+                dp.mesh
             )
-            axes = bb_rotation.as_matrix().T
-
-            extends_idx_sorted = np.argsort(extents)
-            z_axis = axes[extends_idx_sorted[0]]
-            if z_axis[-1] < 0:
-                z_axis = -z_axis
-            remaining_axes = axes[extends_idx_sorted[1:]]
-
-            if np.abs(remaining_axes[0, 0]) > np.abs(remaining_axes[1, 0]):
-                x_axis = remaining_axes[0]
-            else:
-                x_axis = remaining_axes[1]
-
-            y_axis = np.cross(z_axis, x_axis)
-
-            target_rotation = Rotation.from_matrix(
-                np.stack([x_axis, y_axis, z_axis], axis=-1)
-            )
-
             mesh = dp.mesh.copy()
-            mesh.vertices = target_rotation.inv().apply(mesh.vertices)
-            dp = TransformedDataPoint(dp, mesh)
+            mesh.vertices = rotation.apply(mesh.vertices)
+            dp = TransformedDataPoint(dp, mesh, rotation)
         return dp
 
     @staticmethod
@@ -477,6 +488,7 @@ class TactilePerceptionVectorEnv(
                     self.__datasets[i][idx],
                     smallest_dimension_up=self.__config.smallest_dimension_up,
                 )
+                self.__current_data_point_indices[i] = idx
                 if initial_object_poses[i] is None:
                     object_poses_lst[i] = self._get_random_object_pose_batch(
                         current_datapoints_lst[i],
@@ -536,6 +548,7 @@ class TactilePerceptionVectorEnv(
         super().reset(seed=seed, options=options)
         self.__current_step = np.zeros(self.num_envs, dtype=np.int_)
         self.__current_data_points = [None] * self.num_envs
+        self.__current_data_point_indices = np.full(self.num_envs, -1, dtype=np.int64)
         self.__prev_done = np.zeros(self.num_envs, dtype=np.bool_)
         self.__reset_partial(np.ones(self.num_envs, dtype=np.bool_), options=options)
         if options is not None:
@@ -873,6 +886,11 @@ class TactilePerceptionVectorEnv(
     @property
     def current_data_points(self) -> tuple[GenericMeshDataPoint]:
         return self.__current_data_points
+
+    @property
+    def current_data_point_indices(self) -> np.ndarray:
+        """Indices of the current data points in their respective datasets."""
+        return self.__current_data_point_indices
 
     @property
     def current_object_poses_platform_frame(self) -> Transformation:
