@@ -54,6 +54,9 @@ from .tactile_pose_estimation_env import (
     TactilePoseEstimationEnv,
     TactilePoseEstimationVectorEnv,
 )
+from .cod_vae_loss_fn import CODVAEReconstructionLossFn
+from .torch_dict_lru_cache import TorchDictLRUCache
+from .jax_dict_lru_cache import JaxDictLRUCache
 from .tactile_shape_reconstruction_env import (
     TactileShapeReconstructionEnv,
     TactileShapeReconstructionVectorEnv,

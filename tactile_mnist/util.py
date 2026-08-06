@@ -85,6 +85,16 @@ class OverridableStaticField(Generic[InstanceType, StaticType, DynamicType]):
         return self._dynamic_value_fn(instance)
 
 
+def get_cache_hash(ds_fingerprint: str, kwargs: dict[str, Any] | None = None) -> str:
+    if kwargs is None:
+        kwargs = {}
+    kwargs_signature_tuple = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
+    kwargs_signature_string = hashlib.sha256(
+        pickle.dumps(kwargs_signature_tuple)
+    ).hexdigest()[:16]
+    return f"{ds_fingerprint}_{kwargs_signature_string}"
+
+
 def get_dataset_stats(
     dataset: MeshDataset,
     stats_name: str,
@@ -93,14 +103,10 @@ def get_dataset_stats(
 ):
     if kwargs is None:
         kwargs = {}
-    kwargs_signature_tuple = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
-    kwargs_signature_string = hashlib.sha256(
-        pickle.dumps(kwargs_signature_tuple)
-    ).hexdigest()[:16]
     cache_dir = CACHE_BASE_DIR / stats_name
     cache_dir.mkdir(parents=True, exist_ok=True)
     ds_fingerprint = dataset.huggingface_dataset._fingerprint
-    cache_file = cache_dir / f"{ds_fingerprint}_{kwargs_signature_string}.json"
+    cache_file = cache_dir / f"{get_cache_hash(dataset.huggingface_dataset._fingerprint, kwargs)}.json"
     with filelock.FileLock(cache_dir / f"{ds_fingerprint}.lock"):
         if cache_file.exists():
             try:
