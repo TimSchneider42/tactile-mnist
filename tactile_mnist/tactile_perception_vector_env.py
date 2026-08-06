@@ -128,6 +128,7 @@ class GenericMeshDataPoint(Protocol):
 class TransformedDataPoint:
     original_dp: MeshDataPoint
     mesh: trimesh.Trimesh
+    applied_rotation: Rotation
 
     @property
     def id(self):
@@ -360,38 +361,47 @@ class TactilePerceptionVectorEnv(
         return sensor_poses
 
     @staticmethod
+    def _smallest_dimension_up_rotation(mesh: trimesh.Trimesh) -> Rotation:
+        """
+        The rotation applied to a mesh's vertices to point its smallest oriented
+        bounding box dimension up (as applied by _pre_process_dp when
+        smallest_dimension_up is set).
+        """
+        bb_oriented: trimesh.primitives.Box = mesh.bounding_box_oriented
+        bb_rotation: Rotation = Rotation.from_matrix(bb_oriented.transform[:3, :3])
+        bb_vertices_local = bb_rotation.inv().apply(bb_oriented.vertices)
+        extents = np.max(bb_vertices_local, axis=0) - np.min(bb_vertices_local, axis=0)
+        axes = bb_rotation.as_matrix().T
+
+        extends_idx_sorted = np.argsort(extents)
+        z_axis = axes[extends_idx_sorted[0]]
+        if z_axis[-1] < 0:
+            z_axis = -z_axis
+        remaining_axes = axes[extends_idx_sorted[1:]]
+
+        if np.abs(remaining_axes[0, 0]) > np.abs(remaining_axes[1, 0]):
+            x_axis = remaining_axes[0]
+        else:
+            x_axis = remaining_axes[1]
+
+        y_axis = np.cross(z_axis, x_axis)
+
+        target_rotation = Rotation.from_matrix(
+            np.stack([x_axis, y_axis, z_axis], axis=-1)
+        )
+        return target_rotation.inv()
+
+    @staticmethod
     def _pre_process_dp(
         dp: GenericMeshDataPoint, smallest_dimension_up: bool = False
     ) -> GenericMeshDataPoint:
         if smallest_dimension_up:
-            bb_oriented: trimesh.primitives.Box = dp.mesh.bounding_box_oriented
-            bb_rotation: Rotation = Rotation.from_matrix(bb_oriented.transform[:3, :3])
-            bb_vertices_local = bb_rotation.inv().apply(bb_oriented.vertices)
-            extents = np.max(bb_vertices_local, axis=0) - np.min(
-                bb_vertices_local, axis=0
+            rotation = TactilePerceptionVectorEnv._smallest_dimension_up_rotation(
+                dp.mesh
             )
-            axes = bb_rotation.as_matrix().T
-
-            extends_idx_sorted = np.argsort(extents)
-            z_axis = axes[extends_idx_sorted[0]]
-            if z_axis[-1] < 0:
-                z_axis = -z_axis
-            remaining_axes = axes[extends_idx_sorted[1:]]
-
-            if np.abs(remaining_axes[0, 0]) > np.abs(remaining_axes[1, 0]):
-                x_axis = remaining_axes[0]
-            else:
-                x_axis = remaining_axes[1]
-
-            y_axis = np.cross(z_axis, x_axis)
-
-            target_rotation = Rotation.from_matrix(
-                np.stack([x_axis, y_axis, z_axis], axis=-1)
-            )
-
             mesh = dp.mesh.copy()
-            mesh.vertices = target_rotation.inv().apply(mesh.vertices)
-            dp = TransformedDataPoint(dp, mesh)
+            mesh.vertices = rotation.apply(mesh.vertices)
+            dp = TransformedDataPoint(dp, mesh, rotation)
         return dp
 
     @staticmethod
