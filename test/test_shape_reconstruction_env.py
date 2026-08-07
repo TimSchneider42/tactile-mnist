@@ -3,7 +3,9 @@
 The COD-VAE decoder must never be JIT-compiled after __init__ when the JAX backend is used, as compiling inside a
 host callback deadlocks (see TactilePerceptionVectorEnv.__init__). Since JAX recompiles for every new batch size,
 the environment pads/expands all decode batches to num_envs (with query batches padded to a fixed chunk size) and
-warms both decode functions up in __init__. The encoder is not used by this environment.
+warms both decode functions up in __init__. The encoder is only used during __init__, by the prediction target
+statistics computation (which, when the statistics are not cached on disk yet, also compiles decode variants for
+its own batch size); nothing may compile after __init__.
 """
 
 import os
@@ -89,10 +91,12 @@ def test_jax_vae_does_not_compile_after_init(dataset):
     )
     try:
         assert env.vae.backend == "jax"
+        # The decode functions may have been compiled for the statistics pass' batch
+        # size on top of the warmup's num_envs (only when the statistics were not
+        # cached; same for the encoder, which only the statistics pass uses).
         after_init = _jit_cache_sizes(env.vae)
-        assert all(size == 1 for size in after_init.values()), after_init
-        # The encoder is never used, so it must never be compiled.
-        assert env.vae._jit_encode._cache_size() == 0
+        assert all(size >= 1 for size in after_init.values()), after_init
+        encoder_cache_after_init = env.vae._jit_encode._cache_size()
 
         # Roll through several episodes (multiple resets) and check nothing recompiles.
         env.reset(seed=0)
@@ -100,7 +104,7 @@ def test_jax_vae_does_not_compile_after_init(dataset):
         for _ in range(NUM_STEPS):
             _, _, _, _, info = env.step(env.action_space.sample())
             assert _jit_cache_sizes(env.vae) == after_init
-            assert env.vae._jit_encode._cache_size() == 0
+            assert env.vae._jit_encode._cache_size() == encoder_cache_after_init
             assert np.all(np.isfinite(info["prediction"]["loss"]))
 
         # The targets identify the ground-truth geometry.
@@ -144,5 +148,29 @@ def test_jax_vae_does_not_compile_after_init(dataset):
                 object_scale=0.9,
             )
             np.testing.assert_allclose(targets["box"][i], expected_box, atol=1e-5)
+
+        # The prediction space is bounded by the cached per-dataset target
+        # statistics, which must contain the observed targets.
+        space = env.single_prediction_space
+        assert np.all(np.isfinite(space.low)) and np.all(np.isfinite(space.high))
+        assert np.all(space.low < space.high)
+        stats = env.prediction_target_stats
+        assert set(stats) == {"mean", "std", "min", "max"}
+        assert all(
+            value.shape == (env.vae.full_latent_size,) for value in stats.values()
+        )
+        assert np.all(space.low < stats["min"]) and np.all(stats["max"] < space.high)
+        assert np.all(targets["box"] > space.low[-4:])
+        assert np.all(targets["box"] < space.high[-4:])
+        # The loss is normalized by the blind guessing expected value, so predicting
+        # the target statistics' mean must score around 1 on average.
+        rng = np.random.default_rng(0)
+        blind_loss = env.loss_fn.numpy(
+            np.repeat(stats["mean"][None], NUM_ENVS, axis=0),
+            targets,
+            (NUM_ENVS,),
+            rng=rng,
+        )
+        assert np.all(blind_loss > 0.1) and np.all(blind_loss < 3.0)
     finally:
         env.close()

@@ -281,6 +281,50 @@ def test_empirical_blind_guessing_stats(vae, dataset):
     assert np.isclose(loss_fn.blind_guessing_expected_value, heuristic)
 
 
+def test_prediction_target_stats(vae, dataset, loss_fn):
+    from tactile_mnist import TactilePerceptionConfig
+    from tactile_mnist.tactile_shape_reconstruction_env import (
+        _load_or_compute_prediction_target_stats,
+    )
+
+    config = TactilePerceptionConfig(dataset, smallest_dimension_up=True)
+    kwargs = dict(
+        dataset=dataset,
+        vae=vae,
+        loss_fn=loss_fn,
+        model=MODEL,
+        config=config,
+        frame_half_size=FRAME_HALF_SIZE,
+        object_scale=OBJECT_SCALE,
+        loss_fn_kwargs=LOSS_KWARGS,
+        num_rotation_samples=4,
+    )
+    stats = _load_or_compute_prediction_target_stats(**kwargs)
+    dims = vae.config.num_latents * vae.config.latent_dim
+    for name in ("mean", "std", "min", "max"):
+        assert stats[f"latent_{name}"].shape == (dims,)
+        assert stats[f"box_{name}"].shape == (4,)
+    assert np.all(stats["latent_min"] <= stats["latent_mean"])
+    assert np.all(stats["latent_mean"] <= stats["latent_max"])
+    assert np.all(stats["latent_std"] >= 0)
+    assert np.all(stats["box_min"] <= stats["box_mean"])
+    assert np.all(stats["box_mean"] <= stats["box_max"])
+    # Objects rest on the platform, so the box center z and the box size (the last
+    # two components) are strictly positive; the initial pose randomization spreads
+    # the box center xy over the cell.
+    assert np.all(stats["box_min"][2:] > 0)
+    assert np.all(stats["box_std"][:2] > 0)
+    # A confidently wrong decoded shape costs more than the ln(2) of a
+    # maximum-entropy guess, so the empirical value may well exceed it; it just has
+    # to be positive and sane.
+    occupancy_bge = float(stats["occupancy_blind_guessing_expected_value"])
+    assert 0 < occupancy_bge < 10
+    # The second call must load the cached statistics bit-for-bit.
+    again = _load_or_compute_prediction_target_stats(**kwargs)
+    for key, value in stats.items():
+        np.testing.assert_array_equal(again[key], value)
+
+
 def test_box_gradient_is_exactly_the_mse_gradient(vae, loss_fn, good_prediction, targets):
     """
     The bounding box entries are supervised exclusively by the MSE term: the decoder
