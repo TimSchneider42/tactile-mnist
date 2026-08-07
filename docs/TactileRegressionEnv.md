@@ -63,12 +63,6 @@ Currently implemented are the following tasks, which are described in more detai
                     MinecraftPose-v0
                 </a>
             </td>
-            <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/MinecraftShape-v0.webp" alt="MinecraftShape-v0" width="200px"/><br/>
-                <a href="MinecraftShape.md">
-                    MinecraftShape-v0
-                </a>
-            </td>
         </tr>
     </table>
 </div>
@@ -115,4 +109,3 @@ The agent's objective is to approximate the prediction target as closely as poss
 | [TactileMNISTShape-v0](TactileMNISTShape.md)               | [MNIST 3D](datasets.md#mnist-3d)       | 128 | 16         | disabled        | enabled                  | Reconstruct the shape of objects from the _MNIST 3D_ dataset as a COD-VAE latent embedding. |
 | [ABCShape-v0](ABCShape.md)                                 | [ABC Dataset](datasets.md#abc-dataset) | 128 | 32         | enabled         | enabled                  | Reconstruct the shape of objects from the _ABC_ dataset as a COD-VAE latent embedding. |
 | [MinecraftPose-v0](MinecraftPose.md)                       |                                        | 4   | 64         | disabled        | enabled                  | Estimate the pose of a Minecraft item.                      |
-| [MinecraftShape-v0](MinecraftShape.md)                     |                                        | 128 | 32         | disabled        | enabled                  | Reconstruct the shape of Minecraft items as a COD-VAE latent embedding. |

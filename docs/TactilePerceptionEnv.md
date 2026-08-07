@@ -49,12 +49,6 @@ Currently implemented are the following tasks, which are described in more detai
                 MinecraftPose-v0
             </a>
         </td>
-        <td align="center" style="border: none; padding: 10px;">
-            <img src="img/env/MinecraftShape-v0.webp" alt="MinecraftShape-v0" width="200px"/><br/>
-            <a href="MinecraftShape.md">
-                MinecraftShape-v0
-            </a>
-        </td>
     </tr>
 </table>
 

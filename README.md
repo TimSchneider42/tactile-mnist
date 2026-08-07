@@ -58,12 +58,6 @@
                 MinecraftPose-v0
             </a>
         </td>
-        <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/MinecraftShape-v0.webp" alt="MinecraftShape-v0" width="240px"/><br/>
-            <a href="docs/MinecraftShape.md">
-                MinecraftShape-v0
-            </a>
-        </td>
     </tr>
 </table>
 
@@ -104,7 +98,7 @@ This package provides an easy way of loading and working with these datasets, as
 
 ## Simulated Active Tactile Perception Benchmark
 
-This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for twelve active tactile perception environments: [TactileMNIST](docs/TactileMNIST.md), [Starstruck](docs/Starstruck.md), [Minecraft](docs/Minecraft.md), [Toolbox](docs/Toolbox.md), [MinecraftPose](docs/MinecraftPose.md), [TactileMNISTCenterOfMass](docs/TactileMNISTCenterOfMass.md), [ABCCenterOfMass](docs/ABCCenterOfMass.md), [TactileMNISTVolume](docs/TactileMNISTVolume.md), [ABCVolume](docs/ABCVolume.md), [TactileMNISTShape](docs/TactileMNISTShape.md), [ABCShape](docs/ABCShape.md), and [MinecraftShape](docs/MinecraftShape.md).
+This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for eleven active tactile perception environments: [TactileMNIST](docs/TactileMNIST.md), [Starstruck](docs/Starstruck.md), [Minecraft](docs/Minecraft.md), [Toolbox](docs/Toolbox.md), [MinecraftPose](docs/MinecraftPose.md), [TactileMNISTCenterOfMass](docs/TactileMNISTCenterOfMass.md), [ABCCenterOfMass](docs/ABCCenterOfMass.md), [TactileMNISTVolume](docs/TactileMNISTVolume.md), [ABCVolume](docs/ABCVolume.md), [TactileMNISTShape](docs/TactileMNISTShape.md), and [ABCShape](docs/ABCShape.md).
 In all environments, the agent must solve a perception problem by actively controlling a [GelSight Mini](https://www.gelsight.com/gelsightmini/) tactile sensor in a simulated environment.
 
 The _TactileMNIST_ environment challenges the agent to find and classify a [3D MNIST](docs/datasets.md#mnist-3d) model as quickly as possible.
@@ -137,7 +131,7 @@ Similar to the TactileMNISTVolume environment, the _ABCVolume_ environment chall
 However, instead of 3D MNIST models, the objects in ABCVolume are randomly sampled from the [ABC dataset](docs/datasets.md#abc-dataset), which contains a large variety of 3D CAD models.
 Similar to ABCCenterOfMass, we give the agent control over the sensor's rotation in ABCVolume.
 
-Finally, the _TactileMNISTShape_, _ABCShape_, and _MinecraftShape_ environments challenge the agent to reconstruct the full 3D shape of an object from the [3D MNIST](docs/datasets.md#mnist-3d) dataset, the [ABC](docs/datasets.md#abc-dataset) dataset, and the set of Minecraft items, respectively.
+Finally, the _TactileMNISTShape_ and _ABCShape_ environments challenge the agent to reconstruct the full 3D shape of an object from the [3D MNIST](docs/datasets.md#mnist-3d) and [ABC](docs/datasets.md#abc-dataset) datasets, respectively.
 The shape is encoded as a compact latent embedding of a COD-VAE shape autoencoder, which the agent has to regress to and from which the object can be reconstructed.
 Since every touch reveals only a small patch of the object's surface, the agent has to integrate information from many touches to build up a complete picture of the object's geometry.
 

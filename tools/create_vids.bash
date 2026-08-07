@@ -196,10 +196,6 @@ ENVS=(
   TactileMNISTCenterOfMassSnap-Depth-DR-test-v0
   Minecraft-v0
   Minecraft-DR-v0
-  MinecraftShape-v0
-  MinecraftShapeStatic-v0
-  MinecraftShape-DR-v0
-  MinecraftShapeStatic-DR-v0
   Toolbox-v0
   Toolbox-DR-v0
   Toolbox-small-v0
@@ -208,10 +204,6 @@ ENVS=(
   MinecraftPose-DR-v0
   Minecraft-Depth-v0
   Minecraft-Depth-DR-v0
-  MinecraftShape-Depth-v0
-  MinecraftShapeStatic-Depth-v0
-  MinecraftShape-Depth-DR-v0
-  MinecraftShapeStatic-Depth-DR-v0
   Toolbox-Depth-v0
   Toolbox-Depth-DR-v0
   Toolbox-small-Depth-v0
