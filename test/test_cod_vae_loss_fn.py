@@ -254,6 +254,33 @@ def test_box_mse_term(vae, dataset, loss_fn, good_prediction, targets):
     assert unboxed.blind_guessing_expected_value < loss_fn.blind_guessing_expected_value
 
 
+def test_occupancy_only(loss_fn, good_prediction, targets):
+    off = good_prediction.copy()
+    off[:, -4:] += np.array([0.1, -0.2, 0.3, 0.15], dtype=np.float32)
+    # With identical rng streams the occupancy terms are identical, so dropping the
+    # box MSE term via occupancy_only removes exactly the mean squared box error.
+    full = loss_fn.numpy(off, targets, (NUM_OBJECTS,), rng=np.random.default_rng(13))
+    occupancy = loss_fn.numpy(
+        off, targets, (NUM_OBJECTS,), rng=np.random.default_rng(13), occupancy_only=True
+    )
+    expected = np.mean((off[:, -4:] - targets["box"]) ** 2, axis=-1)
+    np.testing.assert_allclose(full - occupancy, expected, atol=1e-5)
+
+
+def test_empirical_blind_guessing_stats(vae, dataset):
+    loss_fn = CODVAEReconstructionLossFn(vae, dataset=dataset, **LOSS_KWARGS)
+    heuristic = loss_fn.blind_guessing_expected_value
+    box_target_std = np.array([0.5, 0.5, 0.25, 0.25])
+    loss_fn.set_blind_guessing_stats(0.42, box_target_std)
+    # box_coeff is 1.0 by default.
+    expected = 0.42 + np.mean(box_target_std**2)
+    assert np.isclose(loss_fn.blind_guessing_expected_value, expected)
+    # The normalized loss maps the empirical blind guessing expected value to 1.
+    assert np.isclose(loss_fn.normalized.blind_guessing_expected_value, 1.0)
+    loss_fn.set_blind_guessing_stats(None, None)
+    assert np.isclose(loss_fn.blind_guessing_expected_value, heuristic)
+
+
 def test_box_gradient_is_exactly_the_mse_gradient(vae, loss_fn, good_prediction, targets):
     """
     The bounding box entries are supervised exclusively by the MSE term: the decoder

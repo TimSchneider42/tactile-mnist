@@ -76,6 +76,20 @@ reconstruction always agree on precision. The query/pose arithmetic, COD-VAE's m
 and interpolation of the query points, and the BCE are always float32, preserving the
 fidelity of the decoded occupancy and of the latent gradients for a half-precision
 model.
+
+All three loss variants accept ``occupancy_only``, which drops the bounding box MSE
+term and returns the pure occupancy loss. It exists so the expected value of the
+occupancy terms under blind guessing can be estimated empirically: unlike for the MSE
+term, whose blind-guessing expectation follows analytically from the variance of the
+box targets, no useful analytic bound exists for the BCE of a decoded occupancy field
+(occupancy probability 0.5 everywhere would yield ln(2) per query, but no latent
+decodes to that field). :meth:`set_blind_guessing_stats` therefore accepts an
+empirical estimate of the occupancy terms' blind-guessing expectation (obtained by
+scoring a fixed mean prediction across the dataset with ``occupancy_only``, see
+TactileShapeReconstructionVectorEnv) together with the standard deviation of the box
+targets, from which :attr:`blind_guessing_expected_value` — and thus the ``normalized``
+loss — is assembled. Until these statistics are set, a coarse heuristic
+(ln(2) per occupancy unit weight and uniform width-2 box target intervals) is used.
 """
 
 from __future__ import annotations
@@ -443,6 +457,8 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             raise ValueError("max_device_cached_pools must be positive.")
         self.__vae = vae
         self.__latent_dims = vae.config.num_latents * vae.config.latent_dim
+        self.__occupancy_blind_guessing_expected_value: float | None = None
+        self.__box_target_std: np.ndarray | None = None
         self.__num_vol_queries = num_vol_queries
         self.__vol_pool_size = vol_pool_size
         self.__num_near_points = num_near_points
@@ -515,6 +531,33 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
     @property
     def vae(self) -> CODVAEBase:
         return self.__vae
+
+    def set_blind_guessing_stats(
+        self,
+        occupancy_expected_value: float | None,
+        box_target_std: np.ndarray | float | None,
+    ) -> None:
+        """
+        Set empirical blind-guessing statistics used by
+        :attr:`blind_guessing_expected_value` (and thus by ``normalized``) in place of
+        the coarse built-in heuristic (see the module documentation).
+
+        :param occupancy_expected_value: expected value of the occupancy terms (the
+            ``occupancy_only`` loss) under blind guessing, e.g. estimated by scoring a
+            fixed mean prediction across the dataset. None restores the heuristic.
+        :param box_target_std: per-component (or scalar) standard deviation of the
+            targets' normalized bounding box parameters; the MSE term's blind-guessing
+            expectation is ``box_coeff * mean(box_target_std**2)``. None restores the
+            heuristic.
+        """
+        self.__occupancy_blind_guessing_expected_value = (
+            None if occupancy_expected_value is None else float(occupancy_expected_value)
+        )
+        self.__box_target_std = (
+            None
+            if box_target_std is None
+            else np.asarray(box_target_std, dtype=np.float64)
+        )
 
     def __device_pool_bytes(self) -> int:
         """Device size of the pools (the labels stay bit-packed on the device)."""
@@ -613,6 +656,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         target: dict[str, np.ndarray],
         batch_shape: tuple[int, ...] = (),
         rng: np.random.Generator | None = None,
+        occupancy_only: bool = False,
     ) -> np.ndarray:
         self.__require_rng(rng)
         rng = rng.spawn(1)[0]  # Spawn a child in order to not advance the RNG
@@ -629,6 +673,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
                         {k: torch.as_tensor(v, device=dev) for k, v in target.items()},
                         batch_shape,
                         torch_rng,
+                        occupancy_only=occupancy_only,
                     )
                     .cpu()
                     .numpy()
@@ -637,13 +682,14 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             assert vae.backend == "jax"
             assert isinstance(vae, cod_vae_jax.CODVAEJax)
             if self.__jax_jitted is None:
-                self.__jax_jitted = jax.jit(self.jax, static_argnums=(2,))
+                self.__jax_jitted = jax.jit(self.jax, static_argnums=(2, 4))
             return np.array(
                 self.__jax_jitted(
                     prediction,
                     target,
                     batch_shape,
                     jax.random.PRNGKey(rng.integers(0, 2**31 - 1)),
+                    occupancy_only,
                 )
             )
 
@@ -653,6 +699,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         target: "dict[str, torch.Tensor]",
         batch_shape: tuple[int, ...] = (),
         rng: "torch.Generator | None" = None,
+        occupancy_only: bool = False,
     ) -> "torch.Tensor":
         if self.__vae.backend != "torch":
             raise NotImplementedError(
@@ -748,7 +795,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             self.__vol_coeff,
             self.__near_coeff,
         )
-        if self.__box_coeff != 0.0:
+        if self.__box_coeff != 0.0 and not occupancy_only:
             box_target = self.__flatten(target["box"].to(device=device), 1)
             box_error = (
                 (prediction[:, -4:].float() - box_target.float()) ** 2
@@ -762,6 +809,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         target: "dict[str, jax.Array | np.ndarray]",
         batch_shape: tuple[int, ...] = (),
         rng: "jax.Array | None" = None,
+        occupancy_only: bool = False,
     ) -> "jax.Array":
         # Jit-compatible, but deliberately not pre-jitted: the streamed-pool cache
         # holds its state in refs, and jax (as of 0.6) cannot nest a jitted
@@ -857,7 +905,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             self.__vol_coeff,
             self.__near_coeff,
         )
-        if self.__box_coeff != 0.0:
+        if self.__box_coeff != 0.0 and not occupancy_only:
             box_target = self.__flatten(jnp.asarray(target["box"]), 1)
             box_error = jnp.mean(
                 (
@@ -874,13 +922,18 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         return 0.0
 
     def _blind_guessing_expected_value(self) -> float:
-        # A maximum-entropy blind guess (occupancy probability 0.5 everywhere) incurs
-        # ln(2) per query point. For the bounding box term, the blind guess is the
-        # midpoint of each component's prediction interval; against targets assumed
-        # uniform over these width-2 intervals (normalized center within the cell,
-        # z and size in [0, 2], see TactileShapeReconstructionVectorEnv), it incurs
-        # 2**2 / 12 per component.
-        return float(
-            (self.__vol_coeff + self.__near_coeff) * np.log(2.0)
-            + self.__box_coeff * 2.0**2 / 12.0
-        )
+        # Empirical statistics (see set_blind_guessing_stats) take precedence; the
+        # heuristic fallbacks are: a maximum-entropy blind guess (occupancy
+        # probability 0.5 everywhere) incurring ln(2) per query point, and, for the
+        # bounding box term, the midpoint of each component's prediction interval
+        # against targets assumed uniform over width-2 intervals (normalized center
+        # within the cell, z and size in [0, 2]), incurring 2**2 / 12 per component.
+        if self.__occupancy_blind_guessing_expected_value is not None:
+            occupancy = self.__occupancy_blind_guessing_expected_value
+        else:
+            occupancy = float((self.__vol_coeff + self.__near_coeff) * np.log(2.0))
+        if self.__box_target_std is not None:
+            box = float(np.mean(self.__box_target_std**2))
+        else:
+            box = 2.0**2 / 12.0
+        return occupancy + self.__box_coeff * box
