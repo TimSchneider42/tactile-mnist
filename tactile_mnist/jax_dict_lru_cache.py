@@ -54,7 +54,11 @@ import jax.numpy as jnp
 try:
     from jax import new_ref as _new_ref
 except ImportError:
-    from jax.experimental import mutable_array as _new_ref
+    try:
+        from jax.experimental import mutable_array as _new_ref
+    except ImportError:
+        # jax < 0.6.1 has no public export of mutable_array
+        from jax._src.core import mutable_array as _new_ref
 
 
 class JaxDictLRUCache(Sequence["dict[str, jax.Array]"]):

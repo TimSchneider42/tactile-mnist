@@ -45,11 +45,11 @@ torch = [
 ]
 jax-cpu = [
     "taxim[jax-cpu]>=1.4.0",
-    "jax"
+    "jax>=0.4.38"
 ]
 jax = [
     "taxim[jax]>=1.4.0",
-    "jax[cuda12]"
+    "jax[cuda12]>=0.4.38"
 ]
 
 [tool.setuptools.packages.find]
