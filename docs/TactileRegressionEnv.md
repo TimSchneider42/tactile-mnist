@@ -91,6 +91,9 @@ All tactile regression environments share the following properties:
 
 where $N \in \mathbb{N}$ is the number of dimensions of the predicted value.
 
+The shape reconstruction environments (`TactileMNISTShape-v0`, `ABCShape-v0`, and their variants) deviate from this scheme: their prediction target is a dict identifying the ground-truth geometry (mesh index and object pose) rather than a copy of the prediction space, and their loss is the COD-VAE reconstruction loss instead of an MSE.
+See the [tactile shape reconstruction environments overview](TactileShapeReconstructionEnv.md) for details.
+
 ## Prediction Space
 
 The prediction is an $N$-element `np.ndarray` containing the current prediction of the agent.
@@ -106,6 +109,8 @@ The agent's objective is to approximate the prediction target as closely as poss
 | [TactileMNISTVolume-v0](TactileMNISTVolume.md)             | [MNIST 3D](datasets.md#mnist-3d)       | 1   | 16         | disabled        | enabled                  | Estimate the volume of objects from the _MNIST 3D_ dataset. |
 | [TactileMNISTVolumeRealSnap-v0](TactileMNISTVolumeRealSnap.md) | [Real Tactile MNIST](datasets.md#available-touch-datasets) | 1   | 16         | disabled        | n/a                      | Estimate the volume of 3D printed digits from prerecorded real touch data. |
 | [ABCVolume-v0](ABCVolume.md)                               | [ABC Dataset](datasets.md#abc-dataset) | 1   | 32         | enabled         | enabled                  | Estimate the volume of objects from the _ABC_ dataset.      |
-| [TactileMNISTShape-v0](TactileMNISTShape.md)               | [MNIST 3D](datasets.md#mnist-3d)       | 128 | 16         | disabled        | enabled                  | Reconstruct the shape of objects from the _MNIST 3D_ dataset as a COD-VAE latent embedding. |
-| [ABCShape-v0](ABCShape.md)                                 | [ABC Dataset](datasets.md#abc-dataset) | 128 | 32         | enabled         | enabled                  | Reconstruct the shape of objects from the _ABC_ dataset as a COD-VAE latent embedding. |
+| [TactileMNISTShape-v0](TactileMNISTShape.md)               | [MNIST 3D](datasets.md#mnist-3d)       | 132 | 16         | disabled        | enabled                  | Reconstruct the shape of objects from the _MNIST 3D_ dataset as a COD-VAE latent embedding. |
+| [TactileMNISTShapeStatic-v0](TactileMNISTShape.md)         | [MNIST 3D](datasets.md#mnist-3d)       | 132 | 16         | disabled        | disabled                 | Same as TactileMNISTShape-v0 but the object pose stays fixed while it is being touched. |
+| [ABCShape-v0](ABCShape.md)                                 | [ABC Dataset](datasets.md#abc-dataset) | 132 | 32         | enabled         | enabled                  | Reconstruct the shape of objects from the _ABC_ dataset as a COD-VAE latent embedding. |
+| [ABCShapeStatic-v0](ABCShape.md)                           | [ABC Dataset](datasets.md#abc-dataset) | 132 | 32         | enabled         | disabled                 | Same as ABCShape-v0 but the object pose stays fixed while it is being touched. |
 | [MinecraftPose-v0](MinecraftPose.md)                       |                                        | 4   | 64         | disabled        | enabled                  | Estimate the pose of a Minecraft item.                      |

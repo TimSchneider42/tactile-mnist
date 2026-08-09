@@ -2,14 +2,14 @@
 
 <p align="center"><img src="img/env/TactileMNISTShape-v0.webp" alt="TactileMNISTShape-v0" width="200px"/></p>
 
-This environment is part of the tactile regression environments.
-Refer to the [tactile regression environments overview](TactileRegressionEnv.md) for a general description of these environments.
+This environment is part of the tactile shape reconstruction environments.
+Refer to the [tactile shape reconstruction environments overview](TactileShapeReconstructionEnv.md) for a general description of these environments, including their prediction space, prediction target, loss, and metrics.
 
 |                              |                                  |
 |------------------------------|----------------------------------|
 | **Environment ID**           | TactileMNISTShape-v0             |
 | **Dataset**                  | [MNIST 3D](datasets.md#mnist-3d) |
-| **Prediction Dimensions**    | 128                              |
+| **Prediction Dimensions**    | 132                              |
 | **Step limit**               | 16                               |
 | **Sensor rotation**          | disabled                         |
 | **Object pose perturbation** | enabled                          |
@@ -17,38 +17,9 @@ Refer to the [tactile regression environments overview](TactileRegressionEnv.md)
 ## Description
 
 In the TactileMNISTShape environment, the agent's objective is to reconstruct the full 3D shape of 3D models of handwritten digits by touch alone.
-The shape is represented by a compact latent embedding of a COD-VAE shape autoencoder, which the agent has to regress to.
-Since every touch reveals only a small patch of the object's surface, the agent has to integrate information from many touches to reconstruct the global shape.
 Object pose perturbation is enabled, meaning that the object shifts around slightly while being touched.
 This requires the agent to use robust strategies that are invariant to small shifts in the object's pose.
-
-## Prediction Target Space
-
-The prediction target is the flattened [COD-VAE](https://github.com/TimSchneider42/cod-vae) latent representation of the object's mesh (Cho et al., ICCV 2025).
-The mesh, posed in the platform frame, is normalized into the COD-VAE model's $[-1, 1]$ cube and encoded into $k$ latent vectors of dimension $d$.
-Flattened, this yields a $k \cdot d = 128$-element `np.ndarray` for the default model ($k = 4$, $d = 32$).
-Since the cube normalization removes the object's position and scale, the target jointly encodes the object's shape and its current (randomized and perturbed) orientation on the platform.
-Unlike a factored orientation-plus-shape representation, this joint representation remains well-defined even for (rotationally) symmetric objects, for which the orientation alone would be ambiguous.
-The latent is a deterministic function of the posed mesh: encoding uses the deterministic posterior mean, the surface sampling is seeded, and the latent tokens are put into a canonical order.
-A mesh can be reconstructed from a predicted latent by decoding it into an occupancy field with the same COD-VAE model (see `cod_vae.CODVAEBase.decode_mesh`).
-If the `renderer_show_shadow_objects` option is enabled, the environment decodes the agent's current prediction every step and renders it as a translucent shadow object; this is disabled by default, as it requires a COD-VAE decoder pass per step.
-
-COD-VAE latents are KL-regularized towards a standard normal, so they are approximately unit scale and are regressed without further normalization.
-
-The COD-VAE model can be changed via the `model` argument, which accepts a Hugging Face Hub repository id or a local npz checkpoint:
-
-```python
-import ap_gym
-
-env = ap_gym.make("TactileMNISTShape-v0", model="TimSchneider42/cod-vae-4x32")
-```
-
-## Metrics
-
-On top of the standard regression metrics, this environment logs the following metrics in the `info` dictionary:
-
-- `latent_rmse`: the RMS error between the predicted and the target latent.
-- `rel_error`: the Euclidean norm of the latent error relative to the norm of the target latent.
+The TactileMNISTShapeStatic variants disable this perturbation, so the object stays fixed in place for the entire episode, though its initial pose is still randomized.
 
 ## Example Usage
 
@@ -93,3 +64,28 @@ envs = ap_gym.make_vec("TactileMNISTShape-v0", num_envs=4)
 | TactileMNISTShapeSnap-Depth-DR-v0 | Same as TactileMNISTShapeSnap-Depth-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. TactileMNISTShapeSnap-Depth-DR-train-v0 is an alias for it. | <img src="img/env/TactileMNISTShapeSnap-Depth-DR-v0.webp" alt="TactileMNISTShapeSnap-Depth-DR-v0" width="200px"/> |
 | TactileMNISTShapeSnap-Depth-test-v0 | Same as TactileMNISTShapeSnap-Depth-train-v0 but uses the test split of _MNIST 3D_ instead of the train split. | <img src="img/env/TactileMNISTShapeSnap-Depth-test-v0.webp" alt="TactileMNISTShapeSnap-Depth-test-v0" width="200px"/> |
 | TactileMNISTShapeSnap-Depth-DR-test-v0 | Same as TactileMNISTShapeSnap-Depth-test-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/TactileMNISTShapeSnap-Depth-DR-test-v0.webp" alt="TactileMNISTShapeSnap-Depth-DR-test-v0" width="200px"/> |
+| TactileMNISTShapeStatic-v0 | Same as TactileMNISTShape-v0 but the object pose stays fixed while it is being touched (object pose perturbation disabled). TactileMNISTShapeStatic-train-v0 is an alias for it. | <img src="img/env/TactileMNISTShapeStatic-v0.webp" alt="TactileMNISTShapeStatic-v0" width="200px"/> |
+| TactileMNISTShapeStatic-train-v0 | Alias for TactileMNISTShapeStatic-v0. | <img src="img/env/TactileMNISTShapeStatic-v0.webp" alt="TactileMNISTShapeStatic-v0" width="200px"/> |
+| TactileMNISTShapeStatic-DR-v0 | Same as TactileMNISTShape-DR-v0 but the object pose stays fixed while it is being touched. TactileMNISTShapeStatic-DR-train-v0 is an alias for it. | <img src="img/env/TactileMNISTShapeStatic-DR-v0.webp" alt="TactileMNISTShapeStatic-DR-v0" width="200px"/> |
+| TactileMNISTShapeStatic-test-v0 | Same as TactileMNISTShape-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStatic-test-v0.webp" alt="TactileMNISTShapeStatic-test-v0" width="200px"/> |
+| TactileMNISTShapeStatic-DR-test-v0 | Same as TactileMNISTShape-DR-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStatic-DR-test-v0.webp" alt="TactileMNISTShapeStatic-DR-test-v0" width="200px"/> |
+| TactileMNISTShapeStatic-CycleGAN-train-v0 | Same as TactileMNISTShape-CycleGAN-train-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStatic-CycleGAN-v0.webp" alt="TactileMNISTShapeStatic-CycleGAN-v0" width="200px"/> |
+| TactileMNISTShapeStatic-CycleGAN-DR-v0 | Same as TactileMNISTShape-CycleGAN-DR-v0 but the object pose stays fixed while it is being touched. TactileMNISTShapeStatic-CycleGAN-DR-train-v0 is an alias for it. | <img src="img/env/TactileMNISTShapeStatic-CycleGAN-DR-v0.webp" alt="TactileMNISTShapeStatic-CycleGAN-DR-v0" width="200px"/> |
+| TactileMNISTShapeStatic-CycleGAN-test-v0 | Same as TactileMNISTShape-CycleGAN-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStatic-CycleGAN-test-v0.webp" alt="TactileMNISTShapeStatic-CycleGAN-test-v0" width="200px"/> |
+| TactileMNISTShapeStatic-CycleGAN-DR-test-v0 | Same as TactileMNISTShape-CycleGAN-DR-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStatic-CycleGAN-DR-test-v0.webp" alt="TactileMNISTShapeStatic-CycleGAN-DR-test-v0" width="200px"/> |
+| TactileMNISTShapeStatic-Depth-train-v0 | Same as TactileMNISTShape-Depth-train-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStatic-Depth-v0.webp" alt="TactileMNISTShapeStatic-Depth-v0" width="200px"/> |
+| TactileMNISTShapeStatic-Depth-DR-v0 | Same as TactileMNISTShape-Depth-DR-v0 but the object pose stays fixed while it is being touched. TactileMNISTShapeStatic-Depth-DR-train-v0 is an alias for it. | <img src="img/env/TactileMNISTShapeStatic-Depth-DR-v0.webp" alt="TactileMNISTShapeStatic-Depth-DR-v0" width="200px"/> |
+| TactileMNISTShapeStatic-Depth-test-v0 | Same as TactileMNISTShape-Depth-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStatic-Depth-test-v0.webp" alt="TactileMNISTShapeStatic-Depth-test-v0" width="200px"/> |
+| TactileMNISTShapeStatic-Depth-DR-test-v0 | Same as TactileMNISTShape-Depth-DR-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStatic-Depth-DR-test-v0.webp" alt="TactileMNISTShapeStatic-Depth-DR-test-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-train-v0 | Same as TactileMNISTShapeSnap-train-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStaticSnap-v0.webp" alt="TactileMNISTShapeStaticSnap-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-DR-v0 | Same as TactileMNISTShapeSnap-DR-v0 but the object pose stays fixed while it is being touched. TactileMNISTShapeStaticSnap-DR-train-v0 is an alias for it. | <img src="img/env/TactileMNISTShapeStaticSnap-DR-v0.webp" alt="TactileMNISTShapeStaticSnap-DR-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-test-v0 | Same as TactileMNISTShapeSnap-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStaticSnap-test-v0.webp" alt="TactileMNISTShapeStaticSnap-test-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-DR-test-v0 | Same as TactileMNISTShapeSnap-DR-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStaticSnap-DR-test-v0.webp" alt="TactileMNISTShapeStaticSnap-DR-test-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-CycleGAN-train-v0 | Same as TactileMNISTShapeSnap-CycleGAN-train-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStaticSnap-CycleGAN-v0.webp" alt="TactileMNISTShapeStaticSnap-CycleGAN-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-CycleGAN-DR-v0 | Same as TactileMNISTShapeSnap-CycleGAN-DR-v0 but the object pose stays fixed while it is being touched. TactileMNISTShapeStaticSnap-CycleGAN-DR-train-v0 is an alias for it. | <img src="img/env/TactileMNISTShapeStaticSnap-CycleGAN-DR-v0.webp" alt="TactileMNISTShapeStaticSnap-CycleGAN-DR-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-CycleGAN-test-v0 | Same as TactileMNISTShapeSnap-CycleGAN-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStaticSnap-CycleGAN-test-v0.webp" alt="TactileMNISTShapeStaticSnap-CycleGAN-test-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-CycleGAN-DR-test-v0 | Same as TactileMNISTShapeSnap-CycleGAN-DR-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStaticSnap-CycleGAN-DR-test-v0.webp" alt="TactileMNISTShapeStaticSnap-CycleGAN-DR-test-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-Depth-train-v0 | Same as TactileMNISTShapeSnap-Depth-train-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStaticSnap-Depth-v0.webp" alt="TactileMNISTShapeStaticSnap-Depth-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-Depth-DR-v0 | Same as TactileMNISTShapeSnap-Depth-DR-v0 but the object pose stays fixed while it is being touched. TactileMNISTShapeStaticSnap-Depth-DR-train-v0 is an alias for it. | <img src="img/env/TactileMNISTShapeStaticSnap-Depth-DR-v0.webp" alt="TactileMNISTShapeStaticSnap-Depth-DR-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-Depth-test-v0 | Same as TactileMNISTShapeSnap-Depth-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStaticSnap-Depth-test-v0.webp" alt="TactileMNISTShapeStaticSnap-Depth-test-v0" width="200px"/> |
+| TactileMNISTShapeStaticSnap-Depth-DR-test-v0 | Same as TactileMNISTShapeSnap-Depth-DR-test-v0 but the object pose stays fixed while it is being touched. | <img src="img/env/TactileMNISTShapeStaticSnap-Depth-DR-test-v0.webp" alt="TactileMNISTShapeStaticSnap-Depth-DR-test-v0" width="200px"/> |
