@@ -31,6 +31,7 @@ from cod_vae import (
 from .cod_vae_loss_fn import CODVAEReconstructionLossFn
 from .constants import CACHE_BASE_DIR
 from .mesh_dataset import MeshDataset
+from .prefetched_dataset import PrefetchedDataset
 from .tactile_perception_renderer import MESH_INVISIBLE
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
@@ -126,106 +127,114 @@ def _compute_prediction_target_stats(
     blind_targets = []
     blind_translation_norm = _r2_sequence(2 * num_rotation_samples)
 
-    for mesh_index in tqdm.trange(len(dataset), desc="Encoding pose samples"):
-        dp = TactilePerceptionVectorEnv._pre_process_dp(
-            dataset[mesh_index], smallest_dimension_up=config.smallest_dimension_up
-        )
-        sample_poses = partial(
-            TactilePerceptionVectorEnv._get_random_object_pose_batch,
-            dp,
-            config.randomize_initial_object_pose,
-            config.max_initial_angle_perturbation,
-            config.cell_size,
-            object_placement_margin=config.object_placement_margin,
-            rotation_perturbation_norm=rotation_norm,
-        )
-        hull = np.asarray(dp.mesh.convex_hull.vertices, dtype=np.float64)
+    # The prefetcher loads the upcoming meshes in a background thread while the current one is being encoded.
+    with PrefetchedDataset(
+        dataset, capacity=3, load_fn=lambda dp: dp.mesh
+    ) as prefetched_dataset:
+        prefetched_dataset.prefetch(range(len(dataset)))
+        for mesh_index in tqdm.trange(len(dataset), desc="Encoding pose samples"):
+            dp = TactilePerceptionVectorEnv._pre_process_dp(
+                prefetched_dataset[mesh_index],
+                smallest_dimension_up=config.smallest_dimension_up,
+            )
+            sample_poses = partial(
+                TactilePerceptionVectorEnv._get_random_object_pose_batch,
+                dp,
+                config.randomize_initial_object_pose,
+                config.max_initial_angle_perturbation,
+                config.cell_size,
+                object_placement_margin=config.object_placement_margin,
+                rotation_perturbation_norm=rotation_norm,
+            )
+            hull = np.asarray(dp.mesh.convex_hull.vertices, dtype=np.float64)
 
-        def cube_transforms(poses) -> list[CubeTransform]:
-            return [
-                points_to_cube_transform(pose.transform(hull), object_scale)
-                for pose in poses
-            ]
-
-        def pack_boxes(transforms: list[CubeTransform]) -> np.ndarray:
-            return np.stack(
-                [
-                    pack_cube_transform(
-                        transform,
-                        frame_half_size=frame_half_size,
-                        object_scale=object_scale,
-                    )
-                    for transform in transforms
+            def cube_transforms(poses) -> list[CubeTransform]:
+                return [
+                    points_to_cube_transform(pose.transform(hull), object_scale)
+                    for pose in poses
                 ]
-            ).astype(np.float64)
 
-        poses = sample_poses(translation_perturbation_norm=translation_norm)
-        transforms = cube_transforms(poses)
-        boxes = pack_boxes(transforms)
-        poses_list = list(poses)
-        if config.randomize_initial_object_pose:
-            center_low, center_high = boxes[0::2, :2], boxes[1::2, :2]
-            unique_boxes = boxes[0::2]
-            unique_poses = poses_list[0::2]
-            unique_transforms = transforms[0::2]
-        else:
-            center_low = center_high = boxes[:, :2]
-            unique_boxes = boxes
-            unique_poses = poses_list
-            unique_transforms = transforms
-        # Box center xy is uniform between the two translation extremes; z and size
-        # do not depend on the translation at all.
-        center_mean = (center_low + center_high) / 2
-        box_sum[:2] += center_mean.sum(0)
-        box_sq_sum[:2] += (center_mean**2 + (center_high - center_low) ** 2 / 12).sum(0)
-        box_sum[2:] += unique_boxes[:, 2:].sum(0)
-        box_sq_sum[2:] += (unique_boxes[:, 2:] ** 2).sum(0)
-        box_min[:2] = np.minimum(box_min[:2], center_low.min(0))
-        box_max[:2] = np.maximum(box_max[:2], center_high.max(0))
-        box_min[2:] = np.minimum(box_min[2:], unique_boxes[:, 2:].min(0))
-        box_max[2:] = np.maximum(box_max[2:], unique_boxes[:, 2:].max(0))
-        box_count += len(unique_boxes)
+            def pack_boxes(transforms: list[CubeTransform]) -> np.ndarray:
+                return np.stack(
+                    [
+                        pack_cube_transform(
+                            transform,
+                            frame_half_size=frame_half_size,
+                            object_scale=object_scale,
+                        )
+                        for transform in transforms
+                    ]
+                ).astype(np.float64)
 
-        # 2048 points is encode_mesh's default surface sample size.
-        surface_points = sample_surface_points(dp.mesh, 2048, seed=seed)
-        clouds = np.stack(
-            [
-                transform.apply(pose.transform(surface_points))
-                for pose, transform in zip(unique_poses, unique_transforms)
-            ]
-        ).astype(np.float32)
-        latents = vae.encode(clouds).reshape(len(clouds), dims).astype(np.float64)
-        latent_sum += latents.sum(0)
-        latent_sq_sum += (latents**2).sum(0)
-        latent_min = np.minimum(latent_min, latents.min(0))
-        latent_max = np.maximum(latent_max, latents.max(0))
-        latent_count += len(clouds)
+            poses = sample_poses(translation_perturbation_norm=translation_norm)
+            transforms = cube_transforms(poses)
+            boxes = pack_boxes(transforms)
+            poses_list = list(poses)
+            if config.randomize_initial_object_pose:
+                center_low, center_high = boxes[0::2, :2], boxes[1::2, :2]
+                unique_boxes = boxes[0::2]
+                unique_poses = poses_list[0::2]
+                unique_transforms = transforms[0::2]
+            else:
+                center_low = center_high = boxes[:, :2]
+                unique_boxes = boxes
+                unique_poses = poses_list
+                unique_transforms = transforms
+            # Box center xy is uniform between the two translation extremes; z and size
+            # do not depend on the translation at all.
+            center_mean = (center_low + center_high) / 2
+            box_sum[:2] += center_mean.sum(0)
+            box_sq_sum[:2] += (
+                center_mean**2 + (center_high - center_low) ** 2 / 12
+            ).sum(0)
+            box_sum[2:] += unique_boxes[:, 2:].sum(0)
+            box_sq_sum[2:] += (unique_boxes[:, 2:] ** 2).sum(0)
+            box_min[:2] = np.minimum(box_min[:2], center_low.min(0))
+            box_max[:2] = np.maximum(box_max[:2], center_high.max(0))
+            box_min[2:] = np.minimum(box_min[2:], unique_boxes[:, 2:].min(0))
+            box_max[2:] = np.maximum(box_max[2:], unique_boxes[:, 2:].max(0))
+            box_count += len(unique_boxes)
 
-        # The blind poses reuse the rotation linspace but take their translations
-        # from the low-discrepancy sequence (see the docstring). The sequence is the
-        # same for every object, but the actual translations are not, as the
-        # placement bounds depend on the object's rotated silhouette.
-        if config.randomize_initial_object_pose:
-            blind_poses = sample_poses(
-                translation_perturbation_norm=blind_translation_norm
+            # 2048 points is encode_mesh's default surface sample size.
+            surface_points = sample_surface_points(dp.mesh, 2048, seed=seed)
+            clouds = np.stack(
+                [
+                    transform.apply(pose.transform(surface_points))
+                    for pose, transform in zip(unique_poses, unique_transforms)
+                ]
+            ).astype(np.float32)
+            latents = vae.encode(clouds).reshape(len(clouds), dims).astype(np.float64)
+            latent_sum += latents.sum(0)
+            latent_sq_sum += (latents**2).sum(0)
+            latent_min = np.minimum(latent_min, latents.min(0))
+            latent_max = np.maximum(latent_max, latents.max(0))
+            latent_count += len(clouds)
+
+            # The blind poses reuse the rotation linspace but take their translations
+            # from the low-discrepancy sequence (see the docstring). The sequence is the
+            # same for every object, but the actual translations are not, as the
+            # placement bounds depend on the object's rotated silhouette.
+            if config.randomize_initial_object_pose:
+                blind_poses = sample_poses(
+                    translation_perturbation_norm=blind_translation_norm
+                )
+                blind_boxes = pack_boxes(cube_transforms(blind_poses))
+            else:
+                blind_poses, blind_boxes = poses, boxes
+            # The loss targets' pose refers to the raw dataset mesh (see
+            # _get_prediction_targets), so the pre-processing rotation is composed in.
+            quaternions = np.asarray(blind_poses.quaternion, dtype=np.float64)
+            if isinstance(dp, TransformedDataPoint):
+                quaternions = (
+                    Rotation.from_quat(quaternions) * dp.applied_rotation
+                ).as_quat()
+            blind_targets.append(
+                (
+                    np.asarray(blind_poses.translation, dtype=np.float32),
+                    quaternions.astype(np.float32),
+                    blind_boxes.astype(np.float32),
+                )
             )
-            blind_boxes = pack_boxes(cube_transforms(blind_poses))
-        else:
-            blind_poses, blind_boxes = poses, boxes
-        # The loss targets' pose refers to the raw dataset mesh (see
-        # _get_prediction_targets), so the pre-processing rotation is composed in.
-        quaternions = np.asarray(blind_poses.quaternion, dtype=np.float64)
-        if isinstance(dp, TransformedDataPoint):
-            quaternions = (
-                Rotation.from_quat(quaternions) * dp.applied_rotation
-            ).as_quat()
-        blind_targets.append(
-            (
-                np.asarray(blind_poses.translation, dtype=np.float32),
-                quaternions.astype(np.float32),
-                blind_boxes.astype(np.float32),
-            )
-        )
 
     latent_mean = latent_sum / latent_count
     latent_std = np.sqrt(np.maximum(latent_sq_sum / latent_count - latent_mean**2, 0))
