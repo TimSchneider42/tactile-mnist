@@ -622,7 +622,7 @@ class TactileShapeReconstructionVectorEnv(
             )
 
             def reconstruct_meshes():
-                reconstructions: list[Any] = [None] * self.num_envs
+                reconstructions: list[Any] = [MESH_INVISIBLE] * self.num_envs
                 active = np.where(~prev_done)[0]
                 if len(active) > 0:
                     if self.__vae.backend == "jax":
