@@ -19,6 +19,7 @@ from .huggingface_dataset import (
     HuggingfaceDatapointField,
 )
 from .mesh_dataset import MeshDataPoint, MeshDataset
+from .prefetched_dataset import PrefetchedDataset
 from .simple_mesh_dataset import SimpleMeshDataPoint, SimpleMeshDataset
 from .minecraft_dataset import (
     fetch_minecraft_item_textures,

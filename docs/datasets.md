@@ -289,6 +289,31 @@ for data_point in dataset:
 # Do something with the data point
 ```
 
+### Prefetching
+
+If you know ahead of time in which order you are going to access data points, you can wrap the dataset in a
+`PrefetchedDataset` to load them ahead of time in a background thread:
+
+```python
+from tactile_mnist import PrefetchedDataset
+
+with PrefetchedDataset(dataset, capacity=3, load_fn=lambda dp: dp.mesh) as prefetched_dataset:
+    prefetched_dataset.prefetch(range(len(prefetched_dataset)))
+    for i in range(len(prefetched_dataset)):
+        data_point = prefetched_dataset[i]  # Hands out the prefetched data point instead of loading synchronously
+        # Do something with the data point
+```
+
+`prefetch` marks indices for prefetching in the order in which they are going to be collected; a loader thread loads
+them one by one into an output queue.
+`capacity` controls how many loaded data points may sit in the output queue beyond the next one, so with the default
+of 0, only the next requested element is prefetched.
+Since data point fields load lazily, `load_fn` should touch the expensive fields (here the mesh) to materialize them
+in the loader thread.
+
+Collecting elements out of order is supported as a fallback: elements preceding the requested one are discarded, and
+elements that were never marked for prefetching are loaded synchronously on the fly, clearing all scheduled loads.
+
 ### Concatenating Datasets
 
 Two or more datasets can be concatenated using `Dataset.concatenate` or the `+` operator:
