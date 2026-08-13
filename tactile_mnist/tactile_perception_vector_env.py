@@ -38,6 +38,7 @@ from tactile_mnist import (
     GELSIGHT_MINI_GEL_THICKNESS_MM,
     GEL_PENETRATION_DEPTH_MM,
 )
+from .prefetched_dataset import PrefetchedDataset
 from .sensor_noise import SensorNoiseConfig, SensorNoiseRenderer
 from .tactile_perception_renderer import TactilePerceptionRenderer
 from .tactile_renderer import TactileRenderer, mk_tactile_renderer
@@ -179,11 +180,16 @@ class TactilePerceptionVectorEnv(
         self.__render_mode = render_mode
         self.__transfer_timedelta_s = self.__config.transfer_timedelta_s
         if isinstance(self.__config.dataset, MeshDataset):
-            self.__datasets = [self.__config.dataset] * num_envs
+            datasets = [self.__config.dataset] * num_envs
         else:
             assert len(self.__config.dataset) == num_envs
-            self.__datasets = self.__config.dataset
+            datasets = list(self.__config.dataset)
+        self.__datasets = [
+            PrefetchedDataset(ds, load_fn=lambda dp: dp.mesh).open() for ds in datasets
+        ]
+        self.__prefetched_data_point_indices: list[int | None] = [None] * num_envs
         self.__current_data_points: tuple[GenericMeshDataPoint] | None = None
+        self.__current_data_point_indices: np.ndarray | None = None
         raw_sensor = mk_tactile_renderer(
             renderer_type=self.__config.sensor_type,
             backend=self.__config.sensor_backend,
@@ -454,7 +460,10 @@ class TactilePerceptionVectorEnv(
         return initial_pose
 
     def __reset_partial(
-        self, mask: Sequence[bool], options: dict[str, Any] | None = None
+        self,
+        mask: Sequence[bool],
+        options: dict[str, Any] | None = None,
+        discard_prefetched: bool = False,
     ):
         if np.any(mask):
             if options is None:
@@ -466,17 +475,34 @@ class TactilePerceptionVectorEnv(
             )
             current_datapoints_lst = list(self.__current_data_points)
             object_poses_lst = [Transformation() for _ in range(self.num_envs)]
-            for i in np.where(mask)[0]:
-                idx = (
-                    self.np_random.integers(0, len(self.__datasets[i]))
-                    if datapoint_idx[i] is None
-                    else datapoint_idx[i]
-                )
-
+            reset_indices = np.where(mask)[0]
+            for i in reset_indices:
+                prefetched_idx = self.__prefetched_data_point_indices[i]
+                if (
+                    discard_prefetched
+                    or datapoint_idx[i] is not None
+                    or prefetched_idx is None
+                ):
+                    idx = int(
+                        self.np_random.integers(0, len(self.__datasets[i]))
+                        if datapoint_idx[i] is None
+                        else datapoint_idx[i]
+                    )
+                    if idx != prefetched_idx:
+                        self.__datasets[i].prefetch([idx])
+                    self.__prefetched_data_point_indices[i] = idx
+            for i in reset_indices:
+                idx = self.__prefetched_data_point_indices[i]
+                self.__current_data_point_indices[i] = idx
                 current_datapoints_lst[i] = self._pre_process_dp(
                     self.__datasets[i][idx],
                     smallest_dimension_up=self.__config.smallest_dimension_up,
                 )
+                # The index of the next episode's datapoint is drawn as soon as the current one is collected, so that
+                # its mesh can load in the background while the current episode is running.
+                next_idx = int(self.np_random.integers(0, len(self.__datasets[i])))
+                self.__datasets[i].prefetch([next_idx])
+                self.__prefetched_data_point_indices[i] = next_idx
                 if initial_object_poses[i] is None:
                     object_poses_lst[i] = self._get_random_object_pose_batch(
                         current_datapoints_lst[i],
@@ -536,8 +562,13 @@ class TactilePerceptionVectorEnv(
         super().reset(seed=seed, options=options)
         self.__current_step = np.zeros(self.num_envs, dtype=np.int_)
         self.__current_data_points = [None] * self.num_envs
+        self.__current_data_point_indices = np.full(self.num_envs, -1, dtype=np.int64)
         self.__prev_done = np.zeros(self.num_envs, dtype=np.bool_)
-        self.__reset_partial(np.ones(self.num_envs, dtype=np.bool_), options=options)
+        self.__reset_partial(
+            np.ones(self.num_envs, dtype=np.bool_),
+            options=options,
+            discard_prefetched=True,
+        )
         if options is not None:
             initial_sensor_target_poses = list(
                 options.get("initial_sensor_target_pose", [None] * self.num_envs)
@@ -859,6 +890,8 @@ class TactilePerceptionVectorEnv(
         return self.__renderer.render_external_cameras()
 
     def close(self):
+        for prefetched_dataset in self.__datasets:
+            prefetched_dataset.close()
         self.__sensor.close()
         super().close()
 
@@ -873,6 +906,11 @@ class TactilePerceptionVectorEnv(
     @property
     def current_data_points(self) -> tuple[GenericMeshDataPoint]:
         return self.__current_data_points
+
+    @property
+    def current_data_point_indices(self) -> np.ndarray:
+        """Indices of the current data points in their respective datasets."""
+        return self.__current_data_point_indices
 
     @property
     def current_object_poses_platform_frame(self) -> Transformation:
