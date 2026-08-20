@@ -410,6 +410,10 @@ class TactileShapeReconstructionVectorEnv(
     marks what is real in each view. Shadow object decoding is disabled by default in the single-environment
     factory, as it requires an additional COD-VAE decoder pass per step.
 
+    Every step's loss evaluation also reports how good the decoded shape actually is, as avg_/final_ statistics over
+    the episode: iou, precision, recall, occ_loss, box_loss, box_share, bce_vol, bce_near and occupied_frac. See
+    CODVAEReconstructionLossFn.
+
     If half_precision is set (the default), the COD-VAE model is loaded in float16, which roughly halves the memory
     footprint of a loss evaluation and doubles its throughput on a GPU, at a small gradient-fidelity cost. As the
     precision is a property of the model, it applies uniformly to the reconstruction loss and to the shadow-object
