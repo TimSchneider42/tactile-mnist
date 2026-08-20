@@ -77,6 +77,18 @@ and interpolation of the query points, and the BCE are always float32, preservin
 fidelity of the decoded occupancy and of the latent gradients for a half-precision
 model.
 
+**Reconstruction metrics.** The loss says nothing about the quality of the decoded
+shape: only ~2% of the volume queries of a typical object are occupied, so a run can
+sit at a respectable loss while the reconstruction is visibly wrong.
+:meth:`numpy_loss_and_metrics` and its torch and jax counterparts therefore also
+return, per sample, ``occ_loss``/``box_loss``/``box_share``, the unweighted
+``bce_vol``/``bce_near`` halves of the occupancy term, ``occupied_frac``, and
+``iou``/``precision``/``recall`` of the decoded occupancy over the volume queries only
+(uniform in the object's cube, hence comparable to the IoU COD-VAE is evaluated with).
+The last three are undefined for some samples; the ``_iou``/``_precision``/``_recall``
+masks beside them mark those so the aggregation drops them. All come from logits the
+loss already computed, so they cost no additional decode.
+
 All three loss variants accept ``occupancy_only``, which drops the bounding box MSE
 term and returns the pure occupancy loss. It exists so the expected value of the
 occupancy terms under blind guessing can be estimated empirically: unlike for the MSE
@@ -483,6 +495,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         self.__jax_database = None
         self.__jax_pool_cache: JaxDictLRUCache | None = None
         self.__jax_jitted = None
+        self.__jax_jitted_metrics = None
         device_memory, device = self.__device_total_memory()
         pool_bytes = self.__device_pool_bytes()
         if (
@@ -658,6 +671,31 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         rng: np.random.Generator | None = None,
         occupancy_only: bool = False,
     ) -> np.ndarray:
+        return self.__numpy_impl(
+            prediction, target, batch_shape, rng, occupancy_only, False
+        )
+
+    def numpy_loss_and_metrics(
+        self,
+        prediction: np.ndarray,
+        target: dict[str, np.ndarray],
+        batch_shape: tuple[int, ...] = (),
+        rng: np.random.Generator | None = None,
+        occupancy_only: bool = False,
+    ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+        return self.__numpy_impl(
+            prediction, target, batch_shape, rng, occupancy_only, True
+        )
+
+    def __numpy_impl(
+        self,
+        prediction: np.ndarray,
+        target: dict[str, np.ndarray],
+        batch_shape: tuple[int, ...],
+        rng: np.random.Generator | None,
+        occupancy_only: bool,
+        want_metrics: bool,
+    ):
         self.__require_rng(rng)
         rng = rng.spawn(1)[0]  # Spawn a child in order to not advance the RNG
         vae = self.__vae
@@ -667,28 +705,45 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             with torch.no_grad():
                 torch_rng = torch.Generator()
                 torch_rng.manual_seed(int(rng.integers(0, 2**31 - 1)))
-                return (
-                    self.torch(
-                        torch.as_tensor(prediction, device=dev),
-                        {k: torch.as_tensor(v, device=dev) for k, v in target.items()},
-                        batch_shape,
-                        torch_rng,
-                        occupancy_only=occupancy_only,
-                    )
-                    .cpu()
-                    .numpy()
+                result = self.__torch_impl(
+                    torch.as_tensor(prediction, device=dev),
+                    {k: torch.as_tensor(v, device=dev) for k, v in target.items()},
+                    batch_shape,
+                    torch_rng,
+                    occupancy_only=occupancy_only,
+                    return_metrics=want_metrics,
                 )
+                if want_metrics:
+                    loss, metrics = result
+                    return loss.cpu().numpy(), {
+                        k: v.cpu().numpy() for k, v in metrics.items()
+                    }
+                return result.cpu().numpy()
         else:
             assert vae.backend == "jax"
             assert isinstance(vae, cod_vae_jax.CODVAEJax)
+            key = jax.random.PRNGKey(rng.integers(0, 2**31 - 1))
+            if want_metrics:
+                if self.__jax_jitted_metrics is None:
+                    self.__jax_jitted_metrics = jax.jit(
+                        partial(self.__jax_impl, return_metrics=True),
+                        static_argnums=(2, 4),
+                    )
+                loss, metrics = self.__jax_jitted_metrics(
+                    prediction, target, batch_shape, key, occupancy_only
+                )
+                return np.array(loss), {k: np.array(v) for k, v in metrics.items()}
             if self.__jax_jitted is None:
-                self.__jax_jitted = jax.jit(self.jax, static_argnums=(2, 4))
+                self.__jax_jitted = jax.jit(
+                    partial(self.__jax_impl, return_metrics=False),
+                    static_argnums=(2, 4),
+                )
             return np.array(
                 self.__jax_jitted(
                     prediction,
                     target,
                     batch_shape,
-                    jax.random.PRNGKey(rng.integers(0, 2**31 - 1)),
+                    key,
                     occupancy_only,
                 )
             )
@@ -701,6 +756,31 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         rng: "torch.Generator | None" = None,
         occupancy_only: bool = False,
     ) -> "torch.Tensor":
+        return self.__torch_impl(
+            prediction, target, batch_shape, rng, occupancy_only, False
+        )
+
+    def torch_loss_and_metrics(
+        self,
+        prediction: "torch.Tensor",
+        target: "dict[str, torch.Tensor]",
+        batch_shape: tuple[int, ...] = (),
+        rng: "torch.Generator | None" = None,
+        occupancy_only: bool = False,
+    ) -> "tuple[torch.Tensor, dict[str, torch.Tensor]]":
+        return self.__torch_impl(
+            prediction, target, batch_shape, rng, occupancy_only, True
+        )
+
+    def __torch_impl(
+        self,
+        prediction: "torch.Tensor",
+        target: "dict[str, torch.Tensor]",
+        batch_shape: tuple[int, ...],
+        rng: "torch.Generator | None",
+        occupancy_only: bool,
+        return_metrics: bool,
+    ) -> "torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]":
         if self.__vae.backend != "torch":
             raise NotImplementedError(
                 f"The torch variant of this loss function requires a COD-VAE model "
@@ -788,20 +868,62 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             object_scale=self.__object_scale,
             stop_transform_gradient=True,
         )
-        loss = cod_vae_torch.occupancy_loss(
+        occupancy = cod_vae_torch.occupancy_loss(
             logits.float(),
             labels,
             self.__num_vol_queries,
             self.__vol_coeff,
             self.__near_coeff,
         )
+        loss = occupancy
+        box_term = torch.zeros_like(occupancy)
         if self.__box_coeff != 0.0 and not occupancy_only:
             box_target = self.__flatten(target["box"].to(device=device), 1)
             box_error = (
                 (prediction[:, -4:].float() - box_target.float()) ** 2
             ).mean(-1)
-            loss = loss + self.__box_coeff * box_error
-        return loss.reshape(batch_shape)
+            box_term = self.__box_coeff * box_error
+            loss = loss + box_term
+        if not return_metrics:
+            return loss.reshape(batch_shape)
+        return loss.reshape(batch_shape), self.__torch_metrics(
+            logits, labels, occupancy, box_term, batch_shape
+        )
+
+    def __torch_metrics(self, logits, labels, occupancy, box_term, batch_shape):
+        """Torch counterpart of __jax_metrics; see the module documentation."""
+        num_vol = self.__num_vol_queries
+        nan = torch.tensor(float("nan"), device=logits.device)
+        with torch.no_grad():
+            # The torch backend exports occupancy_loss but not the elementwise BCE it
+            # is built from (unlike the jax one), so use the same call it makes.
+            bce = torch.nn.functional.binary_cross_entropy_with_logits(
+                logits.float(), labels, reduction="none"
+            )
+            pred = logits[:, :num_vol] > 0
+            gt = labels[:, :num_vol] > 0.5
+            inter = (pred & gt).sum(-1)
+            union = (pred | gt).sum(-1)
+            n_pred = pred.sum(-1)
+            n_gt = gt.sum(-1)
+            out = {
+                "occ_loss": occupancy.detach(),
+                "box_loss": box_term.detach(),
+                "box_share": box_term.detach()
+                / torch.clamp(occupancy.detach() + box_term.detach(), min=1e-12),
+                "bce_vol": bce[:, :num_vol].mean(-1),
+                "bce_near": bce[:, num_vol:].mean(-1),
+                "iou": torch.where(union > 0, inter / union.clamp(min=1), nan),
+                "_iou": union > 0,
+                "precision": torch.where(
+                    n_pred > 0, inter / n_pred.clamp(min=1), nan
+                ),
+                "_precision": n_pred > 0,
+                "recall": torch.where(n_gt > 0, inter / n_gt.clamp(min=1), nan),
+                "_recall": n_gt > 0,
+                "occupied_frac": n_gt / num_vol,
+            }
+        return {k: v.reshape(batch_shape) for k, v in out.items()}
 
     def jax(
         self,
@@ -811,6 +933,31 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         rng: "jax.Array | None" = None,
         occupancy_only: bool = False,
     ) -> "jax.Array":
+        return self.__jax_impl(
+            prediction, target, batch_shape, rng, occupancy_only, False
+        )
+
+    def jax_loss_and_metrics(
+        self,
+        prediction: "jax.Array | np.ndarray",
+        target: "dict[str, jax.Array | np.ndarray]",
+        batch_shape: tuple[int, ...] = (),
+        rng: "jax.Array | None" = None,
+        occupancy_only: bool = False,
+    ) -> "tuple[jax.Array, dict[str, jax.Array]]":
+        return self.__jax_impl(
+            prediction, target, batch_shape, rng, occupancy_only, True
+        )
+
+    def __jax_impl(
+        self,
+        prediction: "jax.Array | np.ndarray",
+        target: "dict[str, jax.Array | np.ndarray]",
+        batch_shape: tuple[int, ...],
+        rng: "jax.Array | None",
+        occupancy_only: bool,
+        return_metrics: bool,
+    ) -> "jax.Array | tuple[jax.Array, dict[str, jax.Array]]":
         # Jit-compatible, but deliberately not pre-jitted: the streamed-pool cache
         # holds its state in refs, and jax (as of 0.6) cannot nest a jitted
         # function closing over refs inside an outer jit. Callers should jit this
@@ -898,13 +1045,15 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             object_scale=self.__object_scale,
             stop_transform_gradient=True,
         )
-        loss = cod_vae_jax.occupancy_loss(
+        occupancy = cod_vae_jax.occupancy_loss(
             logits.astype(jnp.float32),
             labels,
             self.__num_vol_queries,
             self.__vol_coeff,
             self.__near_coeff,
         )
+        loss = occupancy
+        box_term = jnp.zeros_like(occupancy)
         if self.__box_coeff != 0.0 and not occupancy_only:
             box_target = self.__flatten(jnp.asarray(target["box"]), 1)
             box_error = jnp.mean(
@@ -915,8 +1064,51 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
                 ** 2,
                 axis=-1,
             )
-            loss = loss + self.__box_coeff * box_error
-        return loss.reshape(batch_shape)
+            box_term = self.__box_coeff * box_error
+            loss = loss + box_term
+        if not return_metrics:
+            return loss.reshape(batch_shape)
+        return loss.reshape(batch_shape), self.__jax_metrics(
+            logits, labels, occupancy, box_term, batch_shape
+        )
+
+    def __jax_metrics(self, logits, labels, occupancy, box_term, batch_shape):
+        """
+        Reconstruction metrics from the logits and labels the loss already produced --
+        no second decode. See the module documentation for what each one is and why
+        the IoU is taken over the volume queries only.
+        """
+        num_vol = self.__num_vol_queries
+        bce = cod_vae_jax.bce_with_logits(logits.astype(jnp.float32), labels)
+        # Volume queries only, so this is comparable to the IoU COD-VAE is evaluated with.
+        pred = logits[:, :num_vol] > 0
+        gt = labels[:, :num_vol] > 0.5
+        inter = jnp.sum(pred & gt, axis=-1)
+        union = jnp.sum(pred | gt, axis=-1)
+        n_pred = jnp.sum(pred, axis=-1)
+        n_gt = jnp.sum(gt, axis=-1)
+        out = {
+            "occ_loss": occupancy,
+            "box_loss": box_term,
+            # A share rather than raw numbers: the logged loss is normalized while these
+            # are raw, and a ratio is immune to that.
+            "box_share": box_term / jnp.maximum(occupancy + box_term, 1e-12),
+            "bce_vol": bce[:, :num_vol].mean(axis=-1),
+            "bce_near": bce[:, num_vol:].mean(axis=-1),
+            # An empty union, no predicted positives or no ground-truth positives leave
+            # the respective metric undefined. The "_<name>" masks say so per sample, so
+            # the aggregation drops those steps instead of scoring them 0 or 1.
+            "iou": jnp.where(union > 0, inter / jnp.maximum(union, 1), jnp.nan),
+            "_iou": union > 0,
+            "precision": jnp.where(
+                n_pred > 0, inter / jnp.maximum(n_pred, 1), jnp.nan
+            ),
+            "_precision": n_pred > 0,
+            "recall": jnp.where(n_gt > 0, inter / jnp.maximum(n_gt, 1), jnp.nan),
+            "_recall": n_gt > 0,
+            "occupied_frac": n_gt / num_vol,
+        }
+        return {k: v.reshape(batch_shape) for k, v in out.items()}
 
     def _lower_bound(self) -> float:
         return 0.0
