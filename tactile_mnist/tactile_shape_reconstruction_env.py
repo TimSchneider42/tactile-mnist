@@ -403,8 +403,12 @@ class TactileShapeReconstructionVectorEnv(
     for the BCE of a decoded occupancy field).
 
     If renderer_show_shadow_objects is set, the current prediction (latent and cube transform) is decoded back into
-    a mesh and rendered as a translucent shadow object. This is disabled by default, as it requires an additional
-    COD-VAE decoder pass per step.
+    a mesh and rendered as a translucent shadow object overlaying the target object. If
+    renderer_show_reconstruction_view is additionally set (the default), the rendered image is twice as wide: its
+    right half is the alpha inversion of the regular view on the left - same scene, same colors, but the platform,
+    the sensor, and the target object are translucent while the decoded reconstruction is opaque, so solidity alone
+    marks what is real in each view. Shadow object decoding is disabled by default in the single-environment
+    factory, as it requires an additional COD-VAE decoder pass per step.
 
     If half_precision is set (the default), the COD-VAE model is loaded in float16, which roughly halves the memory
     footprint of a loss evaluation and doubles its throughput on a GPU, at a small gradient-fidelity cost. As the
@@ -421,6 +425,7 @@ class TactileShapeReconstructionVectorEnv(
         backend: Literal["auto", "torch", "jax"] = "auto",
         device: str | None = None,
         renderer_show_shadow_objects: bool = True,
+        renderer_show_reconstruction_view: bool = True,
         shadow_object_resolution: int = 64,
         half_precision: bool = True,
         loss_fn_kwargs: dict[str, Any] | None = None,
@@ -517,6 +522,8 @@ class TactileShapeReconstructionVectorEnv(
             single_prediction_target_space=target_space,
             loss_fn=loss_fn.normalized,
             render_mode=render_mode,
+            renderer_show_shadow_object_view=renderer_show_shadow_objects
+            and renderer_show_reconstruction_view,
         )
 
         self.__renderer_show_shadow_objects = renderer_show_shadow_objects
@@ -708,6 +715,7 @@ def TactileShapeReconstructionEnv(
     backend: Literal["auto", "torch", "jax"] = "auto",
     device: str | None = None,
     renderer_show_shadow_objects: bool = False,
+    renderer_show_reconstruction_view: bool = True,
     shadow_object_resolution: int = 64,
     half_precision: bool = True,
     loss_fn_kwargs: dict[str, Any] | None = None,
@@ -723,6 +731,7 @@ def TactileShapeReconstructionEnv(
             backend=backend,
             device=device,
             renderer_show_shadow_objects=renderer_show_shadow_objects,
+            renderer_show_reconstruction_view=renderer_show_reconstruction_view,
             shadow_object_resolution=shadow_object_resolution,
             half_precision=half_precision,
             loss_fn_kwargs=loss_fn_kwargs,

@@ -164,6 +164,7 @@ class TactilePerceptionVectorEnv(
         single_prediction_target_space: gym.Space[PredTargetType],
         loss_fn: ap_gym.LossFn,
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
+        renderer_show_shadow_object_view: bool = False,
     ):
         self.__config = config
         self.num_envs = num_envs
@@ -299,6 +300,7 @@ class TactilePerceptionVectorEnv(
                 show_class_weights=self.__config.renderer_show_class_weights,
                 external_camera_resolution=self.__config.renderer_external_camera_resolution,
                 show_orig_mesh_colors=self.__config.renderer_show_orig_mesh_colors,
+                show_shadow_object_view=renderer_show_shadow_object_view,
             )
         )
 
