@@ -196,6 +196,7 @@ def _compute_mesh_pool(
     return mesh_index, {
         "vol_start": np.int64(vol_start),
         "vol_label_bits": np.packbits(pools["vol_label"]),
+        "vol_pool_num_occupied": np.int32(pools["vol_label"].sum()),
         "near_points": pools["near_points"],
         "near_label_bits": np.packbits(pools["near_label"]),
         "shifts": pools["shifts"].astype(np.float32),
@@ -210,6 +211,7 @@ class _OccupancyPools:
     database: np.ndarray  # (vol_database_size, 3) float32
     vol_start: np.ndarray  # (num_meshes,) int64
     vol_label_bits: np.ndarray  # (num_meshes, ceil(vol_pool_size / 8)) uint8
+    vol_pool_num_occupied: np.ndarray  # (num_meshes,) int32
     near_points: np.ndarray  # (num_meshes, num_near_points, 3) float16
     near_label_bits: np.ndarray  # (num_meshes, ceil(num_near_points / 8)) uint8
     shifts: np.ndarray  # (num_meshes, 3) float32
@@ -374,6 +376,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         vol_coeff: float = 1.0,
         near_coeff: float = 0.1,
         box_coeff: float = 1.0,
+        vol_class_balance: float = 0.0,
         max_pool_vram_fraction: float = 0.25,
         max_device_cached_pools: int = 1024,
         preprocessing_seed: int = 0,
@@ -410,6 +413,10 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         :param vol_coeff: weight of the volume occupancy BCE term (COD-VAE default 1.0).
         :param near_coeff: weight of the near-surface occupancy BCE term (COD-VAE
             default 0.1).
+        :param vol_class_balance: strength, in [0, 1], with which a mesh's occupied
+            volume queries are upweighted relative to its empty ones: each
+            gets weight ``(n_empty / n_occupied) ** strength``, so 0.0 is the plain
+            uniform average and 1.0 gives the two classes equal total weight.
         :param box_coeff: weight of the mean squared error between the predicted and
             the ground-truth bounding box parameters (the target's "box" entry),
             averaged over the four normalized components. This term is the bounding
@@ -478,6 +485,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         self.__vol_coeff = vol_coeff
         self.__near_coeff = near_coeff
         self.__box_coeff = box_coeff
+        self.__vol_class_balance = vol_class_balance
         self.__object_scale = object_scale
         self.__frame_half_size = float(frame_half_size)
         self.__pools = _load_or_compute_pools(
@@ -520,6 +528,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             pool_arrays = {
                 "vol_start": pools.vol_start,
                 "vol_label_bits": pools.vol_label_bits,
+                "vol_pool_num_occupied": pools.vol_pool_num_occupied,
                 "near_points": pools.near_points,
                 "near_label_bits": pools.near_label_bits,
                 "shifts": pools.shifts,
@@ -582,7 +591,8 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             + pools.near_label_bits.shape[-1]  # bit-packed near-surface labels
             + 3 * 4
             + 4
-            + 8  # shifts, scale, vol_start
+            + 8
+            + 4  # shifts, scale, vol_start, vol_pool_num_occupied
         )
         return pools.database.nbytes + num_meshes * per_mesh
 
@@ -633,6 +643,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             "database": pools.database,
             "vol_start": pools.vol_start,
             "vol_label_bits": pools.vol_label_bits,
+            "vol_pool_num_occupied": pools.vol_pool_num_occupied,
             "near_points": pools.near_points,
             "near_label_bits": pools.near_label_bits,
             "shifts": pools.shifts,
@@ -840,9 +851,11 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             pool = self.__torch_pool_cache.get(mesh_indices)
             database = self.__torch_database
         vol_queries = database[pool["vol_start"][:, None] + vol_idx]
-        vol_label = _torch_unpackbits(
+        vol_pool_label = _torch_unpackbits(
             pool["vol_label_bits"], self.__vol_pool_size
-        ).gather(1, vol_idx)
+        )
+        vol_pool_num_occupied = pool["vol_pool_num_occupied"]
+        vol_label = vol_pool_label.gather(1, vol_idx)
         near_label = _torch_unpackbits(pool["near_label_bits"], self.__num_near_points)
         near_queries = pool["near_points"].to(torch.float32)
         if near_idx is not None:
@@ -868,13 +881,18 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             object_scale=self.__object_scale,
             stop_transform_gradient=True,
         )
-        occupancy = cod_vae_torch.occupancy_loss(
-            logits.float(),
-            labels,
-            self.__num_vol_queries,
-            self.__vol_coeff,
-            self.__near_coeff,
-        )
+        if self.__vol_class_balance:
+            occupancy = self.__balanced_occupancy_torch(
+                logits, labels, vol_pool_num_occupied
+            )
+        else:
+            occupancy = cod_vae_torch.occupancy_loss(
+                logits.float(),
+                labels,
+                self.__num_vol_queries,
+                self.__vol_coeff,
+                self.__near_coeff,
+            )
         loss = occupancy
         box_term = torch.zeros_like(occupancy)
         if self.__box_coeff != 0.0 and not occupancy_only:
@@ -889,6 +907,24 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         return loss.reshape(batch_shape), self.__torch_metrics(
             logits, labels, occupancy, box_term, batch_shape
         )
+
+    def __balanced_occupancy_torch(self, logits, labels, vol_pool_num_occupied):
+        """Torch counterpart of __balanced_occupancy_jax; see it for the rationale."""
+        num_vol = self.__num_vol_queries
+        bce = torch.nn.functional.binary_cross_entropy_with_logits(
+            logits.float(), labels, reduction="none"
+        )
+        bce_vol, bce_near = bce[:, :num_vol], bce[:, num_vol:]
+        pos = labels[:, :num_vol]
+        n_occupied = vol_pool_num_occupied.to(torch.float32)
+        n_empty = self.__vol_pool_size - n_occupied
+        ratio = n_empty.clamp(min=1.0) / n_occupied.clamp(min=1.0)
+        w_pos = ratio**self.__vol_class_balance
+        n_pos = pos.sum(-1)
+        num = (bce_vol * pos).sum(-1) * w_pos + (bce_vol * (1.0 - pos)).sum(-1)
+        den = n_pos * w_pos + (num_vol - n_pos)
+        vol = num / den.clamp(min=1e-12)
+        return self.__vol_coeff * vol + self.__near_coeff * bce_near.mean(-1)
 
     def __torch_metrics(self, logits, labels, occupancy, box_term, batch_shape):
         """Torch counterpart of __jax_metrics; see the module documentation."""
@@ -1010,13 +1046,11 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             pool = self.__jax_pool_cache.get(mesh_indices)
             database = self.__jax_database
         vol_queries = database[pool["vol_start"][:, None] + vol_idx]
-        vol_label = jnp.take_along_axis(
-            jnp.unpackbits(
-                pool["vol_label_bits"], axis=-1, count=self.__vol_pool_size
-            ),
-            vol_idx,
-            axis=1,
+        vol_pool_label = jnp.unpackbits(
+            pool["vol_label_bits"], axis=-1, count=self.__vol_pool_size
         )
+        vol_pool_num_occupied = pool["vol_pool_num_occupied"]
+        vol_label = jnp.take_along_axis(vol_pool_label, vol_idx, axis=1)
         near_queries = pool["near_points"].astype(jnp.float32)
         near_label = jnp.unpackbits(
             pool["near_label_bits"], axis=-1, count=self.__num_near_points
@@ -1045,13 +1079,18 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             object_scale=self.__object_scale,
             stop_transform_gradient=True,
         )
-        occupancy = cod_vae_jax.occupancy_loss(
-            logits.astype(jnp.float32),
-            labels,
-            self.__num_vol_queries,
-            self.__vol_coeff,
-            self.__near_coeff,
-        )
+        if self.__vol_class_balance:
+            occupancy = self.__balanced_occupancy_jax(
+                logits, labels, vol_pool_num_occupied
+            )
+        else:
+            occupancy = cod_vae_jax.occupancy_loss(
+                logits.astype(jnp.float32),
+                labels,
+                self.__num_vol_queries,
+                self.__vol_coeff,
+                self.__near_coeff,
+            )
         loss = occupancy
         box_term = jnp.zeros_like(occupancy)
         if self.__box_coeff != 0.0 and not occupancy_only:
@@ -1071,6 +1110,31 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         return loss.reshape(batch_shape), self.__jax_metrics(
             logits, labels, occupancy, box_term, batch_shape
         )
+
+    def __balanced_occupancy_jax(self, logits, labels, vol_pool_num_occupied):
+        """
+        ``cod_vae.jax.occupancy_loss`` with the volume term class-balanced per mesh.
+
+        Each occupied volume query is weighted ``(n_empty / n_occupied) **
+        vol_class_balance`` relative to an empty one, counted over that mesh's whole
+        precomputed pool rather than over the queries drawn this step; the near-surface
+        half is left alone, being ~43% occupied already.
+        """
+        num_vol = self.__num_vol_queries
+        bce = cod_vae_jax.bce_with_logits(logits.astype(jnp.float32), labels)
+        bce_vol, bce_near = bce[:, :num_vol], bce[:, num_vol:]
+        pos = labels[:, :num_vol]
+        n_occupied = jnp.asarray(vol_pool_num_occupied, dtype=jnp.float32)
+        n_empty = self.__vol_pool_size - n_occupied
+        ratio = jnp.maximum(n_empty, 1.0) / jnp.maximum(n_occupied, 1.0)
+        w_pos = ratio ** self.__vol_class_balance
+        n_pos = jnp.sum(pos, axis=-1)
+        num = jnp.sum(bce_vol * pos, axis=-1) * w_pos + jnp.sum(
+            bce_vol * (1.0 - pos), axis=-1
+        )
+        den = n_pos * w_pos + (num_vol - n_pos)
+        vol = num / jnp.maximum(den, 1e-12)
+        return self.__vol_coeff * vol + self.__near_coeff * bce_near.mean(axis=-1)
 
     def __jax_metrics(self, logits, labels, occupancy, box_term, batch_shape):
         """
