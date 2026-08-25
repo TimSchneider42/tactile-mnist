@@ -581,17 +581,12 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             view_sensor_colors = np.array(view_sensor_mesh.visual.material.image)
             view_sensor_colors[..., 3] = 100
             view_sensor_mesh.visual.material.image = Image.fromarray(view_sensor_colors)
-            self.__shadow_view_sensor_node = Node(
-                mesh=Mesh.from_trimesh(view_sensor_mesh)
-            )
+            self.__shadow_view_sensor_node = Node(mesh=self.__mesh(view_sensor_mesh))
             self.__shadow_view_scene = BatchScene(
                 num_envs,
                 [
                     Node(
-                        # pyrender's translucency responds strongly nonlinearly to
-                        # the alpha value; 185 is calibrated to an effective
-                        # coverage of ~40%, matching the other translucent objects.
-                        mesh=Mesh.from_trimesh(mk_platform_mesh(alpha=185)),
+                        mesh=self.__mesh(mk_platform_mesh(alpha=100)),
                         matrix=self.__platform_pose.matrix,
                         single_instance=True,
                     ),
@@ -679,7 +674,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                             if mesh is None or mesh is MESH_INVISIBLE:
                                 meshes.append(None)
                                 continue
-                            pyrender_mesh = Mesh.from_trimesh(
+                            pyrender_mesh = self.__mesh(
                                 self.__process_object_mesh(mesh, alpha=alpha),
                                 smooth=False,
                             )
@@ -1095,9 +1090,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 self.__shadow_view_object_node = MultiNode(
                     self.__num_envs,
                     mesh=[
-                        Mesh.from_trimesh(
-                            self.__process_object_mesh(mesh), smooth=False
-                        )
+                        self.__mesh(self.__process_object_mesh(mesh), smooth=False)
                         for mesh in current_meshes
                     ],
                     individual_args=True,
@@ -1112,7 +1105,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 self.__shadow_view_real_object_node = MultiNode(
                     self.__num_envs,
                     mesh=[
-                        Mesh.from_trimesh(
+                        self.__mesh(
                             self.__process_object_mesh(mesh, alpha=100), smooth=False
                         )
                         for mesh in current_meshes
