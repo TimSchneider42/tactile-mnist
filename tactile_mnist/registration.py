@@ -372,7 +372,14 @@ def register_envs():
                     step_limit,
                     real_base_depth_dataset,
                 ) in [
-                    ("TactileMNIST", "mnist3d", False, False, 16, REAL_BASE_DEPTH_DATASET),
+                    (
+                        "TactileMNIST",
+                        "mnist3d",
+                        False,
+                        False,
+                        16,
+                        REAL_BASE_DEPTH_DATASET,
+                    ),
                     ("ABC", "abc-dataset-small", True, True, 32, None),
                 ]:
                     # Snap variants are only registered for the TactileMNIST environments
@@ -509,7 +516,14 @@ def register_envs():
                     real_base_depth_dataset,
                 ) in [
                     ("ABC", "abc-dataset-small", True, True, 32, None),
-                    ("TactileMNIST", "mnist3d", False, False, 16, REAL_BASE_DEPTH_DATASET),
+                    (
+                        "TactileMNIST",
+                        "mnist3d",
+                        False,
+                        False,
+                        16,
+                        REAL_BASE_DEPTH_DATASET,
+                    ),
                 ]:
                     # Snap variants are only registered for the TactileMNIST environments
                     snap_variants = [("", None)]
@@ -611,8 +625,8 @@ def register_envs():
         )
 
         for env_name, ds_name, sizes, step_limit, orig_colors in [
-            ("Toolbox", "wrench", (("", 0.3), ("-small", 0.25)), 64, False),
-            ("MinecraftPose", minecraft_items, (("", 0.2),), 64, True),
+            ("Toolbox", "wrench", (("", 0.3), ("-small", 0.25)), 32, False),
+            ("MinecraftPose", minecraft_items, (("", 0.2),), 32, True),
         ]:
             for size_name, size in sizes:
                 register_with_dr_variant(
