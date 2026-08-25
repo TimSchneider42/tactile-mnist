@@ -257,6 +257,19 @@ class MeshInvisibleType:
 MESH_INVISIBLE = MeshInvisibleType()
 
 
+def _mesh_from_trimesh(mesh: trimesh.Trimesh, *, blend: bool, **kwargs) -> Mesh:
+    """
+    Mesh.from_trimesh with translucent materials set to alphaMode OPAQUE, so that pyrender neither sorts nor blends
+    them and their alpha is rendered via alpha to coverage instead (see shared_egl.AlphaToCoverageRenderer). The
+    interactive viewer does not render with alpha to coverage and keeps blending (blend=True).
+    """
+    pyrender_mesh = Mesh.from_trimesh(mesh, **kwargs)
+    if not blend:
+        for primitive in pyrender_mesh.primitives:
+            primitive.material.alphaMode = "OPAQUE"
+    return pyrender_mesh
+
+
 class TactilePerceptionRenderer(Generic[MeshDataPointType]):
     def __init__(
         self,
@@ -268,7 +281,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         show_viewer: bool = False,
         show_sensor_target_pos: bool = False,
         object_color: tuple[float | int, ...] = (51, 0, 4),
-        tactile_screen_zoom_color: tuple[float | int, ...] = (255, 100, 100, 160),
+        tactile_screen_zoom_color: tuple[float | int, ...] = (255, 100, 100, 100),
         platform_color: tuple[float | int, ...] = (0, 11, 51),
         false_class_color: tuple[float | int, ...] = (34, 76, 132),
         true_class_color: tuple[float | int, ...] = (138, 29, 50),
@@ -280,6 +293,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         show_shadow_object_view: bool = False,
     ):
         self.__show_orig_mesh_colors = show_orig_mesh_colors
+        self.__mesh = partial(_mesh_from_trimesh, blend=show_viewer)
         self.__tactile_renderer = tactile_renderer
         self.__transparent_background = transparent_background
 
@@ -354,7 +368,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 num_envs,
                 [
                     Node(
-                        mesh=Mesh.from_trimesh(platform_mesh),
+                        mesh=self.__mesh(platform_mesh),
                         matrix=self.__platform_pose.matrix,
                         single_instance=True,
                     ),
@@ -422,21 +436,21 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             ).matrix
         )
 
-        self.__sensor_node = Node(mesh=Mesh.from_trimesh(self.__sensor_mesh))
+        self.__sensor_node = Node(mesh=self.__mesh(self.__sensor_mesh))
         self.__sensor_node.matrix = self.sensor_poses.matrix
         sensor_mesh_transparent = self.__sensor_mesh.copy()
         mesh_colors = np.array(sensor_mesh_transparent.visual.material.image)
         mesh_colors[..., 3] = 128
         sensor_mesh_transparent.visual.material.image = Image.fromarray(mesh_colors)
         self.__transparent_sensor_node = Node(
-            mesh=Mesh.from_trimesh(sensor_mesh_transparent)
+            mesh=self.__mesh(sensor_mesh_transparent)
         )
         self.__transparent_sensor_node.matrix = self.sensor_shadow_poses.matrix
 
         self.__camera_object_node: MultiNode | None = None
         self.__camera_shadow_object_node: MultiNode | None = None
         platform_node = Node(
-            mesh=Mesh.from_trimesh(platform_mesh),
+            mesh=self.__mesh(platform_mesh),
             matrix=self.__platform_pose.matrix,
             single_instance=True,
         )
@@ -538,7 +552,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 material=PBRMaterial(baseColorFactor=tactile_screen_zoom_color)
             )
             self.__tactile_screen_zoom = Node(
-                mesh=[Mesh.from_trimesh(plane) for _ in range(self.__num_envs)],
+                mesh=[self.__mesh(plane) for _ in range(self.__num_envs)],
                 individual_args=True,
             )
             self.__camera_scene.add_node(self.__tactile_screen_zoom)
@@ -570,16 +584,13 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 view_sensor_colors
             )
             self.__shadow_view_sensor_node = Node(
-                mesh=Mesh.from_trimesh(view_sensor_mesh)
+                mesh=self.__mesh(view_sensor_mesh)
             )
             self.__shadow_view_scene = BatchScene(
                 num_envs,
                 [
                     Node(
-                        # pyrender's translucency responds strongly nonlinearly to
-                        # the alpha value; 185 is calibrated to an effective
-                        # coverage of ~40%, matching the other translucent objects.
-                        mesh=Mesh.from_trimesh(mk_platform_mesh(alpha=185)),
+                        mesh=self.__mesh(mk_platform_mesh(alpha=100)),
                         matrix=self.__platform_pose.matrix,
                         single_instance=True,
                     ),
@@ -667,7 +678,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                             if mesh is None or mesh is MESH_INVISIBLE:
                                 meshes.append(None)
                                 continue
-                            pyrender_mesh = Mesh.from_trimesh(
+                            pyrender_mesh = self.__mesh(
                                 self.__process_object_mesh(mesh, alpha=alpha),
                                 smooth=False,
                             )
@@ -851,8 +862,8 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             img = np.concatenate([img, shadow_view_img], axis=2)
 
         if not self.__transparent_background:
-            alpha = img[..., 3:4] / 255
-            img = (img[..., :3] * alpha + (1 - alpha) * 255).astype(np.uint8)
+            # The multisample resolve has already blended everything over the white background.
+            img = img[..., :3]
 
         return img
 
@@ -875,7 +886,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             self.__num_envs,
             mesh=[
                 # Needed to remove color information
-                Mesh.from_trimesh(trimesh.Trimesh(mesh.vertices, mesh.faces))
+                self.__mesh(trimesh.Trimesh(mesh.vertices, mesh.faces))
                 for mesh in meshes
             ],
             individual_args=True,
@@ -1052,7 +1063,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             self.__camera_object_node = MultiNode(
                 self.__num_envs,
                 mesh=[
-                    Mesh.from_trimesh(self.__process_object_mesh(mesh), smooth=False)
+                    self.__mesh(self.__process_object_mesh(mesh), smooth=False)
                     for mesh in current_meshes
                 ],
                 individual_args=True,
@@ -1061,7 +1072,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             self.__camera_shadow_object_node = MultiNode(
                 self.__num_envs,
                 mesh=[
-                    Mesh.from_trimesh(
+                    self.__mesh(
                         self.__process_object_mesh(mesh, alpha=100), smooth=False
                     )
                     for mesh in current_meshes
@@ -1079,7 +1090,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 self.__shadow_view_object_node = MultiNode(
                     self.__num_envs,
                     mesh=[
-                        Mesh.from_trimesh(
+                        self.__mesh(
                             self.__process_object_mesh(mesh), smooth=False
                         )
                         for mesh in current_meshes
@@ -1096,7 +1107,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                 self.__shadow_view_real_object_node = MultiNode(
                     self.__num_envs,
                     mesh=[
-                        Mesh.from_trimesh(
+                        self.__mesh(
                             self.__process_object_mesh(mesh, alpha=100), smooth=False
                         )
                         for mesh in current_meshes

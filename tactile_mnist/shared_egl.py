@@ -25,18 +25,67 @@ import threading
 import numpy as np
 from OpenGL.GL import (
     GL_COLOR_BUFFER_BIT,
+    GL_DEPTH_COMPONENT24,
     GL_DRAW_FRAMEBUFFER,
     GL_LINEAR,
+    GL_MAX_SAMPLES,
     GL_READ_FRAMEBUFFER,
+    GL_RENDERBUFFER,
     GL_RGB,
     GL_RGBA,
+    GL_SAMPLE_ALPHA_TO_COVERAGE,
+    GL_SAMPLE_ALPHA_TO_ONE,
     GL_UNSIGNED_BYTE,
     glBindFramebuffer,
+    glBindRenderbuffer,
     glBlitFramebuffer,
+    glEnable,
+    glGetIntegerv,
     glReadPixels,
+    glRenderbufferStorageMultisample,
 )
 from pyrender import OffscreenRenderer, RenderFlags
 from pyrender.renderer import Renderer
+
+# Multisampling level of the offscreen renderers (pyrender's default is 4); also the alpha resolution of the
+# alpha-to-coverage translucency.
+MSAA_SAMPLES = 8
+
+
+class AlphaToCoverageRenderer(Renderer):
+    """:class:`pyrender.Renderer` rendering translucency via alpha to coverage instead of blending.
+
+    pyrender's blending is only correct for non-overlapping translucent meshes
+    (it sorts whole meshes by their origins and keeps depth writes enabled).
+    With alpha to coverage, a fragment's alpha selects the fraction of the
+    pixel's multisamples it covers, which are depth tested individually, so
+    occlusion is exact regardless of the draw order. Translucent materials
+    must use ``alphaMode='OPAQUE'`` for this, so that pyrender does not blend
+    them on top.
+    """
+
+    def _configure_main_framebuffer(self):
+        recreated = self._main_fb is None or self._main_fb_dims != (
+            self.viewport_width,
+            self.viewport_height,
+        )
+        super()._configure_main_framebuffer()
+        if recreated:
+            samples = min(MSAA_SAMPLES, int(glGetIntegerv(GL_MAX_SAMPLES)))
+            width, height = self._main_fb_dims
+            glBindRenderbuffer(GL_RENDERBUFFER, self._main_cb_ms)
+            glRenderbufferStorageMultisample(
+                GL_RENDERBUFFER, samples, GL_RGBA, width, height
+            )
+            glBindRenderbuffer(GL_RENDERBUFFER, self._main_db_ms)
+            glRenderbufferStorageMultisample(
+                GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT24, width, height
+            )
+
+    def render(self, scene, flags, seg_node_map=None):
+        glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE)
+        glEnable(GL_SAMPLE_ALPHA_TO_ONE)
+        return super().render(scene, flags, seg_node_map)
 
 
 class _SharedEglPlatform:
@@ -98,7 +147,7 @@ class _SharedEglPlatform:
 _shared = _SharedEglPlatform()
 
 
-class _SharedContextRenderer(Renderer):
+class _SharedContextRenderer(AlphaToCoverageRenderer):
     """:class:`pyrender.Renderer` that can skip the depth readback.
 
     ``Renderer._read_main_framebuffer`` always blits and ``glReadPixels``-reads
@@ -237,6 +286,16 @@ class SharedContextOffscreenRenderer:
                 _shared.release()
 
 
+class AlphaToCoverageOffscreenRenderer(OffscreenRenderer):
+    """:class:`pyrender.OffscreenRenderer` using an :class:`AlphaToCoverageRenderer`."""
+
+    def _create(self):
+        super()._create()
+        self._renderer = AlphaToCoverageRenderer(
+            self.viewport_width, self.viewport_height
+        )
+
+
 def make_offscreen_renderer(
     viewport_width: int, viewport_height: int
 ) -> OffscreenRenderer | SharedContextOffscreenRenderer:
@@ -248,4 +307,4 @@ def make_offscreen_renderer(
     """
     if os.environ.get("PYOPENGL_PLATFORM") == "egl":
         return SharedContextOffscreenRenderer(viewport_width, viewport_height)
-    return OffscreenRenderer(viewport_width, viewport_height)
+    return AlphaToCoverageOffscreenRenderer(viewport_width, viewport_height)
