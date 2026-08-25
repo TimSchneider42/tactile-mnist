@@ -15,7 +15,11 @@ import trimesh
 import trimesh.creation
 from trimesh.visual.material import PBRMaterial
 
-from tactile_mnist.shared_egl import SharedContextOffscreenRenderer, _shared
+from tactile_mnist.shared_egl import (
+    AlphaToCoverageOffscreenRenderer,
+    SharedContextOffscreenRenderer,
+    _shared,
+)
 
 
 # A pyrender.Mesh can only be bound to one Renderer, so every renderer gets its
@@ -74,7 +78,7 @@ _plain_renderer_keepalive = []
 
 
 def test_pixel_parity_with_plain_offscreen_renderer():
-    plain = pyrender.OffscreenRenderer(200, 150)
+    plain = AlphaToCoverageOffscreenRenderer(200, 150)
     _plain_renderer_keepalive.append(plain)
     color_plain, depth_plain = plain.render(_make_scene())
 

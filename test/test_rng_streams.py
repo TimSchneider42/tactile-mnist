@@ -120,10 +120,10 @@ def test_penetration_depth_randomization_only_affects_the_observed_height(datase
     randomized.close()
     np.testing.assert_array_equal(plain_images, rand_images)
     # The scene renders show tiny rasterization differences even for identical scenes, so only substantial
-    # differences (such as the imprint of the sensor changing) count
-    np.testing.assert_allclose(
-        plain_renders.astype(np.int_), rand_renders.astype(np.int_), atol=5
-    )
+    # differences (such as the imprint of the sensor changing) count. The dithered translucency additionally flips
+    # isolated pixels with the sub-millimeter sensor height difference.
+    render_diff = np.abs(plain_renders.astype(np.int_) - rand_renders.astype(np.int_))
+    assert np.mean(render_diff > 5) < 1e-5
     np.testing.assert_array_equal(plain_pos[..., :2], rand_pos[..., :2])
     assert np.abs(plain_pos[..., 2] - rand_pos[..., 2]).max() > 1e-4
 
