@@ -21,9 +21,8 @@ import trimesh
 from trimesh import Trimesh
 from trimesh.exchange.load import mesh_loaders
 
-from tactile_mnist import MeshDataset
 from .huggingface_dataset import DataPointType, HuggingfaceDatapointField
-from .mesh_dataset import MeshDataPoint
+from .mesh_dataset import HuggingfaceMeshDataPoint, HuggingfaceMeshDataset
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +139,7 @@ def load_objaverse_xl_mesh(d: dict) -> Trimesh:
         return get_fallback_mesh()
 
 
-class ObjaverseXLMeshDataPoint(MeshDataPoint):
+class ObjaverseXLMeshDataPoint(HuggingfaceMeshDataPoint):
     id: str = HuggingfaceDatapointField(("sha256",), lambda d: d["sha256"])
     label: int = HuggingfaceDatapointField((), lambda d: 0)
     mesh: Trimesh = HuggingfaceDatapointField(
@@ -149,7 +148,7 @@ class ObjaverseXLMeshDataPoint(MeshDataPoint):
 
 
 class ObjaverseXLMeshDataset(
-    MeshDataset[ObjaverseXLMeshDataPoint, "ObjaverseXLMeshDataset"]
+    HuggingfaceMeshDataset[ObjaverseXLMeshDataPoint, "ObjaverseXLMeshDataset"]
 ):
     def __init__(
         self,

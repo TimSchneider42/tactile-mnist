@@ -13,7 +13,7 @@ import numpy as np
 import tqdm
 from transformation import Transformation
 
-from tactile_mnist import CACHE_BASE_DIR, MeshDataset
+from tactile_mnist import CACHE_BASE_DIR, HuggingfaceMeshDataset
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +74,9 @@ class OverridableStaticField(Generic[InstanceType, StaticType, DynamicType]):
 
 
 def get_dataset_stats(
-    dataset: MeshDataset,
+    dataset: HuggingfaceMeshDataset,
     stats_name: str,
-    extraction_fn: Callable[[int, MeshDataset, ...], dict[str, float]],
+    extraction_fn: Callable[[int, HuggingfaceMeshDataset, ...], dict[str, float]],
     kwargs: dict[str, Any] | None = None,
 ):
     if kwargs is None:

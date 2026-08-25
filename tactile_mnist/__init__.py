@@ -18,7 +18,12 @@ from .huggingface_dataset import (
     HuggingfaceDatapoint,
     HuggingfaceDatapointField,
 )
-from .mesh_dataset import MeshDataPoint, MeshDataset
+from .mesh_dataset import (
+    MeshDataPoint,
+    MeshDataset,
+    HuggingfaceMeshDataPoint,
+    HuggingfaceMeshDataset,
+)
 from .prefetched_dataset import PrefetchedDataset
 from .simple_mesh_dataset import SimpleMeshDataPoint, SimpleMeshDataset
 from .minecraft_dataset import (
@@ -26,6 +31,11 @@ from .minecraft_dataset import (
     load_minecraft_item_mesh_dataset,
 )
 from .objaverse_xl_dataset import ObjaverseXLMeshDataPoint, ObjaverseXLMeshDataset
+from .starstruck_dataset import (
+    StarstruckMeshDataPoint,
+    StarstruckMeshDataset,
+    generate_starstruck_scene,
+)
 from .constants import (
     CELL_SIZE,
     CELL_PADDING,
