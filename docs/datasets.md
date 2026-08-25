@@ -4,25 +4,27 @@ This package provides the following datasets:
 
 - **[3D Mesh Datasets](#3d-mesh-datasets)**:
     1. **MNIST 3D**: a dataset of 3D models generated from a [high-resolution version of the MNIST dataset](https://arxiv.org/abs/2011.07946).
-    2. **Starstruck**: a dataset in which the number of stars in a scene have to be counted (3 classes, 1 - 3 stars per scene).
+    2. **Starstruck**: a procedurally generated dataset in which the number of stars in a scene has to be counted (3 classes, 1 - 3 stars per scene).
     3. **ABC Dataset**: a variant of the [ABC dataset](https://deep-geometry.github.io/abc-dataset/), processed for the use with this benchmark suite.
 - **[Touch Datasets](#touch-datasets)**
     1. **Synthetic Tactile MNIST**: a dataset of synthetic tactile images generated from the _MNIST 3D_ dataset with the [Taxim simulator](https://arxiv.org/abs/2109.04027).
     2. **Real Tactile MNIST**: a dataset of real tactile images of 3D printed _MNIST 3D_ digits collected with a Franka robot.
-    3. **Synthetic Tactile Starstruck**: a dataset of synthetic tactile images generated from the _Starstruck_ dataset with the [Taxim simulator](https://arxiv.org/abs/2109.04027).
+    3. **Synthetic Tactile Starstruck**: a dataset of synthetic tactile images generated from a [static version](#starstruck) of the _Starstruck_ dataset with the [Taxim simulator](https://arxiv.org/abs/2109.04027).
 
 All data is hosted on [Huggingface](https://huggingface.co/TimSchneider42), though this package will download and cache the required files automatically when needed.
+The only exception is the _Starstruck_ dataset, which is generated procedurally on the fly and thus requires no download at all.
 
 ## 3D Mesh Datasets
 
-The _MNIST 3D_ and _Starstruck_ datasets can be accessed by creating an instance of `MeshDataset`:
+The _MNIST 3D_ and _ABC_ datasets can be accessed by wrapping the respective Huggingface dataset in a `SimpleMeshDataset`, while the procedurally generated _Starstruck_ dataset comes with its own `MeshDataset` implementation:
 
 ```python
 from datasets import load_dataset
-from tactile_mnist import MeshDataset
+from tactile_mnist import SimpleMeshDataset, StarstruckMeshDataset
 
 mnist_3d_dataset = SimpleMeshDataset(load_dataset("TimSchneider42/tactile-mnist-mnist3d", split="train"))
-starstruck_dataset = SimpleMeshDataset(load_dataset("TimSchneider42/tactile-mnist-starstruck", split="train"))
+abc_dataset = SimpleMeshDataset(load_dataset("TimSchneider42/tactile-mnist-abc-dataset-small", split="train"))
+starstruck_dataset = StarstruckMeshDataset(split="train")
 ```
 
 Next to the `train` split, the `test`, `holdout`, `printed_train`, and `printed_test` splits are also available for _MNIST 3D_.
@@ -103,13 +105,36 @@ Available on Huggingface: [TimSchneider42/tactile-mnist-mnist3d](https://hugging
 </p>
 
 A dataset in which the number of stars in a scene must be counted (3 classes, 1–3 stars per scene).
+Each scene consists of one to three identical five-pointed stars (outer radius 10 mm, inner radius 5 mm, height 5 mm) and zero to five distractors, each of which is either a box (side length 10√2 mm) or a cylinder (radius 10 mm) of the same height.
+Stars first, then distractors, all objects are placed at uniformly random positions inside the cell with uniformly random rotations about the vertical axis, rejecting positions closer than 20 mm to an already placed object.
 
-| Split   | Description                     |
-|---------|---------------------------------|
-| `train` | Training split of *Starstruck*. |
-| `test`  | Test split of *Starstruck*.     |
+Unlike the other mesh datasets, _Starstruck_ is not downloaded but generated procedurally on the fly by `StarstruckMeshDataset`:
+scene `i` of a split has `1 + i % 3` stars, and its distractor count and layout are drawn from a stable pseudo random number generator seeded with the dataset seed, the split, and `i`.
+Hence, the dataset can be arbitrarily large at no storage cost, and every scene is reproducible from its index alone.
+Meshes are generated only once a datapoint's `mesh` field is accessed (about 2 ms per scene) and cached on the datapoint afterwards.
 
-Available on Huggingface: [TimSchneider42/tactile-mnist-starstruck](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-starstruck).
+```python
+from tactile_mnist import StarstruckMeshDataset
+
+# Default split sizes: 300,000 scenes each; size and seed can be overridden
+train_dataset = StarstruckMeshDataset(split="train")
+test_dataset = StarstruckMeshDataset(split="test")
+small_dataset = StarstruckMeshDataset(split="train", size=1000, seed=42)
+
+data_point = train_dataset[0]
+data_point.star_count, data_point.distractor_count  # metadata, available without generating the mesh
+data_point.mesh  # trimesh.Trimesh of the scene, generated on first access
+```
+
+Next to `id`, `label`, and `mesh`, each data point has the fields `star_count` (= `label + 1`), `distractor_count`, and `seed` (the seed of the scene layout).
+
+| Split   | Description                                                                                                                     |
+|---------|---------------------------------------------------------------------------------------------------------------------------------|
+| `train` | Training split of *Starstruck* (300,000 scenes, 100,000 per class).                                                             |
+| `test`  | Test split of *Starstruck* (300,000 scenes, 100,000 per class), generated from a different seed stream than the training split. |
+
+The environments use the train split unless the `-test` variant is chosen.
+A static version of this dataset (3,300 pre-computed scenes generated by the same process; superseded by the procedural dataset) remains available on Huggingface as [TimSchneider42/tactile-mnist-starstruck](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-starstruck) and is the one the _Synthetic Tactile Starstruck_ touch datasets were generated from.
 
 #### ABC Dataset
 
@@ -206,15 +231,15 @@ The coordinate frame of each cell is in its center, with the x-axis pointing to 
 This package provides three classes of touch datasets: _Real Tactile MNIST_, _Synthetic Tactile MNIST_, and _Synthetic Tactile Starstruck_.
 Each class contains multiple datasets and each dataset has a training (`train`) and test (`test`) split.
 
-| Name                                                                                                                                                          | 3D Model Dataset | Type     | # Rounds         | # Touches / Round | Sensor Resolution | Description                                                                                                                                                                                                | Preview                                                                                                                                                      |
-|---------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------|----------|------------------|-------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [tactile-mnist-touch-real-seq-t256-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-seq-t256-320x240)                         | MNIST 3D         | _seq_    | 500 / 100        | 256               | 320 x 240         | Real tactile images of 3D printed _MNIST 3D_ digits collected with a Franka robot. The `train` and `test` splits of this dataset corresponds to the `printed_train` and `printed_test` splits of MNIST 3D. | <img src="img/tactile-mnist-touch-real-seq-t256-320x240.webp" alt="tactile-mnist-touch-real-seq-t256-320x240 preview" width="200px">                          |
-| [tactile-mnist-touch-real-single-t256-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-single-t256-320x240)                   | MNIST 3D         | _single_ | 500 / 100        | 256               | 320 x 240         | _Single_ version of `tactile-mnist-touch-real-seq-t256-320x240`                                                                                                                                            | <img src="img/tactile-mnist-touch-real-single-t256-320x240.jpeg" alt="tactile-mnist-touch-real-single-t256-320x240 preview" width="200px">                   |
-| [tactile-mnist-touch-real-single-t256-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-single-t256-64x64)                       | MNIST 3D         | _single_ | 500 / 100        | 256               | 64 x 64           | `tactile-mnist-touch-real-single-t256-320x240` scaled to a 64x64 resolution.                                                                                                                               | <img src="img/tactile-mnist-touch-real-single-t256-64x64.jpeg" alt="tactile-mnist-touch-real-single-t256-64x64 preview" width="200px">                       |
-| [tactile-mnist-touch-syn-single-t32-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-syn-single-t32-320x240)                       | MNIST 3D         | _single_ | 193,280 / 16,000 | 32                | 320 x 240         | Synthetic tactile images generated from the _MNIST 3D_ dataset with the Taxim simulator.                                                                                                                   | <img src="img/tactile-mnist-touch-syn-single-t32-320x240.jpeg" alt="tactile-mnist-touch-syn-single-t32-320x240 preview" width="200px">                       |
-| [tactile-mnist-touch-syn-single-t32-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-syn-single-t32-64x64)                           | MNIST 3D         | _single_ | 193,280 / 16,000 | 32                | 64 x 64           | `tactile-mnist-touch-syn-single-t32-320x240` scaled to a 64x64 resolution.                                                                                                                                 | <img src="img/tactile-mnist-touch-syn-single-t32-64x64.jpeg" alt="tactile-mnist-touch-syn-single-t32-64x64 preview" width="200px">                           |
-| [tactile-mnist-touch-starstruck-syn-single-t32-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-starstruck-syn-single-t32-320x240) | Starstruck       | _single_ | 16,000 / 1,600   | 32                | 320 x 240         | Synthetic tactile images generated from the _Starstruck_ dataset with the Taxim simulator.                                                                                                                 | <img src="img/tactile-mnist-touch-starstruck-syn-single-t32-320x240.jpeg" alt="tactile-mnist-touch-starstruck-syn-single-t32-320x240 preview" width="200px"> |
-| [tactile-mnist-touch-starstruck-syn-single-t32-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-starstruck-syn-single-t32-64x64)     | Starstruck       | _single_ | 16,000 / 1,600   | 32                | 64 x 64           | `tactile-mnist-touch-starstruck-syn-single-t32-320x240` scaled to a 64x64 resolution.                                                                                                                      | <img src="img/tactile-mnist-touch-starstruck-syn-single-t32-64x64.jpeg" alt="tactile-mnist-touch-starstruck-syn-single-t32-64x64 preview" width="200px">     |
+| Name                                                                                                                                                          | 3D Model Dataset    | Type     | # Rounds         | # Touches / Round | Sensor Resolution | Description                                                                                                                                                                                                | Preview                                                                                                                                                      |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|----------|------------------|-------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [tactile-mnist-touch-real-seq-t256-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-seq-t256-320x240)                         | MNIST 3D            | _seq_    | 500 / 100        | 256               | 320 x 240         | Real tactile images of 3D printed _MNIST 3D_ digits collected with a Franka robot. The `train` and `test` splits of this dataset corresponds to the `printed_train` and `printed_test` splits of MNIST 3D. | <img src="img/tactile-mnist-touch-real-seq-t256-320x240.webp" alt="tactile-mnist-touch-real-seq-t256-320x240 preview" width="200px">                         |
+| [tactile-mnist-touch-real-single-t256-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-single-t256-320x240)                   | MNIST 3D            | _single_ | 500 / 100        | 256               | 320 x 240         | _Single_ version of `tactile-mnist-touch-real-seq-t256-320x240`                                                                                                                                            | <img src="img/tactile-mnist-touch-real-single-t256-320x240.jpeg" alt="tactile-mnist-touch-real-single-t256-320x240 preview" width="200px">                   |
+| [tactile-mnist-touch-real-single-t256-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-real-single-t256-64x64)                       | MNIST 3D            | _single_ | 500 / 100        | 256               | 64 x 64           | `tactile-mnist-touch-real-single-t256-320x240` scaled to a 64x64 resolution.                                                                                                                               | <img src="img/tactile-mnist-touch-real-single-t256-64x64.jpeg" alt="tactile-mnist-touch-real-single-t256-64x64 preview" width="200px">                       |
+| [tactile-mnist-touch-syn-single-t32-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-syn-single-t32-320x240)                       | MNIST 3D            | _single_ | 193,280 / 16,000 | 32                | 320 x 240         | Synthetic tactile images generated from the _MNIST 3D_ dataset with the Taxim simulator.                                                                                                                   | <img src="img/tactile-mnist-touch-syn-single-t32-320x240.jpeg" alt="tactile-mnist-touch-syn-single-t32-320x240 preview" width="200px">                       |
+| [tactile-mnist-touch-syn-single-t32-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-syn-single-t32-64x64)                           | MNIST 3D            | _single_ | 193,280 / 16,000 | 32                | 64 x 64           | `tactile-mnist-touch-syn-single-t32-320x240` scaled to a 64x64 resolution.                                                                                                                                 | <img src="img/tactile-mnist-touch-syn-single-t32-64x64.jpeg" alt="tactile-mnist-touch-syn-single-t32-64x64 preview" width="200px">                           |
+| [tactile-mnist-touch-starstruck-syn-single-t32-320x240](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-starstruck-syn-single-t32-320x240) | Starstruck (static) | _single_ | 16,000 / 1,600   | 32                | 320 x 240         | Synthetic tactile images generated from the [static version](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-starstruck) of the _Starstruck_ dataset with the Taxim simulator.                | <img src="img/tactile-mnist-touch-starstruck-syn-single-t32-320x240.jpeg" alt="tactile-mnist-touch-starstruck-syn-single-t32-320x240 preview" width="200px"> |
+| [tactile-mnist-touch-starstruck-syn-single-t32-64x64](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-touch-starstruck-syn-single-t32-64x64)     | Starstruck (static) | _single_ | 16,000 / 1,600   | 32                | 64 x 64           | `tactile-mnist-touch-starstruck-syn-single-t32-320x240` scaled to a 64x64 resolution.                                                                                                                      | <img src="img/tactile-mnist-touch-starstruck-syn-single-t32-64x64.jpeg" alt="tactile-mnist-touch-starstruck-syn-single-t32-64x64 preview" width="200px">     |
 
 For details about the data collection procedure see the [Tactile Data Collection](#tactile-data-collection) section.
 
@@ -234,7 +259,7 @@ After collecting half of the total data points, the gel was replaced with a new 
 
 #### Synthetic Data Generation
 
-Using the [Taxim simulator](https://arxiv.org/abs/2109.04027), we generate synthetic touches from the _MNIST 3D_ and _Starstruck_ datasets.
+Using the [Taxim simulator](https://arxiv.org/abs/2109.04027), we generate synthetic touches from the _MNIST 3D_ dataset and the [static version](https://huggingface.co/datasets/TimSchneider42/tactile-mnist-starstruck) of the _Starstruck_ dataset (see [Starstruck](#starstruck)).
 Touch positions were sampled uniformly from 2D cell coordinates, while the orientation of the sensor was kept fixed, parallel to the cell surface.
 
 ## Advanced Dataset Usage

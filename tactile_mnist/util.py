@@ -14,7 +14,7 @@ import threadpoolctl
 import tqdm
 from transformation import Transformation
 
-from tactile_mnist import CACHE_BASE_DIR, MeshDataset
+from tactile_mnist import CACHE_BASE_DIR, HuggingfaceMeshDataset
 
 logger = logging.getLogger(__name__)
 
@@ -96,9 +96,9 @@ def get_cache_hash(ds_fingerprint: str, kwargs: dict[str, Any] | None = None) ->
 
 
 def get_dataset_stats(
-    dataset: MeshDataset,
+    dataset: HuggingfaceMeshDataset,
     stats_name: str,
-    extraction_fn: Callable[[int, MeshDataset, ...], dict[str, float]],
+    extraction_fn: Callable[[int, HuggingfaceMeshDataset, ...], dict[str, float]],
     kwargs: dict[str, Any] | None = None,
 ):
     if kwargs is None:
@@ -106,7 +106,10 @@ def get_dataset_stats(
     cache_dir = CACHE_BASE_DIR / stats_name
     cache_dir.mkdir(parents=True, exist_ok=True)
     ds_fingerprint = dataset.huggingface_dataset._fingerprint
-    cache_file = cache_dir / f"{get_cache_hash(dataset.huggingface_dataset._fingerprint, kwargs)}.json"
+    cache_file = (
+        cache_dir
+        / f"{get_cache_hash(dataset.huggingface_dataset._fingerprint, kwargs)}.json"
+    )
     with filelock.FileLock(cache_dir / f"{ds_fingerprint}.lock"):
         if cache_file.exists():
             try:

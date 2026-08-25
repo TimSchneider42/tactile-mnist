@@ -5,7 +5,7 @@ import random
 
 from datasets import load_dataset
 
-from tactile_mnist import SimpleMeshDataset
+from tactile_mnist import SimpleMeshDataset, StarstruckMeshDataset
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -14,7 +14,7 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         default="TimSchneider42/tactile-mnist-mnist3d",
-        help="Name or path of the dataset to load.",
+        help='Name or path of the dataset to load, or "starstruck" for the procedurally generated Starstruck dataset.',
     )
     parser.add_argument(
         "-l",
@@ -33,7 +33,10 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    dataset = SimpleMeshDataset(load_dataset(args.dataset, split=args.split))
+    if args.dataset == "starstruck":
+        dataset = StarstruckMeshDataset(split=args.split)
+    else:
+        dataset = SimpleMeshDataset(load_dataset(args.dataset, split=args.split))
 
     if args.label is not None:
         dataset = dataset.filter_labels(args.label)

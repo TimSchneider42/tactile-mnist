@@ -14,8 +14,10 @@ from tactile_mnist.tactile_volume_estimation_env import (
 )
 from .constants import *
 from .minecraft_dataset import load_minecraft_item_mesh_dataset
+from .mesh_dataset import MeshDataset
 from .sensor_noise import SensorNoiseConfig
 from .simple_mesh_dataset import SimpleMeshDataset
+from .starstruck_dataset import StarstruckMeshDataset
 from .tactile_classification_env import (
     TactileClassificationEnv,
     TactileClassificationVectorEnv,
@@ -82,7 +84,7 @@ def mk_snap_touch_positions(step_limit: int) -> int:
 
 
 def mk_config(
-    dataset_name: str | Callable[[str], datasets.Dataset],
+    dataset_name: str | Callable[[str], datasets.Dataset | MeshDataset],
     split: str,
     args: Iterable[Any],
     default_config: dict[str, Any],
@@ -95,11 +97,18 @@ def mk_config(
         dataset = load_dataset(
             f"TimSchneider42/tactile-mnist-{dataset_name}", split=split
         )
-    return TactilePerceptionConfig(
-        SimpleMeshDataset(
+    if isinstance(dataset, MeshDataset):
+        assert (
+            not mesh_dataset_config
+        ), "mesh_dataset_config only applies to Huggingface datasets."
+        mesh_dataset = dataset
+    else:
+        mesh_dataset = SimpleMeshDataset(
             dataset,
             **({} if mesh_dataset_config is None else mesh_dataset_config),
-        ),
+        )
+    return TactilePerceptionConfig(
+        mesh_dataset,
         *args,
         # Values given in config override the defaults of the environment
         **{**default_config, **({} if config is None else config)},
@@ -457,7 +466,11 @@ def register_envs():
                     entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                         TactileClassificationEnv(
                             mk_config(
-                                "starstruck", _split, args, default_config, config
+                                StarstruckMeshDataset,
+                                _split,
+                                args,
+                                default_config,
+                                config,
                             ),
                             **kwargs,
                         )
@@ -465,7 +478,11 @@ def register_envs():
                     vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                         TactileClassificationVectorEnv(
                             mk_config(
-                                "starstruck", _split, args, default_config, config
+                                StarstruckMeshDataset,
+                                _split,
+                                args,
+                                default_config,
+                                config,
                             ),
                             **kwargs,
                         ),
