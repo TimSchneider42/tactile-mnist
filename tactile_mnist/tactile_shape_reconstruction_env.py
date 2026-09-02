@@ -28,7 +28,7 @@ from cod_vae import (
     points_to_cube_transform,
     sample_surface_points,
 )
-from .cod_vae_loss_fn import CODVAEReconstructionLossFn
+from .cod_vae_loss_fn import CODVAELatentMSELossFn, CODVAEReconstructionLossFn
 from .constants import CACHE_BASE_DIR
 from .mesh_dataset import MeshDataset
 from .prefetched_dataset import PrefetchedDataset
@@ -410,6 +410,10 @@ class TactileShapeReconstructionVectorEnv(
     marks what is real in each view. Shadow object decoding is disabled by default in the single-environment
     factory, as it requires an additional COD-VAE decoder pass per step.
 
+    prediction_loss selects what the environment rewards: "cod_vae" (the default) is the reconstruction loss described
+    above, "latent_mse" the mean squared error against the encoder's latent, with no decode in the training graph (see
+    CODVAELatentMSELossFn). Both produce the reconstruction metrics, so they stay comparable on IoU, but not on loss.
+
     Every step's loss evaluation also reports how good the decoded shape actually is, as avg_/final_ statistics over
     the episode: iou, precision, recall, occ_loss, box_loss, box_share, bce_vol, bce_near and occupied_frac. See
     CODVAEReconstructionLossFn.
@@ -433,7 +437,14 @@ class TactileShapeReconstructionVectorEnv(
         shadow_object_resolution: int = 64,
         half_precision: bool = True,
         loss_fn_kwargs: dict[str, Any] | None = None,
+        prediction_loss: Literal["cod_vae", "latent_mse"] = "cod_vae",
     ):
+        if prediction_loss not in ("cod_vae", "latent_mse"):
+            raise ValueError(
+                f"prediction_loss must be 'cod_vae' or 'latent_mse', got "
+                f"{prediction_loss!r}."
+            )
+        self.__latent_mse = prediction_loss == "latent_mse"
         if not isinstance(config.dataset, MeshDataset):
             raise ValueError(
                 "TactileShapeReconstructionVectorEnv requires a single dataset shared "
@@ -508,15 +519,31 @@ class TactileShapeReconstructionVectorEnv(
         pred_space = gym.spaces.Box(
             low.astype(np.float32), high.astype(np.float32), dtype=np.float32
         )
-        target_space = gym.spaces.Dict(
-            {
-                "mesh_index": gym.spaces.Box(
-                    0, len(config.dataset) - 1, shape=(), dtype=np.int64
-                ),
-                "position": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
-                "quaternion": gym.spaces.Box(-1.0, 1.0, shape=(4,)),
-                "box": gym.spaces.Box(-np.inf, np.inf, shape=(4,)),
-            }
+        target_spaces = {
+            "mesh_index": gym.spaces.Box(
+                0, len(config.dataset) - 1, shape=(), dtype=np.int64
+            ),
+            "position": gym.spaces.Box(-np.inf, np.inf, shape=(3,)),
+            "quaternion": gym.spaces.Box(-1.0, 1.0, shape=(4,)),
+            "box": gym.spaces.Box(-np.inf, np.inf, shape=(4,)),
+        }
+        if self.__latent_mse:
+            # The ground-truth encoding the latent MSE regresses onto. It lives in the
+            # same space as the prediction, so it gets the prediction's bounds.
+            target_spaces["full_latent"] = gym.spaces.Box(
+                pred_space.low, pred_space.high, dtype=np.float32
+            )
+        target_space = gym.spaces.Dict(target_spaces)
+
+        # Which loss the environment rewards. The reconstruction loss is kept either way:
+        # it supplies the target statistics and the reconstruction metrics.
+        env_loss_fn = (
+            CODVAELatentMSELossFn(
+                target_std=self.__prediction_target_stats["std"],
+                metrics_loss_fn=loss_fn,
+            )
+            if self.__latent_mse
+            else loss_fn
         )
 
         super().__init__(
@@ -524,7 +551,7 @@ class TactileShapeReconstructionVectorEnv(
             num_envs,
             single_prediction_space=pred_space,
             single_prediction_target_space=target_space,
-            loss_fn=loss_fn.normalized,
+            loss_fn=env_loss_fn.normalized,
             render_mode=render_mode,
             renderer_show_shadow_object_view=renderer_show_shadow_objects
             and renderer_show_reconstruction_view,
@@ -534,6 +561,10 @@ class TactileShapeReconstructionVectorEnv(
         self.__shadow_object_resolution = shadow_object_resolution
         self.__metrics: dict[str, tuple[deque[float], ...]] | None = None
         self.__hull_cache: dict[Any, np.ndarray] = {}
+        self.__target_full_latent_cache = np.zeros(
+            (num_envs, dims + 4), dtype=np.float32
+        )
+        self.__target_full_latent_keys: list[Any] = [None] * num_envs
 
         if self.__vae.backend == "jax":
             # As with Taxim (see TactilePerceptionVectorEnv.__init__), JITing COD-VAE inside a host callback
@@ -541,8 +572,8 @@ class TactileShapeReconstructionVectorEnv(
             # decoding uses batches of exactly num_envs elements with query batches padded to a fixed chunk size
             # (see cod_vae.CODVAEBase.decode_full), so a single warmup call per function covers all shapes the model
             # will ever see. The loss uses the full-latent decode path and decode_mesh_full additionally uses the
-            # plain logits decode; the encoder is only used during __init__ (by the target statistics computation,
-            # which also compiles its own decode batch size when the statistics are not cached yet).
+            # plain logits decode. The encoder is compiled here too, so nothing compiles inside
+            # the host callback later (job 241959 deadlocked exactly there).
             dummy_full = np.zeros(
                 (num_envs, self.__vae.full_latent_size), dtype=np.float32
             )
@@ -553,6 +584,14 @@ class TactileShapeReconstructionVectorEnv(
                 resolution=self.__shadow_object_resolution,
                 frame_half_size=self.__frame_half_size,
             )
+            if self.__latent_mse:
+                # Points rather than zeros: a degenerate cloud is not a shape the
+                # encoder is ever asked for, and this result is discarded anyway.
+                self.__vae.encode(
+                    np.random.default_rng(0)
+                    .uniform(-1.0, 1.0, (num_envs, 2048, 3))
+                    .astype(np.float32)
+                )
 
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any | None] = None
@@ -591,6 +630,58 @@ class TactileShapeReconstructionVectorEnv(
                 object_scale=self.__object_scale,
             )
         return boxes
+
+    def __target_full_latents(self, boxes: np.ndarray) -> np.ndarray:
+        """
+        The ground-truth full latents (B, latent_dims + 4) of the current objects: the
+        latent COD-VAE's encoder produces for each object in the platform frame,
+        followed by its normalized bounding box (`boxes`, from __posed_boxes).
+
+        Computed with exactly the recipe _compute_prediction_target_stats uses, so the
+        targets and the statistics behind the prediction bounds describe the same
+        quantity. Memoized per environment, as it depends only on object and pose:
+        one encoder pass per episode rather than one per step.
+        """
+        keys = [
+            (
+                dp.id,
+                np.asarray(pose.translation).tobytes(),
+                np.asarray(pose.quaternion).tobytes(),
+            )
+            for dp, pose in zip(
+                self.current_data_points, self.current_object_poses_platform_frame
+            )
+        ]
+        stale = [
+            i
+            for i, key in enumerate(keys)
+            if self.__target_full_latent_keys[i] != key
+        ]
+        if stale:
+            # Always exactly num_envs rows, padded by repeating the first: JAX recompiles the
+            # encoder per batch size, and compiling here would deadlock (see __init__).
+            clouds = np.empty((self.num_envs, 2048, 3), dtype=np.float32)
+            for j, i in enumerate(stale):
+                dp = self.current_data_points[i]
+                pose = self.current_object_poses_platform_frame[i]
+                transform = points_to_cube_transform(
+                    pose.transform(self.__hull_cache[dp.id]), self.__object_scale
+                )
+                # 2048 points is encode_mesh's default surface sample size.
+                points = sample_surface_points(dp.mesh, 2048, seed=0)
+                clouds[j] = transform.apply(pose.transform(points))
+            clouds[len(stale) :] = clouds[0]
+            latents = (
+                self.__vae.encode(clouds)
+                .reshape(self.num_envs, self.__latent_dims)[: len(stale)]
+                .astype(np.float32)
+            )
+            for j, i in enumerate(stale):
+                self.__target_full_latent_cache[i] = np.concatenate(
+                    [latents[j], boxes[i]]
+                )
+                self.__target_full_latent_keys[i] = keys[i]
+        return self.__target_full_latent_cache.copy()
 
     def _step(
         self,
@@ -681,12 +772,16 @@ class TactileShapeReconstructionVectorEnv(
                 for quaternion, dp in zip(poses.quaternion, self.current_data_points)
             ]
         )
-        return {
+        targets = {
             "mesh_index": np.asarray(self.current_data_point_indices, dtype=np.int64),
             "position": np.asarray(poses.translation, dtype=np.float32),
             "quaternion": np.asarray(quaternions, dtype=np.float32),
+            # Populates __hull_cache, which __target_full_latents reads.
             "box": self.__posed_boxes(),
         }
+        if self.__latent_mse:
+            targets["full_latent"] = self.__target_full_latents(targets["box"])
+        return targets
 
     @property
     def vae(self):
@@ -723,6 +818,7 @@ def TactileShapeReconstructionEnv(
     shadow_object_resolution: int = 64,
     half_precision: bool = True,
     loss_fn_kwargs: dict[str, Any] | None = None,
+    prediction_loss: Literal["cod_vae", "latent_mse"] = "cod_vae",
 ) -> ActivePerceptionVectorToSingleWrapper[
     "ObsType", ActType, np.ndarray, dict[str, np.ndarray]
 ]:
@@ -739,5 +835,6 @@ def TactileShapeReconstructionEnv(
             shadow_object_resolution=shadow_object_resolution,
             half_precision=half_precision,
             loss_fn_kwargs=loss_fn_kwargs,
+            prediction_loss=prediction_loss,
         )
     )

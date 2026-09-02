@@ -1188,3 +1188,93 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         else:
             box = 2.0**2 / 12.0
         return occupancy + self.__box_coeff * box
+
+
+class CODVAELatentMSELossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
+    """
+    Mean squared error between the predicted COD-VAE full latent and the ground-truth
+    encoding of the posed mesh, as a drop-in replacement for
+    :class:`CODVAEReconstructionLossFn`.
+
+    Scores the prediction in latent space instead of decoding it, so the decoder --
+    nearly all of the reconstruction loss' cost -- leaves the training graph entirely.
+    In exchange it prescribes one particular latent rather than any latent that decodes
+    to the right shape, which is stronger than the task needs.
+
+    The target is the dict the reconstruction loss takes plus a ``"full_latent"`` entry
+    holding that ground-truth encoding, in the same layout as the prediction.
+    ``target_std``, the per-dimension standard deviation of the prediction targets,
+    gives the blind-guessing expectation exactly. The two losses' scales are not
+    comparable to each other; only IoU, precision and recall are.
+
+    ``metrics_loss_fn`` is an optional :class:`CODVAEReconstructionLossFn` evaluated by
+    :meth:`numpy_loss_and_metrics` for its metrics alone, so runs on either objective
+    stay comparable on IoU. It costs the decode the reward evaluation already does.
+    """
+
+    def __init__(
+        self,
+        target_std: float | np.ndarray | None = None,
+        metrics_loss_fn: CODVAEReconstructionLossFn | None = None,
+    ):
+        super().__init__()
+        self.__target_std = None if target_std is None else np.asarray(target_std)
+        self.__metrics_loss_fn = metrics_loss_fn
+
+    @property
+    def metrics_loss_fn(self) -> CODVAEReconstructionLossFn | None:
+        return self.__metrics_loss_fn
+
+    def numpy(
+        self,
+        prediction: np.ndarray,
+        target: dict[str, np.ndarray],
+        batch_shape: tuple[int, ...] = (),
+        rng: np.random.Generator | None = None,
+    ) -> np.ndarray:
+        return np.mean((prediction - target["full_latent"]) ** 2, axis=-1)
+
+    def numpy_loss_and_metrics(
+        self,
+        prediction: np.ndarray,
+        target: dict[str, np.ndarray],
+        batch_shape: tuple[int, ...] = (),
+        rng: np.random.Generator | None = None,
+    ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+        loss = self.numpy(prediction, target, batch_shape, rng)
+        loss_fn = self.__metrics_loss_fn
+        if loss_fn is None or rng is None:
+            return loss, {}
+        # The reconstruction loss decodes to produce the metrics; its value is
+        # discarded. Confined to numpy: jax and torch are what the update
+        # differentiates, and the decoder does not belong in that graph.
+        _, metrics = loss_fn.numpy_loss_and_metrics(
+            prediction, target, batch_shape, rng=rng
+        )
+        return loss, metrics
+
+    def torch(
+        self,
+        prediction: "torch.Tensor",
+        target: "dict[str, torch.Tensor]",
+        batch_shape: tuple[int, ...] = (),
+        rng: "torch.Generator | None" = None,
+    ) -> "torch.Tensor":
+        return torch.mean((prediction - target["full_latent"]) ** 2, dim=-1)
+
+    def jax(
+        self,
+        prediction: "jax.Array",
+        target: "dict[str, jax.Array]",
+        batch_shape: tuple[int, ...] = (),
+        rng: "jax.Array | None" = None,
+    ) -> "jax.Array":
+        return jnp.mean((prediction - target["full_latent"]) ** 2, axis=-1)
+
+    def _lower_bound(self) -> float:
+        return 0.0
+
+    def _blind_guessing_expected_value(self) -> float | None:
+        if self.__target_std is None:
+            return None
+        return float(np.mean(self.__target_std**2))
