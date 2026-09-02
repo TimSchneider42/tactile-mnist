@@ -406,7 +406,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
             ``num_near_queries``). Must be divisible by the number of
             ``near_stddevs``.
         :param num_near_queries: number of near-surface query points drawn freshly
-            (without replacement) from the mesh's stored near-surface points per
+            (with replacement) from the mesh's stored near-surface points per
             evaluation; None (the default) uses all of them.
         :param near_stddevs: standard deviations of the Gaussian surface perturbation
             generating the near-surface points (sdf_gen default (0.005, 0.05)).
@@ -449,13 +449,12 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         if num_near_queries > num_near_points:
             raise ValueError(
                 f"num_near_queries ({num_near_queries}) must not exceed "
-                f"num_near_points ({num_near_points}), as near-surface queries are "
-                f"drawn without replacement."
+                f"num_near_points ({num_near_points})."
             )
         if num_vol_queries > vol_pool_size:
             raise ValueError(
                 f"num_vol_queries ({num_vol_queries}) must not exceed vol_pool_size "
-                f"({vol_pool_size}), as volume queries are drawn without replacement."
+                f"({vol_pool_size})."
             )
         if vol_pool_size > vol_database_size:
             raise ValueError(
@@ -809,28 +808,22 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         quaternion = self.__flatten(target["quaternion"].to(device=device), 1)
         batch_size = prediction.shape[0]
 
-        # Uniform volume query subsets without replacement, drawn on the generator's
-        # device (the first num_vol_queries entries of random permutations).
-        vol_idx = torch.argsort(
-            torch.rand(
-                batch_size,
-                self.__vol_pool_size,
-                generator=rng,
-                device=rng.device,
-            ),
-            dim=-1,
-        )[:, : self.__num_vol_queries].to(device)
+        # Uniform volume queries, drawn on the generator's device. With replacement:
+        # drawing without would cost a permutation of the whole pool per sample.
+        vol_idx = torch.randint(
+            self.__vol_pool_size,
+            (batch_size, self.__num_vol_queries),
+            generator=rng,
+            device=rng.device,
+        ).to(device)
         near_idx = None
         if self.__num_near_queries < self.__num_near_points:
-            near_idx = torch.argsort(
-                torch.rand(
-                    batch_size,
-                    self.__num_near_points,
-                    generator=rng,
-                    device=rng.device,
-                ),
-                dim=-1,
-            )[:, : self.__num_near_queries].to(device)
+            near_idx = torch.randint(
+                self.__num_near_points,
+                (batch_size, self.__num_near_queries),
+                generator=rng,
+                device=rng.device,
+            ).to(device)
 
         if self.__device_pools is not None:
             pools = self.__device_pools
@@ -1014,6 +1007,8 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         quaternion = self.__flatten(target["quaternion"], 1)
         batch_size = prediction.shape[0]
 
+        # With replacement: replace=False permutes the whole pool per sample, so the
+        # cost would scale with the pool rather than with the queries drawn.
         near_idx = None
         vol_rng = rng
         if self.__num_near_queries < self.__num_near_points:
@@ -1023,7 +1018,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
                     key,
                     self.__num_near_points,
                     (self.__num_near_queries,),
-                    replace=False,
+                    replace=True,
                 )
             )(jax.random.split(near_rng, batch_size))
         vol_idx = jax.vmap(
@@ -1031,7 +1026,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
                 key,
                 self.__vol_pool_size,
                 (self.__num_vol_queries,),
-                replace=False,
+                replace=True,
             )
         )(jax.random.split(vol_rng, batch_size))
         if self.__device_pools is not None:
