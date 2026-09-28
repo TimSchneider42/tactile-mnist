@@ -376,7 +376,7 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         vol_coeff: float = 1.0,
         near_coeff: float = 0.1,
         box_coeff: float = 1.0,
-        vol_class_balance: float = 0.0,
+        vol_class_balance: float = 0.25,
         max_pool_vram_fraction: float = 0.25,
         max_device_cached_pools: int = 1024,
         preprocessing_seed: int = 0,
@@ -416,7 +416,11 @@ class CODVAEReconstructionLossFn(LossFn[np.ndarray, dict[str, np.ndarray]]):
         :param vol_class_balance: strength, in [0, 1], with which a mesh's occupied
             volume queries are upweighted relative to its empty ones: each
             gets weight ``(n_empty / n_occupied) ** strength``, so 0.0 is the plain
-            uniform average and 1.0 gives the two classes equal total weight.
+            uniform average and 1.0 gives the two classes equal total weight. 0.0 is
+            degenerate: the volume pool is ~1.4% occupied yet carries ten times the
+            weight of the ~43%-occupied near-surface pool, so the cheapest prediction is
+            empty space. Changing this moves the blind-guessing expectation, so loss and
+            return are not comparable across settings -- only IoU is.
         :param box_coeff: weight of the mean squared error between the predicted and
             the ground-truth bounding box parameters (the target's "box" entry),
             averaged over the four normalized components. This term is the bounding
