@@ -424,9 +424,8 @@ def register_envs():
                             real_base_depth_dataset=real_base_depth_dataset,
                         )
 
-                        # No regression log wrapper here: the shape reconstruction
-                        # targets are dicts identifying the ground-truth geometry, not
-                        # regression vectors; the environment logs its own metrics.
+                        # The reconstruction targets are geometry dicts, not regression
+                        # vectors, so the metric-agnostic wrapper is used here.
                         for static_suffix, perturb_object_pose in [
                             ("", True),
                             ("Static", False),
@@ -434,17 +433,29 @@ def register_envs():
                             register_with_dr_variant(
                                 f"{env_name}Shape{static_suffix}{snap_suffix}{sensor_type_name}",
                                 f"{s}-v0",
-                                entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: TactileShapeReconstructionEnv(
-                                    mk_config(
-                                        _ds_name, _split, args, default_config, config
-                                    ),
-                                    **kwargs,
+                                entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActivePerceptionLogWrapper(
+                                    TactileShapeReconstructionEnv(
+                                        mk_config(
+                                            _ds_name,
+                                            _split,
+                                            args,
+                                            default_config,
+                                            config,
+                                        ),
+                                        **kwargs,
+                                    )
                                 ),
-                                vector_entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: TactileShapeReconstructionVectorEnv(
-                                    mk_config(
-                                        _ds_name, _split, args, default_config, config
-                                    ),
-                                    **kwargs,
+                                vector_entry_point=lambda *args, default_config, config=None, _split=split, _ds_name=ds_name, **kwargs: ap_gym.ActivePerceptionVectorLogWrapper(
+                                    TactileShapeReconstructionVectorEnv(
+                                        mk_config(
+                                            _ds_name,
+                                            _split,
+                                            args,
+                                            default_config,
+                                            config,
+                                        ),
+                                        **kwargs,
+                                    )
                                 ),
                                 kwargs=dict(
                                     default_config=dict(
