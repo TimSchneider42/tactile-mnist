@@ -25,9 +25,7 @@ class DepthEstimator(ABC):
         return 256, 256
 
     @abstractmethod
-    def estimate(
-        self, images: np.ndarray, output_size: tuple[int, int]
-    ) -> np.ndarray:
+    def estimate(self, images: np.ndarray, output_size: tuple[int, int]) -> np.ndarray:
         """Estimate depth maps from tactile images.
 
         Parameters:

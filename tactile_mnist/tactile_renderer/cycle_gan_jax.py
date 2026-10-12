@@ -54,7 +54,9 @@ def _instance_norm(x: jax.Array, eps: float = 1e-5) -> jax.Array:
 
 
 def _reflection_pad(x: jax.Array, padding: int) -> jax.Array:
-    return jnp.pad(x, ((0, 0), (0, 0), (padding, padding), (padding, padding)), "reflect")
+    return jnp.pad(
+        x, ((0, 0), (0, 0), (padding, padding), (padding, padding)), "reflect"
+    )
 
 
 def _conv(
@@ -114,12 +116,18 @@ def _resnet_block(x: jax.Array, params: Params, prefix: str) -> jax.Array:
 def apply_generator_jax(params: Params, x: jax.Array) -> jax.Array:
     """Run the resnet_9blocks generator on NCHW input in [-1, 1] and return NCHW output in [-1, 1]."""
     y = _reflection_pad(x, 3)
-    y = _conv(y, params[f"model.{_STEM_CONV}.weight"], params[f"model.{_STEM_CONV}.bias"])
+    y = _conv(
+        y, params[f"model.{_STEM_CONV}.weight"], params[f"model.{_STEM_CONV}.bias"]
+    )
     y = jax.nn.relu(_instance_norm(y))
 
     for i in _DOWN_CONVS:
         y = _conv(
-            y, params[f"model.{i}.weight"], params[f"model.{i}.bias"], stride=2, padding=1
+            y,
+            params[f"model.{i}.weight"],
+            params[f"model.{i}.bias"],
+            stride=2,
+            padding=1,
         )
         y = jax.nn.relu(_instance_norm(y))
 

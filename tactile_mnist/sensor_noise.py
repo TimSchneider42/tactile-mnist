@@ -230,6 +230,7 @@ class SensorNoiseModel:
             )
             * self.__config.episode_pattern_std
         )
+
     def init(
         self,
         num_envs: int,
@@ -291,9 +292,7 @@ class SensorNoiseModel:
             image = PIL.Image.open(io.BytesIO(entry["bytes"]))
         return np.asarray(image.convert("RGB"))
 
-    def __feed_base_depth(
-        self, num_envs: int, depth_map_size: tuple[int, int]
-    ) -> None:
+    def __feed_base_depth(self, num_envs: int, depth_map_size: tuple[int, int]) -> None:
         """Continuously estimate batches of base depth maps from random empty touches into the queue."""
         rng = np.random.default_rng()
         while not self.__base_depth_stop.is_set():
@@ -331,16 +330,16 @@ class SensorNoiseModel:
         if self.__config.real_base_depth_dataset is None:
             return depth
         if self.__base_depth_feeder is None:
-            raise RuntimeError(
-                "apply_base_depth() requires init() to be called first."
-            )
+            raise RuntimeError("apply_base_depth() requires init() to be called first.")
         while True:
             try:
                 base = self.__base_depth_queue.get(timeout=1.0)
                 break
             except queue.Empty:
                 if not self.__base_depth_feeder.is_alive():
-                    raise RuntimeError("The base depth feeder thread died unexpectedly.")
+                    raise RuntimeError(
+                        "The base depth feeder thread died unexpectedly."
+                    )
         if base.shape != depth.shape:
             raise ValueError(
                 f"Expected depth maps of shape {base.shape} as announced to init(), but got {depth.shape}."

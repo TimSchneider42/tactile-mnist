@@ -71,7 +71,9 @@ def resolve_backend_and_device(
     reasons = []
     for be in backend_preference_order:
         if be not in factories:
-            reasons.append(f"Backend {be} does not support depth estimator {estimator_type}.")
+            reasons.append(
+                f"Backend {be} does not support depth estimator {estimator_type}."
+            )
             continue
         factory = factories[be]
         if isinstance(factory, ModuleNotLoaded):

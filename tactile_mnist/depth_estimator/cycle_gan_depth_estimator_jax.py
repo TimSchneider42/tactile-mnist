@@ -38,7 +38,9 @@ class CycleGANDepthEstimatorJAX(DepthEstimator):
         self.__params = jax.device_put(
             load_generator_params_jax(CYCLE_GAN_INVERSE_CHECKPOINT), self.__jax_device
         )
-        self.__estimate = jax.jit(self.__estimate_impl, static_argnames=("output_size",))
+        self.__estimate = jax.jit(
+            self.__estimate_impl, static_argnames=("output_size",)
+        )
 
     def __estimate_impl(
         self, images: jax.Array, output_size: tuple[int, int]
@@ -56,7 +58,9 @@ class CycleGANDepthEstimatorJAX(DepthEstimator):
             ).clip(0, 1)
         # The generator was trained on images normalized to [-1, 1] and predicts the image coordinates in its first
         # two channels and the depth in its third one
-        nocs = apply_generator_jax(self.__params, jnp.moveaxis((img - 0.5) / 0.5, -1, -3))
+        nocs = apply_generator_jax(
+            self.__params, jnp.moveaxis((img - 0.5) / 0.5, -1, -3)
+        )
         depth_scaled = (nocs[..., 2, :, :] + 1) / 2
         if depth_scaled.shape[-2:] != (output_size[1], output_size[0]):
             depth_scaled = jax.image.resize(

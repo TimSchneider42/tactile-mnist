@@ -389,9 +389,7 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
         mesh_colors = np.array(sensor_mesh_transparent.visual.material.image)
         mesh_colors[..., 3] = 128
         sensor_mesh_transparent.visual.material.image = Image.fromarray(mesh_colors)
-        self.__transparent_sensor_node = Node(
-            mesh=self.__mesh(sensor_mesh_transparent)
-        )
+        self.__transparent_sensor_node = Node(mesh=self.__mesh(sensor_mesh_transparent))
         self.__transparent_sensor_node.matrix = self.sensor_shadow_poses.matrix
 
         self.__camera_object_node: MultiNode | None = None

@@ -44,7 +44,9 @@ def estimator():
     return mk_depth_estimator()
 
 
-def _mk_env(dataset: TouchSingleDataset, **config) -> TactileRealSnapClassificationVectorEnv:
+def _mk_env(
+    dataset: TouchSingleDataset, **config
+) -> TactileRealSnapClassificationVectorEnv:
     return TactileRealSnapClassificationVectorEnv(
         TactileRealSnapConfig(
             dataset,

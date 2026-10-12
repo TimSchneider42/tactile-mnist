@@ -109,10 +109,13 @@ def _rollout_images_and_positions(
 
 def test_penetration_depth_randomization_only_affects_the_observed_height(dataset):
     """The imprint always presses the gel in by the nominal penetration depth; the randomization only perturbs the
-    sensor height the agent observes, so neither the tactile images nor the external camera view are affected."""
+    sensor height the agent observes, so neither the tactile images nor the external camera view are affected.
+    """
     plain = _mk_env(dataset)
     randomized = _mk_env(dataset, penetration_depth_reduction_std=0.00065)
-    plain_images, plain_pos, plain_renders = _rollout_images_and_positions(plain, seed=7)
+    plain_images, plain_pos, plain_renders = _rollout_images_and_positions(
+        plain, seed=7
+    )
     rand_images, rand_pos, rand_renders = _rollout_images_and_positions(
         randomized, seed=7
     )
@@ -174,7 +177,8 @@ def test_rollouts_are_reproducible_for_a_given_seed(dataset):
 
 def test_rollouts_are_reproducible_when_np_random_is_re_seeded_directly(dataset):
     """Re-seeding np_random by assigning the property (instead of calling reset(seed=...)) must make rollouts
-    reproducible as well, as the environment keeps no RNG state besides np_random itself."""
+    reproducible as well, as the environment keeps no RNG state besides np_random itself.
+    """
     env = _mk_env(dataset)
 
     def rollout_ids() -> np.ndarray:

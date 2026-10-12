@@ -169,7 +169,9 @@ class TactileRealSnapVectorEnv(
             if depth_estimator_backend is None:
                 # The depth estimators have no numpy implementation
                 depth_estimator_backend = (
-                    "auto" if config.sensor_backend == "numpy" else config.sensor_backend
+                    "auto"
+                    if config.sensor_backend == "numpy"
+                    else config.sensor_backend
                 )
             self.__depth_estimator = mk_depth_estimator(
                 estimator_type=config.depth_estimator_type,
@@ -412,9 +414,7 @@ class TactileRealSnapVectorEnv(
         return np.asarray(dp.sensor_image[int(self.__current_touch_idx[i])])
 
     def __get_sensor_images(self) -> np.ndarray:
-        recorded = [
-            self.__get_recorded_sensor_image(i) for i in range(self.num_envs)
-        ]
+        recorded = [self.__get_recorded_sensor_image(i) for i in range(self.num_envs)]
         w, h = self.__sensor_output_size
 
         if self.__depth_estimator is None:
