@@ -135,24 +135,57 @@ def _group_name(members: list[str]) -> str:
     return "__".join(name for name, size in sorted(named, key=lambda x: (-x[1], x[0])))
 
 
+def silhouettes_equal(mask_a: np.ndarray, mask_b: np.ndarray) -> bool:
+    """Check whether two silhouettes (boolean masks) have the same shape, up to a
+    shift and a rotation by a multiple of 90 degrees.
+    """
+    # Silhouettes with different pixel counts cannot match in any pose
+    if np.count_nonzero(mask_a) != np.count_nonzero(mask_b):
+        return False
+    pixels_a = np.argwhere(mask_a)
+    center_a = pixels_a.mean(axis=0)
+    pixels_a_set = set(map(tuple, pixels_a))
+    for k in range(4):
+        pixels_b = np.argwhere(np.rot90(mask_b, k))
+        # Matching silhouettes are aligned at their centers of mass, which then
+        # differ by a whole number of pixels
+        shift = center_a - pixels_b.mean(axis=0)
+        shift_rounded = np.round(shift)
+        if not np.allclose(shift, shift_rounded, atol=1e-6):
+            continue
+        pixels_b_shifted = pixels_b + shift_rounded.astype(np.int_)
+        if set(map(tuple, pixels_b_shifted)) == pixels_a_set:
+            return True
+    return False
+
+
 def group_textures_by_silhouette(
     textures: dict[str, np.ndarray],
 ) -> list[tuple[str, np.ndarray]]:
     """Deduplicate textures by their silhouette (alpha mask), as items that only
-    differ in color are indistinguishable to a tactile sensor.
+    differ in color, position within the sprite, or orientation are
+    indistinguishable to a tactile sensor.
 
     Returns (group_name, representative_texture) tuples sorted by the name of
     each group's alphabetically first member.
     """
-    groups: dict[bytes, list[str]] = {}
+    # Each group is represented by the mask of its first member; as silhouette
+    # equality is transitive, comparing against the representative is
+    # equivalent to comparing against every member of the group.
+    groups: list[tuple[np.ndarray, list[str]]] = []
     for name in sorted(textures):
         mask = textures[name][..., 3] >= ALPHA_THRESHOLD
         if not mask.any():
             continue
-        groups.setdefault(mask.tobytes(), []).append(name)
+        for representative_mask, members in groups:
+            if silhouettes_equal(representative_mask, mask):
+                members.append(name)
+                break
+        else:
+            groups.append((mask, [name]))
 
     result = []
-    for members in groups.values():
+    for _, members in groups:
         if len(members) == 1:
             name = members[0]
         else:
