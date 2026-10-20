@@ -70,6 +70,9 @@ class TactileRealSnapConfig:
     # actual object pose is not known), the effective sensor pose of the selected touch, and the requested target
     # sensor position.
     mesh_dataset: MeshDataset | Sequence[MeshDataset] | None = None
+    # Mesh dataset whose volume statistics standardize the volume targets (the simulated training objects, so that
+    # predictions decode with the scale the policy was trained with). Defaults to mesh_dataset.
+    volume_statistics_mesh_dataset: MeshDataset | None = None
     # The zero of the recorded gel z-positions drifts between rounds (by up to 3mm), as it depends on the state of the
     # gel and the calibration of the robot at the time of recording. If recalibrate_sensor_z is set, the recorded
     # z-positions of each round are re-zeroed on the deepest touch of that round, which is the platform surface (each
@@ -724,12 +727,14 @@ class TactileRealSnapVolumeEstimationVectorEnv(
         # Avoid a circular import
         from .tactile_volume_estimation_env import _compute_object_volume_idx
 
-        if isinstance(config.mesh_dataset, MeshDataset):
-            mesh_dataset = config.mesh_dataset
+        if config.volume_statistics_mesh_dataset is not None:
+            statistics_mesh_dataset = config.volume_statistics_mesh_dataset
+        elif isinstance(config.mesh_dataset, MeshDataset):
+            statistics_mesh_dataset = config.mesh_dataset
         else:
-            mesh_dataset = config.mesh_dataset[0]
+            statistics_mesh_dataset = config.mesh_dataset[0]
         statistics = get_dataset_stats(
-            mesh_dataset, "volume", _compute_object_volume_idx
+            statistics_mesh_dataset, "volume", _compute_object_volume_idx
         )
         self.__mean_volume = statistics["volume"]["mean"]
         self.__std_volume = statistics["volume"]["std"]

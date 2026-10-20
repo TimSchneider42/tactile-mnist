@@ -221,6 +221,7 @@ def mk_real_snap_config(
     args: Iterable[Any],
     default_config: dict[str, Any],
     config: dict[str, Any] | None = None,
+    volume_statistics_mesh_split: str | None = None,
 ):
     dataset = load_dataset(f"TimSchneider42/tactile-mnist-{dataset_name}", split=split)
     merged_config = {**default_config, **({} if config is None else config)}
@@ -229,6 +230,16 @@ def mk_real_snap_config(
         merged_config["mesh_dataset"] = SimpleMeshDataset(
             load_dataset(
                 f"TimSchneider42/tactile-mnist-{mesh_dataset_name}", split=mesh_split
+            )
+        )
+    if (
+        volume_statistics_mesh_split is not None
+        and "volume_statistics_mesh_dataset" not in merged_config
+    ):
+        merged_config["volume_statistics_mesh_dataset"] = SimpleMeshDataset(
+            load_dataset(
+                f"TimSchneider42/tactile-mnist-{mesh_dataset_name}",
+                split=volume_statistics_mesh_split,
             )
         )
     return TactileRealSnapConfig(
@@ -293,6 +304,7 @@ def register_envs():
                             args,
                             default_config,
                             config,
+                            volume_statistics_mesh_split="train",
                         ),
                         **kwargs,
                     )
@@ -307,6 +319,7 @@ def register_envs():
                             args,
                             default_config,
                             config,
+                            volume_statistics_mesh_split="train",
                         ),
                         **kwargs,
                     ),
