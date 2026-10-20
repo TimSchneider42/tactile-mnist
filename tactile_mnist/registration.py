@@ -360,14 +360,7 @@ def register_envs():
                         real_base_depth_dataset=REAL_BASE_DEPTH_DATASET,
                     )
 
-                for (
-                    env_name,
-                    ds_name,
-                    smallest_dim_up,
-                    allow_sensor_rotation,
-                    step_limit,
-                    real_base_depth_dataset,
-                ) in [
+                volume_and_shape_envs = [
                     (
                         "TactileMNIST",
                         "mnist3d",
@@ -376,8 +369,21 @@ def register_envs():
                         16,
                         REAL_BASE_DEPTH_DATASET,
                     ),
-                    ("ABC", "abc-dataset-small", True, True, 32, None),
-                ]:
+                ]
+                # The CycleGAN renderer was trained on real touches of the TactileMNIST objects only, so the other
+                # object families get no CycleGAN variants
+                if sensor_type != "cycle_gan":
+                    volume_and_shape_envs.append(
+                        ("ABC", "abc-dataset-small", True, True, 32, None)
+                    )
+                for (
+                    env_name,
+                    ds_name,
+                    smallest_dim_up,
+                    allow_sensor_rotation,
+                    step_limit,
+                    real_base_depth_dataset,
+                ) in volume_and_shape_envs:
                     # Snap variants are only registered for the TactileMNIST environments
                     snap_variants = [("", None)]
                     if env_name == "TactileMNIST":
