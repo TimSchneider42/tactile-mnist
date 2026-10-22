@@ -13,6 +13,7 @@ from .minecraft_dataset import load_minecraft_item_mesh_dataset
 from .mesh_dataset import MeshDataset
 from .sensor_noise import SensorNoiseConfig
 from .simple_mesh_dataset import SimpleMeshDataset
+from .primitive_shapes_dataset import PrimitiveShapesMeshDataset
 from .starstruck_dataset import StarstruckMeshDataset
 from .tactile_classification_env import (
     TactileClassificationEnv,
@@ -570,6 +571,87 @@ def register_envs():
                     perturb_object_pose=False,
                     step_limit=32,
                     renderer_show_class_weights=True,
+                    sensor_type=sensor_type,
+                ),
+            ),
+        )
+
+    # PrimitiveShapes: procedurally generated cylinders, cuboids, triangular prisms and half cylinders, explored in 3D
+    # like the ABC objects (sensor rotation enabled); the objects rest in their canonical orientation. Generated
+    # procedurally (see PrimitiveShapesMeshDataset), so there is no test split.
+    primitive_shapes_config = dict(
+        sensor_output_size=(64, 64),
+        allow_sensor_rotation=True,
+        step_limit=32,
+        cell_size=CELL_SIZE,
+    )
+    for sensor_type_name, sensor_type in [
+        ("", "taxim"),
+        ("-Depth", "depth"),
+    ]:
+        register_with_dr_variant(
+            f"PrimitiveShapes{sensor_type_name}",
+            entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveClassificationLogWrapper(
+                TactileClassificationEnv(
+                    mk_config(
+                        lambda _: PrimitiveShapesMeshDataset(),
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                    ),
+                    **kwargs,
+                )
+            ),
+            vector_entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
+                TactileClassificationVectorEnv(
+                    mk_config(
+                        lambda _: PrimitiveShapesMeshDataset(),
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                    ),
+                    **kwargs,
+                ),
+            ),
+            kwargs=dict(
+                default_config=dict(
+                    **primitive_shapes_config,
+                    renderer_show_class_weights=True,
+                    sensor_type=sensor_type,
+                ),
+            ),
+        )
+        register_with_dr_variant(
+            f"PrimitiveShapesVolume{sensor_type_name}",
+            entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionLogWrapper(
+                TactileVolumeEstimationEnv(
+                    mk_config(
+                        lambda _: PrimitiveShapesMeshDataset(),
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                    ),
+                    **kwargs,
+                )
+            ),
+            vector_entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
+                TactileVolumeEstimationVectorEnv(
+                    mk_config(
+                        lambda _: PrimitiveShapesMeshDataset(),
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                    ),
+                    **kwargs,
+                ),
+            ),
+            kwargs=dict(
+                default_config=dict(
+                    **primitive_shapes_config,
                     sensor_type=sensor_type,
                 ),
             ),
