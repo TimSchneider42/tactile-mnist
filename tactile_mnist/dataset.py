@@ -22,9 +22,22 @@ class Dataset(Sequence[DataPointType], Generic[DataPointType, SelfType], ABC):
         cache_size: int | Literal["full"] = 0,
     ):
         self.__cache_size = cache_size
-        if cache_size == "full":
-            cache_size = None
-        self.__cached_get_item_func = lru_cache(cache_size)(self._get_item)
+        self.__init_item_cache()
+
+    def __init_item_cache(self):
+        self.__cached_get_item_func = lru_cache(
+            None if self.__cache_size == "full" else self.__cache_size
+        )(self._get_item)
+
+    def __getstate__(self) -> dict:
+        # The item cache cannot be pickled (e.g. to send the dataset to a worker process) and is rebuilt empty instead
+        state = self.__dict__.copy()
+        del state["_Dataset__cached_get_item_func"]
+        return state
+
+    def __setstate__(self, state: dict):
+        self.__dict__.update(state)
+        self.__init_item_cache()
 
     @abstractmethod
     def _get_item(self, index: int) -> DataPointType:

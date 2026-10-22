@@ -13,6 +13,7 @@ from a generator seeded with SeedSequence(seed, spawn_key=(0, i)), so no scene d
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from typing import Iterable
@@ -265,3 +266,16 @@ class StarstruckMeshDataset(
     @property
     def seed(self) -> int:
         return self.__seed
+
+    @classmethod
+    def _cache_key_prefix(cls) -> str:
+        return "starstruck"
+
+    def _cache_key_body(self) -> str:
+        key = f"seed{self.__seed}_size{self.__size}"
+        if self.__indices is not None:
+            indices_hash = hashlib.sha256(
+                np.asarray(self.__indices, dtype=np.int64).tobytes()
+            ).hexdigest()[:16]
+            key += f"_select{indices_hash}"
+        return key

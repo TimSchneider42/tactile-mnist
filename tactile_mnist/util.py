@@ -13,7 +13,7 @@ import threadpoolctl
 import tqdm
 from transformation import Transformation
 
-from tactile_mnist import CACHE_BASE_DIR, HuggingfaceMeshDataset
+from tactile_mnist import CACHE_BASE_DIR, MeshDataset
 
 logger = logging.getLogger(__name__)
 
@@ -84,18 +84,18 @@ class OverridableStaticField(Generic[InstanceType, StaticType, DynamicType]):
         return self._dynamic_value_fn(instance)
 
 
-def get_cache_hash(ds_fingerprint: str, kwargs: dict[str, Any] | None = None) -> str:
+def get_cache_hash(dataset_key: str, kwargs: dict[str, Any] | None = None) -> str:
     if kwargs is None:
         kwargs = {}
     kwargs_signature_tuple = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
     kwargs_signature_string = hashlib.sha256(
         pickle.dumps(kwargs_signature_tuple)
     ).hexdigest()[:16]
-    return f"{ds_fingerprint}_{kwargs_signature_string}"
+    return f"{dataset_key}_{kwargs_signature_string}"
 
 
 def cached_arrays(
-    dataset: HuggingfaceMeshDataset,
+    dataset: MeshDataset,
     cache_name: str,
     kwargs: dict[str, Any],
     compute_fn: Callable[[], dict[str, np.ndarray]],
@@ -104,15 +104,15 @@ def cached_arrays(
     Load a dict of arrays derived from a dataset from the npz cache, or compute and cache it.
 
     :param cache_name: Name of the cache directory (below CACHE_BASE_DIR).
-    :param kwargs: All parameters that determine the content besides the dataset; together with the fingerprint of the
-        dataset, they form the cache key.
+    :param kwargs: All parameters that determine the content besides the dataset; together with the cache key of the
+        dataset (MeshDataset.cache_key), they form the key of the cache file.
     :param compute_fn: Computes the arrays if they are not cached yet.
     """
     cache_dir = CACHE_BASE_DIR / cache_name
     cache_dir.mkdir(parents=True, exist_ok=True)
-    ds_fingerprint = dataset.huggingface_dataset._fingerprint
-    cache_file = cache_dir / f"{get_cache_hash(ds_fingerprint, kwargs)}.npz"
-    with filelock.FileLock(cache_dir / f"{ds_fingerprint}.lock"):
+    dataset_key = dataset.cache_key
+    cache_file = cache_dir / f"{get_cache_hash(dataset_key, kwargs)}.npz"
+    with filelock.FileLock(cache_dir / f"{dataset_key}.lock"):
         if cache_file.exists():
             try:
                 with np.load(cache_file) as f:
@@ -131,19 +131,16 @@ def cached_arrays(
 
 
 def get_dataset_stats(
-    dataset: HuggingfaceMeshDataset,
+    dataset: MeshDataset,
     stats_name: str,
-    extraction_fn: Callable[
-        [int, HuggingfaceMeshDataset, ...], dict[str, float | np.ndarray]
-    ],
+    extraction_fn: Callable[[int, MeshDataset, ...], dict[str, float | np.ndarray]],
     kwargs: dict[str, Any] | None = None,
 ) -> dict[str, np.ndarray]:
     """
     Extract per-object values from every object of a dataset in parallel worker processes and cache them (see
     cached_arrays).
 
-    :param extraction_fn: Called with the index of an object, ds=<the underlying Huggingface dataset> and the given
-        kwargs. Returns a dict of values (floats or arrays), with the same keys and shapes for every object. Must be
+    :param extraction_fn: Called with the index of an object, ds=<the dataset> and the given kwargs. Returns a dict of values (floats or arrays), with the same keys and shapes for every object. Must be
         picklable (i.e. defined at module level), as the workers are spawned.
     :return: Dict with the same keys, mapping to arrays whose leading dimension indexes the objects of the dataset
         (in dataset order).
@@ -164,9 +161,7 @@ def get_dataset_stats(
             values = list(
                 tqdm.tqdm(
                     pool.imap(
-                        partial(
-                            extraction_fn, ds=dataset.huggingface_dataset, **kwargs
-                        ),
+                        partial(extraction_fn, ds=dataset, **kwargs),
                         range(len(dataset)),
                     ),
                     total=len(dataset),

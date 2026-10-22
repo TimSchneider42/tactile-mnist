@@ -22,7 +22,6 @@ from ap_gym import (
 )
 from ap_gym.util import update_info_metrics_vec
 from .mesh_dataset import MeshDataPoint, MeshDataset
-from .simple_mesh_dataset import SimpleMeshDataset
 from .util import get_dataset_stats
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
@@ -47,7 +46,6 @@ def _compute_object_pose_distribution_stats(
     predict_rotation: bool,
     object_placement_margin: float,
 ) -> dict[str, float]:
-    ds = SimpleMeshDataset(ds)
     dp = TactilePerceptionVectorEnv._pre_process_dp(
         ds[idx], smallest_dimension_up=smallest_dimension_up
     )

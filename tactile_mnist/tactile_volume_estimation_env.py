@@ -19,7 +19,6 @@ from ap_gym import (
 )
 from ap_gym.util import update_info_metrics_vec
 from .mesh_dataset import MeshDataPoint, MeshDataset
-from .simple_mesh_dataset import SimpleMeshDataset
 from .tactile_perception_vector_env import (
     TactilePerceptionVectorEnv,
     TactilePerceptionConfig,
@@ -38,7 +37,7 @@ DEFAULT_HUBER_DELTA = 1.0
 
 
 def _compute_object_volume_idx(idx: int, ds: MeshDataset):
-    return {"volume": SimpleMeshDataset(ds)[idx].volume}
+    return {"volume": ds[idx].volume}
 
 
 def get_object_volumes(dataset: MeshDataset) -> np.ndarray:

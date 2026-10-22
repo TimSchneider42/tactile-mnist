@@ -5,14 +5,14 @@ import pytest
 from datasets import load_dataset
 
 import tactile_mnist.util as util
-from tactile_mnist import SimpleMeshDataset
+from tactile_mnist import SimpleMeshDataset, StarstruckMeshDataset
 from tactile_mnist.util import get_dataset_stats
 
 NUM_OBJECTS = 8
 
 
 def _extract(idx: int, ds, scale: float):
-    mesh = SimpleMeshDataset(ds)[idx].mesh
+    mesh = ds[idx].mesh
     return {"volume": scale * mesh.volume, "extents": np.asarray(mesh.extents)}
 
 
@@ -45,3 +45,38 @@ def test_cache_roundtrip(dataset, tmp_path):
     # Different kwargs get their own cache entry
     get_dataset_stats(dataset, "test", _extract, kwargs=dict(scale=3.0))
     assert len(list((tmp_path / "test").glob("*.npz"))) == 2
+
+
+def _extract_volume(idx: int, ds):
+    return {"volume": ds[idx].volume}
+
+
+def test_procedural_dataset_is_cached_under_its_own_key(tmp_path, monkeypatch):
+    monkeypatch.setattr(util, "CACHE_BASE_DIR", tmp_path)
+    dataset = StarstruckMeshDataset(size=NUM_OBJECTS)
+    stats = get_dataset_stats(dataset, "test", _extract_volume)
+    np.testing.assert_allclose(
+        stats["volume"], [dataset[i].mesh.volume for i in range(NUM_OBJECTS)]
+    )
+    (cache_file,) = (tmp_path / "test").glob("*.npz")
+    assert cache_file.name.startswith(f"{dataset.cache_key}_")
+
+
+def test_cache_keys_identify_the_content(dataset):
+    assert dataset.cache_key.startswith("simple_")
+    assert dataset[:4].cache_key != dataset.cache_key
+    starstruck = StarstruckMeshDataset(size=NUM_OBJECTS)
+    assert starstruck.cache_key == StarstruckMeshDataset(size=NUM_OBJECTS).cache_key
+    assert starstruck.cache_key.startswith("starstruck_")
+    assert (
+        len(
+            {
+                starstruck.cache_key,
+                StarstruckMeshDataset(size=NUM_OBJECTS, seed=1).cache_key,
+                StarstruckMeshDataset(size=NUM_OBJECTS + 1).cache_key,
+                starstruck[:4].cache_key,
+                starstruck[[0, 2]].cache_key,
+            }
+        )
+        == 5
+    )

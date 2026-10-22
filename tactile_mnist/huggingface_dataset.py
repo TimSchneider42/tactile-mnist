@@ -139,9 +139,21 @@ class HuggingfaceDataset(
     ):
         super().__init__(cache_size=cache_size)
         self.__huggingface_dataset = huggingface_dataset
+        self.__init_columns_cache()
+
+    def __init_columns_cache(self):
         self.__get_columns_fn_cached = lru_cache(maxsize=None)(
             self.__huggingface_dataset.select_columns
         )
+
+    def __getstate__(self) -> dict:
+        state = super().__getstate__()
+        del state["_HuggingfaceDataset__get_columns_fn_cached"]
+        return state
+
+    def __setstate__(self, state: dict):
+        super().__setstate__(state)
+        self.__init_columns_cache()
 
     def __iter__(self) -> Iterable[DataPointType]:
         if isinstance(self.__huggingface_dataset, datasets.Dataset):

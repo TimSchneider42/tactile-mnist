@@ -188,3 +188,7 @@ class ObjaverseXLMeshDataset(
 
     def _get_data_point_type(self) -> type[DataPointType]:
         return ObjaverseXLMeshDataPoint
+
+    @classmethod
+    def _cache_key_prefix(cls) -> str:
+        return "objaverse-xl"

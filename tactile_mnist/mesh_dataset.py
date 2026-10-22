@@ -39,6 +39,26 @@ class MeshDataset(
     def label_names(self) -> tuple[str, ...]:
         pass
 
+    @property
+    def cache_key(self) -> str:
+        """
+        Identifies the content of the dataset (its data points, in order) in the caches of values derived from it
+        (see util.cached_arrays). Composed of the prefix of the dataset type and a key unique among the datasets of
+        that type, so that datasets of different types never collide.
+        """
+        return f"{self._cache_key_prefix()}_{self._cache_key_body()}"
+
+    @classmethod
+    @abstractmethod
+    def _cache_key_prefix(cls) -> str:
+        """Prefix of the cache keys of this type of dataset."""
+        pass
+
+    @abstractmethod
+    def _cache_key_body(self) -> str:
+        """Key of the content of this dataset, unique among the datasets of its type."""
+        pass
+
 
 class HuggingfaceMeshDataPoint(HuggingfaceDatapoint, MeshDataPoint):
     id: int | str
@@ -60,4 +80,5 @@ class HuggingfaceMeshDataset(
 ):
     """Mesh dataset backed by a Huggingface dataset with (at least) an id, a label, and a mesh column."""
 
-    pass
+    def _cache_key_body(self) -> str:
+        return self.huggingface_dataset._fingerprint
