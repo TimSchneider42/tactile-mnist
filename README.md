@@ -80,7 +80,7 @@
 </table>
 
 Tactile MNIST is a benchmark for learning-based active perception algorithms.
-It introduces eleven simulated tactile perception tasks, ranging from classification and counting to pose, center of mass, and volume estimation.
+It introduces thirteen simulated tactile perception tasks, ranging from classification and counting to pose, center of mass, volume, and shape estimation.
 Each task comes with a unique set of challenges and, thus, Tactile MNIST requires adaptive algorithms and clever exploration strategies.
 The aim of Tactile MNIST is to provide an extensible framework for a fair comparison of active tactile perception methods.
 
@@ -109,14 +109,14 @@ If you encounter problems during the installation or execution, check our [troub
 
 ## Contents
 
-This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for eleven simulated [active tactile perception benchmark tasks](#simulated-active-tactile-perception-benchmark) and access to the [Tactile MNIST datasets](#datasets).
+This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for thirteen simulated [active tactile perception benchmark tasks](#simulated-active-tactile-perception-benchmark) and access to the [Tactile MNIST datasets](#datasets).
 The ap_gym environments can be used to train and evaluate agents on active tactile perception problems on simulated data and are further described in the [Benchmark section](#simulated-active-tactile-perception-benchmark).
 In the Tactile MNIST datasets, you find datasets of 3D CAD models (_MNIST 3D_, the procedurally generated _Starstruck_ and _PrimitiveGeometries_, and _ABC_) and several datasets of simulated and real tactile images.
 This package provides an easy way of loading and working with these datasets, as further described in the [Datasets section](#datasets).
 
 ## Simulated Active Tactile Perception Benchmark
 
-This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for eleven active tactile perception environments: [TactileMNIST](docs/TactileMNIST.md), [Starstruck](docs/Starstruck.md), [Minecraft](docs/Minecraft.md), [PrimitiveGeometries](docs/PrimitiveGeometries.md), [Toolbox](docs/Toolbox.md), [MinecraftPose](docs/MinecraftPose.md), [TactileMNISTCenterOfMass](docs/TactileMNISTCenterOfMass.md), [ABCCenterOfMass](docs/ABCCenterOfMass.md), [TactileMNISTVolume](docs/TactileMNISTVolume.md), [ABCVolume](docs/ABCVolume.md), [PrimitiveGeometriesVolume](docs/PrimitiveGeometriesVolume.md), [TactileMNISTShape](docs/TactileMNISTShape.md), and [ABCShape](docs/ABCShape.md).
+This package provides [ap_gym](https://github.com/TimSchneider42/active-perception-gym) environments for thirteen active tactile perception environments: [TactileMNIST](docs/TactileMNIST.md), [Starstruck](docs/Starstruck.md), [Minecraft](docs/Minecraft.md), [PrimitiveGeometries](docs/PrimitiveGeometries.md), [Toolbox](docs/Toolbox.md), [MinecraftPose](docs/MinecraftPose.md), [TactileMNISTCenterOfMass](docs/TactileMNISTCenterOfMass.md), [ABCCenterOfMass](docs/ABCCenterOfMass.md), [TactileMNISTVolume](docs/TactileMNISTVolume.md), [ABCVolume](docs/ABCVolume.md), [PrimitiveGeometriesVolume](docs/PrimitiveGeometriesVolume.md), [TactileMNISTShape](docs/TactileMNISTShape.md), and [ABCShape](docs/ABCShape.md).
 In all environments, the agent must solve a perception problem by actively controlling a [GelSight Mini](https://www.gelsight.com/gelsightmini/) tactile sensor in a simulated environment.
 
 The _TactileMNIST_ environment challenges the agent to find and classify a [3D MNIST](docs/datasets.md#mnist-3d) model as quickly as possible.
