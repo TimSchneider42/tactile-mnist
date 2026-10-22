@@ -121,7 +121,6 @@ from scipy.spatial.transform import Rotation
 from cod_vae import CODVAEBase
 from cod_vae.training.preprocess import sample_occupancy_pools
 from .mesh_dataset import MeshDataset
-from .simple_mesh_dataset import SimpleMeshDataset
 from .util import get_dataset_stats
 
 try:
@@ -154,7 +153,7 @@ def _volume_database(seed: int, size: int) -> np.ndarray:
 
 def _compute_mesh_pool(
     mesh_index: int,
-    ds,
+    ds: MeshDataset,
     object_scale: float,
     vol_database_size: int,
     vol_pool_size: int,
@@ -170,7 +169,7 @@ def _compute_mesh_pool(
     cube = (original - shifts) * scale). Any environment-side mesh pre-processing
     must be composed into the loss targets' pose instead.
     """
-    dp = SimpleMeshDataset(ds)[mesh_index]
+    dp = ds[mesh_index]
     rng = np.random.default_rng([seed, 1, mesh_index])
     database = _volume_database(seed, vol_database_size)
     vol_start = int(rng.integers(0, vol_database_size - vol_pool_size + 1))
