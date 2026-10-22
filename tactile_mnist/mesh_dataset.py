@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Protocol
+from typing import TypeVar, Generic
 
 from trimesh import Trimesh
 
@@ -9,12 +9,20 @@ from .dataset import Dataset
 from .huggingface_dataset import HuggingfaceDataset, HuggingfaceDatapoint
 
 
-class MeshDataPoint(Protocol):
-    """Interface of the data points of a MeshDataset: an id, a class label, and a (lazily loaded) mesh."""
+class MeshDataPoint:
+    """
+    Base class of the data points of a MeshDataset: an id, a class label, and a (lazily loaded) mesh. Subclasses
+    provide the three attributes in whatever way suits them (dataclass fields, Huggingface columns, properties).
+    """
 
     id: int | str
     label: int
     mesh: Trimesh
+
+    @property
+    def volume(self) -> float:
+        """Volume of the mesh (in m^3). Subclasses that know the volume without the mesh may override this."""
+        return self.mesh.volume
 
 
 DatapointType = TypeVar("DatapointType", bound=MeshDataPoint)
@@ -32,7 +40,7 @@ class MeshDataset(
         pass
 
 
-class HuggingfaceMeshDataPoint(HuggingfaceDatapoint):
+class HuggingfaceMeshDataPoint(HuggingfaceDatapoint, MeshDataPoint):
     id: int | str
     label: int
     mesh: Trimesh

@@ -7,6 +7,7 @@ os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
 import numpy as np
 import pytest
 import trimesh
+from scipy.spatial.transform import Rotation
 
 import tactile_mnist.starstruck_dataset as starstruck_dataset
 from tactile_mnist import (
@@ -30,6 +31,7 @@ from tactile_mnist.starstruck_dataset import (
     VALID_CELL_SIZE,
     make_star_mesh,
 )
+from tactile_mnist.tactile_perception_vector_env import TransformedDataPoint
 
 NUM_CHECKED_SCENES = 50
 
@@ -212,3 +214,27 @@ def test_env_generates_every_scene_once(generation_counter):
         assert generation_counter["calls"] == expected + num_envs
     finally:
         env.close()
+
+
+def test_volume_matches_the_scene_mesh():
+    dataset = StarstruckMeshDataset("train", size=20)
+    for dp in dataset:
+        assert dp.volume == pytest.approx(dp.mesh.volume, rel=1e-9)
+
+
+def test_volume_does_not_lay_out_the_scene():
+    dp = StarstruckMeshDataset("train", size=1)[0]
+    dp.volume
+    assert "mesh" not in vars(dp)
+
+
+def test_transformed_data_point_forwards_the_volume():
+    dp = StarstruckMeshDataset("train", size=1)[0]
+    rotation = Rotation.from_euler("x", 90, degrees=True)
+    mesh = dp.mesh.copy()
+    mesh.apply_transform(
+        np.block([[rotation.as_matrix(), np.zeros((3, 1))], [np.zeros((1, 3)), 1]])
+    )
+    transformed = TransformedDataPoint(dp, mesh)
+    assert transformed.volume == dp.volume
+    assert transformed.volume == pytest.approx(mesh.volume, rel=1e-9)

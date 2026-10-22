@@ -23,7 +23,7 @@ from transformation import Transformation
 from trimesh import Trimesh
 
 from .constants import CELL_SIZE, CELL_PADDING
-from .mesh_dataset import MeshDataset
+from .mesh_dataset import MeshDataPoint, MeshDataset
 
 # Object geometry of the static version of the Starstruck dataset (in meters)
 STAR_RADIUS_OUTER = 0.01
@@ -103,6 +103,19 @@ def _base_objects() -> tuple[Trimesh, tuple[Trimesh, ...]]:
     return star, (box, cylinder)
 
 
+@lru_cache(maxsize=1)
+def _base_object_volumes() -> tuple[float, tuple[float, ...]]:
+    star, distractors = _base_objects()
+    return star.volume, tuple(d.volume for d in distractors)
+
+
+def _draw_distractor_indices(
+    rng: np.random.Generator, distractor_count: int
+) -> np.ndarray:
+    # The first draw from the scene generator, so that the volume of a scene can be computed without laying it out
+    return rng.choice(len(_base_objects()[1]), distractor_count, replace=True)
+
+
 def generate_starstruck_scene(
     seed: int, star_count: int, distractor_count: int
 ) -> Trimesh:
@@ -116,7 +129,7 @@ def generate_starstruck_scene(
     """
     star, distractors = _base_objects()
     rng = np.random.default_rng(seed)
-    distractor_indices = rng.choice(len(distractors), distractor_count, replace=True)
+    distractor_indices = _draw_distractor_indices(rng, distractor_count)
     objects_to_place = [star] * star_count + [
         distractors[i] for i in distractor_indices
     ]
@@ -148,7 +161,7 @@ def generate_starstruck_scene(
 
 
 @dataclass
-class StarstruckMeshDataPoint:
+class StarstruckMeshDataPoint(MeshDataPoint):
     id: int
     label: int
     seed: int
@@ -162,6 +175,18 @@ class StarstruckMeshDataPoint:
     def mesh(self) -> Trimesh:
         return generate_starstruck_scene(
             self.seed, self.star_count, self.distractor_count
+        )
+
+    @property
+    def volume(self) -> float:
+        # The objects are placed by rigid transformations, which preserve their volumes, and the volume of the
+        # concatenated scene mesh is the sum of the volumes of its parts
+        star_volume, distractor_volumes = _base_object_volumes()
+        distractor_indices = _draw_distractor_indices(
+            np.random.default_rng(self.seed), self.distractor_count
+        )
+        return self.star_count * star_volume + sum(
+            distractor_volumes[i] for i in distractor_indices
         )
 
 

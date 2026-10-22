@@ -10,7 +10,6 @@ from typing import (
     TYPE_CHECKING,
     Generic,
     TypeVar,
-    Protocol,
 )
 
 import gymnasium as gym
@@ -118,14 +117,8 @@ class TactilePerceptionConfig:
     snap_touch_positions: int | None = None
 
 
-class GenericMeshDataPoint(Protocol):
-    id: int | str
-    label: int
-    mesh: trimesh.Trimesh
-
-
 @dataclass(frozen=True)
-class TransformedDataPoint:
+class TransformedDataPoint(MeshDataPoint):
     original_dp: MeshDataPoint
     mesh: trimesh.Trimesh
 
@@ -136,6 +129,11 @@ class TransformedDataPoint:
     @property
     def label(self):
         return self.original_dp.label
+
+    @property
+    def volume(self) -> float:
+        # A rotation preserves the volume, and the original data point may know it without computing the mesh
+        return self.original_dp.volume
 
 
 class TactilePerceptionVectorEnv(
@@ -188,7 +186,7 @@ class TactilePerceptionVectorEnv(
             PrefetchedDataset(ds, load_fn=lambda dp: dp.mesh).open() for ds in datasets
         ]
         self.__prefetched_data_point_indices: list[int | None] = [None] * num_envs
-        self.__current_data_points: tuple[GenericMeshDataPoint] | None = None
+        self.__current_data_points: tuple[MeshDataPoint] | None = None
         self.__current_data_point_indices: np.ndarray | None = None
         raw_sensor = mk_tactile_renderer(
             renderer_type=self.__config.sensor_type,
@@ -283,7 +281,7 @@ class TactilePerceptionVectorEnv(
         mm_per_pixel = tuple(
             GELSIGHT_MINI_SENSOR_SURFACE_SIZE / np.array(depth_map_size) * 1000
         )
-        self.__renderer: TactilePerceptionRenderer[GenericMeshDataPoint] = (
+        self.__renderer: TactilePerceptionRenderer[MeshDataPoint] = (
             TactilePerceptionRenderer(
                 self.num_envs,
                 # The external view re-renders its tactile image at display resolution, without sensor noise
@@ -361,8 +359,8 @@ class TactilePerceptionVectorEnv(
 
     @staticmethod
     def _pre_process_dp(
-        dp: GenericMeshDataPoint, smallest_dimension_up: bool = False
-    ) -> GenericMeshDataPoint:
+        dp: MeshDataPoint, smallest_dimension_up: bool = False
+    ) -> MeshDataPoint:
         if smallest_dimension_up:
             bb_oriented: trimesh.primitives.Box = dp.mesh.bounding_box_oriented
             bb_rotation: Rotation = Rotation.from_matrix(bb_oriented.transform[:3, :3])
@@ -396,7 +394,7 @@ class TactilePerceptionVectorEnv(
 
     @staticmethod
     def _get_random_object_pose_batch(
-        dp: GenericMeshDataPoint,
+        dp: MeshDataPoint,
         randomize_initial_pose: bool,
         max_initial_angle_perturbation: float,
         cell_size: tuple[float, float],
@@ -904,7 +902,7 @@ class TactilePerceptionVectorEnv(
         return self.__sensor_pos_limits
 
     @property
-    def current_data_points(self) -> tuple[GenericMeshDataPoint]:
+    def current_data_points(self) -> tuple[MeshDataPoint]:
         return self.__current_data_points
 
     @property
