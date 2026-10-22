@@ -43,7 +43,7 @@ from .mesh_dataset import MeshDataPoint, MeshDataset
 from .tactile_perception_renderer import TactilePerceptionRenderer
 from .tactile_renderer import TactileRenderer, mk_tactile_renderer
 from .touch_data import TouchSingle, TouchSingleDataset
-from .util import get_dataset_stats, int_binary_search_right, compute_touch_window_size
+from .util import int_binary_search_right, compute_touch_window_size
 
 logger = logging.getLogger(__file__)
 
@@ -725,7 +725,7 @@ class TactileRealSnapVolumeEstimationVectorEnv(
                 "prediction targets are computed from the object meshes."
             )
         # Avoid a circular import
-        from .tactile_volume_estimation_env import _compute_object_volume_idx
+        from .tactile_volume_estimation_env import get_volume_statistics
 
         if config.volume_statistics_mesh_dataset is not None:
             statistics_mesh_dataset = config.volume_statistics_mesh_dataset
@@ -733,13 +733,11 @@ class TactileRealSnapVolumeEstimationVectorEnv(
             statistics_mesh_dataset = config.mesh_dataset
         else:
             statistics_mesh_dataset = config.mesh_dataset[0]
-        statistics = get_dataset_stats(
-            statistics_mesh_dataset, "volume", _compute_object_volume_idx
-        )
-        self.__mean_volume = statistics["volume"]["mean"]
-        self.__std_volume = statistics["volume"]["std"]
-        self.__min_volume = statistics["volume"]["min"]
-        self.__max_volume = statistics["volume"]["max"]
+        statistics = get_volume_statistics(statistics_mesh_dataset)
+        self.__mean_volume = statistics["mean"]
+        self.__std_volume = statistics["std"]
+        self.__min_volume = statistics["min"]
+        self.__max_volume = statistics["max"]
 
         pred_space = gym.spaces.Box(
             self.__normalize_volume(self.__min_volume),
@@ -815,7 +813,7 @@ class TactileRealSnapVolumeEstimationVectorEnv(
 
     def __get_object_volumes(self) -> np.ndarray:
         return np.array(
-            [dp.mesh.volume for dp in self.current_mesh_data_points],
+            [dp.volume for dp in self.current_mesh_data_points],
             dtype=np.float32,
         )[..., None]
 

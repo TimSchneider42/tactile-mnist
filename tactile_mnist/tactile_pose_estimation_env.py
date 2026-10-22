@@ -180,10 +180,10 @@ class TactilePoseEstimationVectorEnv(
                 [
                     var,
                     [
-                        statistics["mean_trans_0"]["std"] ** 2
-                        + statistics["var_trans_0"]["mean"],
-                        statistics["mean_trans_1"]["std"] ** 2
-                        + statistics["var_trans_1"]["mean"],
+                        np.var(statistics["mean_trans_0"])
+                        + np.mean(statistics["var_trans_0"]),
+                        np.var(statistics["mean_trans_1"])
+                        + np.mean(statistics["var_trans_1"]),
                     ],
                 ]
             )
@@ -192,10 +192,10 @@ class TactilePoseEstimationVectorEnv(
                 [
                     var,
                     [
-                        statistics["mean_rot_0"]["std"] ** 2
-                        + statistics["var_rot_0"]["mean"],
-                        statistics["mean_rot_1"]["std"] ** 2
-                        + statistics["var_rot_1"]["mean"],
+                        np.var(statistics["mean_rot_0"])
+                        + np.mean(statistics["var_rot_0"]),
+                        np.var(statistics["mean_rot_1"])
+                        + np.mean(statistics["var_rot_1"]),
                     ],
                 ]
             )

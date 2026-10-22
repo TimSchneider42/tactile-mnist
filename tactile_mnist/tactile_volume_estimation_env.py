@@ -33,7 +33,22 @@ logger = logging.getLogger(__name__)
 
 
 def _compute_object_volume_idx(idx: int, ds: MeshDataset):
-    return {"volume": SimpleMeshDataset(ds)[idx].mesh.volume}
+    return {"volume": SimpleMeshDataset(ds)[idx].volume}
+
+
+def get_object_volumes(dataset: MeshDataset) -> np.ndarray:
+    """Volumes of all objects of the dataset (in dataset order), cached."""
+    return get_dataset_stats(dataset, "volume", _compute_object_volume_idx)["volume"]
+
+
+def get_volume_statistics(dataset: MeshDataset) -> dict[str, float]:
+    volumes = get_object_volumes(dataset)
+    return {
+        "mean": float(np.mean(volumes)),
+        "std": float(np.std(volumes)),
+        "min": float(np.min(volumes)),
+        "max": float(np.max(volumes)),
+    }
 
 
 class TactileVolumeEstimationVectorEnv(
@@ -50,13 +65,11 @@ class TactileVolumeEstimationVectorEnv(
             self.__compute_object_volume
         )
 
-        statistics = get_dataset_stats(
-            config.dataset, "volume", _compute_object_volume_idx
-        )
-        self.__mean_volume = statistics["volume"]["mean"]
-        self.__std_volume = statistics["volume"]["std"]
-        self.__min_volume = statistics["volume"]["min"]
-        self.__max_volume = statistics["volume"]["max"]
+        statistics = get_volume_statistics(config.dataset)
+        self.__mean_volume = statistics["mean"]
+        self.__std_volume = statistics["std"]
+        self.__min_volume = statistics["min"]
+        self.__max_volume = statistics["max"]
 
         pred_space = gym.spaces.Box(
             self.__normalize_volume(self.__min_volume),
@@ -123,7 +136,7 @@ class TactileVolumeEstimationVectorEnv(
 
     @staticmethod
     def __compute_object_volume(dp: MeshDataPoint) -> float:
-        return dp.mesh.volume
+        return dp.volume
 
     def __normalize_volume(self, volume: np.ndarray | float) -> np.ndarray | float:
         return (volume - self.__mean_volume) / self.__std_volume

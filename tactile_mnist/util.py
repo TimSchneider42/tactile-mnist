@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import multiprocessing
 import pickle
@@ -10,12 +9,24 @@ from typing import Sequence, Any, Callable, TypeVar, Generic, overload
 
 import filelock
 import numpy as np
+import threadpoolctl
 import tqdm
 from transformation import Transformation
 
 from tactile_mnist import CACHE_BASE_DIR, HuggingfaceMeshDataset
 
 logger = logging.getLogger(__name__)
+
+_worker_threadpool_limiter: threadpoolctl.threadpool_limits | None = None
+
+
+def _limit_worker_blas_threads():
+    # Limit each worker to a single BLAS thread, as the workers would otherwise spawn one BLAS thread per CPU core
+    # each, oversubscribing the CPU massively.
+    global _worker_threadpool_limiter
+    _worker_threadpool_limiter = threadpoolctl.threadpool_limits(
+        limits=1, user_api="blas"
+    )
 
 
 def transformation_where(
@@ -73,69 +84,97 @@ class OverridableStaticField(Generic[InstanceType, StaticType, DynamicType]):
         return self._dynamic_value_fn(instance)
 
 
-def get_dataset_stats(
-    dataset: HuggingfaceMeshDataset,
-    stats_name: str,
-    extraction_fn: Callable[[int, HuggingfaceMeshDataset, ...], dict[str, float]],
-    kwargs: dict[str, Any] | None = None,
-):
+def get_cache_hash(ds_fingerprint: str, kwargs: dict[str, Any] | None = None) -> str:
     if kwargs is None:
         kwargs = {}
     kwargs_signature_tuple = tuple((k, kwargs[k]) for k in sorted(kwargs.keys()))
     kwargs_signature_string = hashlib.sha256(
         pickle.dumps(kwargs_signature_tuple)
     ).hexdigest()[:16]
-    cache_dir = CACHE_BASE_DIR / stats_name
+    return f"{ds_fingerprint}_{kwargs_signature_string}"
+
+
+def cached_arrays(
+    dataset: HuggingfaceMeshDataset,
+    cache_name: str,
+    kwargs: dict[str, Any],
+    compute_fn: Callable[[], dict[str, np.ndarray]],
+) -> dict[str, np.ndarray]:
+    """
+    Load a dict of arrays derived from a dataset from the npz cache, or compute and cache it.
+
+    :param cache_name: Name of the cache directory (below CACHE_BASE_DIR).
+    :param kwargs: All parameters that determine the content besides the dataset; together with the fingerprint of the
+        dataset, they form the cache key.
+    :param compute_fn: Computes the arrays if they are not cached yet.
+    """
+    cache_dir = CACHE_BASE_DIR / cache_name
     cache_dir.mkdir(parents=True, exist_ok=True)
     ds_fingerprint = dataset.huggingface_dataset._fingerprint
-    cache_file = cache_dir / f"{ds_fingerprint}_{kwargs_signature_string}.json"
+    cache_file = cache_dir / f"{get_cache_hash(ds_fingerprint, kwargs)}.npz"
     with filelock.FileLock(cache_dir / f"{ds_fingerprint}.lock"):
         if cache_file.exists():
             try:
-                with cache_file.open() as f:
-                    return json.load(f)
+                with np.load(cache_file) as f:
+                    return dict(f)
             except Exception as ex:
                 logger.warning(
-                    f"Loading {stats_name} statistics from cache failed with the following exception: {ex}"
+                    f"Loading {cache_name} from cache failed with the following exception: {ex}"
                 )
-        print(f"Computing {stats_name} statistics (the results will be cached)...")
-        with multiprocessing.pool.Pool(
-            processes=min(multiprocessing.cpu_count(), 8)
+        print(f"Computing {cache_name} (the results will be cached)...")
+        arrays = compute_fn()
+        # Write to a temporary file first so that an interrupted write does not leave a corrupt cache file behind
+        tmp_file = cache_file.with_suffix(".tmp.npz")
+        np.savez(tmp_file, **arrays)
+        tmp_file.replace(cache_file)
+        return arrays
+
+
+def get_dataset_stats(
+    dataset: HuggingfaceMeshDataset,
+    stats_name: str,
+    extraction_fn: Callable[
+        [int, HuggingfaceMeshDataset, ...], dict[str, float | np.ndarray]
+    ],
+    kwargs: dict[str, Any] | None = None,
+) -> dict[str, np.ndarray]:
+    """
+    Extract per-object values from every object of a dataset in parallel worker processes and cache them (see
+    cached_arrays).
+
+    :param extraction_fn: Called with the index of an object, ds=<the underlying Huggingface dataset> and the given
+        kwargs. Returns a dict of values (floats or arrays), with the same keys and shapes for every object. Must be
+        picklable (i.e. defined at module level), as the workers are spawned.
+    :return: Dict with the same keys, mapping to arrays whose leading dimension indexes the objects of the dataset
+        (in dataset order).
+    """
+    if kwargs is None:
+        kwargs = {}
+    if len(dataset) == 0:
+        raise ValueError("Cannot compute statistics on empty dataset.")
+
+    def compute():
+        # Spawned (not forked) workers: the parent typically has CUDA and JAX's thread pools initialized at this point,
+        # which forking can deadlock.
+        with multiprocessing.get_context("spawn").Pool(
+            processes=min(multiprocessing.cpu_count(), 8),
+            initializer=_limit_worker_blas_threads,
         ) as pool:
-            statistics = list(
+            # imap (not imap_unordered) keeps the dataset order
+            values = list(
                 tqdm.tqdm(
-                    pool.imap_unordered(
+                    pool.imap(
                         partial(
-                            extraction_fn,
-                            ds=dataset.huggingface_dataset,
-                            **kwargs,
+                            extraction_fn, ds=dataset.huggingface_dataset, **kwargs
                         ),
                         range(len(dataset)),
                     ),
                     total=len(dataset),
                 )
             )
+        return {k: np.stack([np.asarray(v[k]) for v in values]) for k in values[0]}
 
-        if len(statistics) == 0:
-            raise ValueError("Cannot compute statistics on empty dataset.")
-
-        def extract_stats(data: list[float]) -> dict[str, float]:
-            arr = np.asarray(data)
-            return {
-                "mean": np.mean(arr),
-                "std": np.std(arr),
-                "min": np.min(arr),
-                "max": np.max(arr),
-            }
-
-        statistics = {
-            k: extract_stats([s[k] for s in statistics]) for k in statistics[0]
-        }
-
-        with cache_file.open("w") as f:
-            json.dump(statistics, f)
-
-        return statistics
+    return cached_arrays(dataset, stats_name, kwargs, compute)
 
 
 def int_binary_search_right(
