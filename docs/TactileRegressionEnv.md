@@ -77,6 +77,8 @@ All tactile regression environments share the following properties:
 
 where $N \in \mathbb{N}$ is the number of dimensions of the predicted value.
 
+The volume estimation environments (`TactileMNISTVolume-v0`, `ABCVolume-v0`, and their variants) use a normalized Huber loss instead of the MSE, see [TactileMNISTVolume](TactileMNISTVolume.md#loss-function).
+
 ## Prediction Space
 
 The prediction is an $N$-element `np.ndarray` containing the current prediction of the agent.

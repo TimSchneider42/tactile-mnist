@@ -14,7 +14,8 @@ import numpy as np
 
 from ap_gym import (
     ActivePerceptionVectorToSingleWrapper,
-    MSELossFn,
+    HuberLossFn,
+    LossFn,
 )
 from ap_gym.util import update_info_metrics_vec
 from .mesh_dataset import MeshDataPoint, MeshDataset
@@ -30,6 +31,10 @@ if TYPE_CHECKING:
     from .tactile_perception_vector_env import ObsType
 
 logger = logging.getLogger(__name__)
+
+
+# Error (in standard deviations of the volume) beyond which the Huber loss of the volume prediction grows linearly
+DEFAULT_HUBER_DELTA = 1.0
 
 
 def _compute_object_volume_idx(idx: int, ds: MeshDataset):
@@ -51,6 +56,20 @@ def get_volume_statistics(dataset: MeshDataset) -> dict[str, float]:
     }
 
 
+def mk_volume_loss_fn(
+    statistics_dataset: MeshDataset, statistics: dict[str, float], delta: float
+) -> LossFn:
+    """
+    Huber loss of the standardized volume prediction, normalized such that the best blind guess on statistics_dataset
+    scores 1. The Huber loss bounds the gradient of every sample, which keeps the objects in the heavy right tail of the
+    volume distribution from dominating the loss.
+    """
+    targets = (
+        get_object_volumes(statistics_dataset) - statistics["mean"]
+    ) / statistics["std"]
+    return HuberLossFn.from_data(delta, targets).normalized
+
+
 class TactileVolumeEstimationVectorEnv(
     TactilePerceptionVectorEnv[np.ndarray, np.ndarray],
 ):
@@ -60,16 +79,28 @@ class TactileVolumeEstimationVectorEnv(
         num_envs: int,
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         renderer_show_shadow_objects: bool = True,
+        huber_delta: float = DEFAULT_HUBER_DELTA,
+        volume_statistics_dataset: MeshDataset | None = None,
     ):
+        """
+        :param huber_delta: Error (in standard deviations of the volume) beyond which the Huber loss of the volume
+            prediction grows linearly (see mk_volume_loss_fn).
+        :param volume_statistics_dataset: Dataset whose volume statistics standardize the prediction targets and
+            normalize the loss. Defaults to config.dataset. The registered evaluation splits pass the training split
+            here, so that a policy sees the same target scale in training and evaluation.
+        """
         self.__compute_object_volume_cached = functools.lru_cache(maxsize=num_envs)(
             self.__compute_object_volume
         )
 
-        statistics = get_volume_statistics(config.dataset)
+        if volume_statistics_dataset is None:
+            volume_statistics_dataset = config.dataset
+        statistics = get_volume_statistics(volume_statistics_dataset)
         self.__mean_volume = statistics["mean"]
         self.__std_volume = statistics["std"]
         self.__min_volume = statistics["min"]
         self.__max_volume = statistics["max"]
+        loss_fn = mk_volume_loss_fn(volume_statistics_dataset, statistics, huber_delta)
 
         pred_space = gym.spaces.Box(
             self.__normalize_volume(self.__min_volume),
@@ -82,7 +113,7 @@ class TactileVolumeEstimationVectorEnv(
             num_envs,
             single_prediction_space=pred_space,
             single_prediction_target_space=pred_space,
-            loss_fn=MSELossFn(target_std=1.0).normalized,
+            loss_fn=loss_fn,
             render_mode=render_mode,
         )
 
@@ -155,6 +186,8 @@ def TactileVolumeEstimationEnv(
     config: TactilePerceptionConfig,
     render_mode: Literal["rgb_array", "human"] = "rgb_array",
     renderer_show_shadow_objects: bool = True,
+    huber_delta: float = DEFAULT_HUBER_DELTA,
+    volume_statistics_dataset: MeshDataset | None = None,
 ) -> ActivePerceptionVectorToSingleWrapper["ObsType", ActType, np.ndarray, np.ndarray]:
     return ActivePerceptionVectorToSingleWrapper(
         TactileVolumeEstimationVectorEnv(
@@ -162,5 +195,7 @@ def TactileVolumeEstimationEnv(
             1,
             render_mode=render_mode,
             renderer_show_shadow_objects=renderer_show_shadow_objects,
+            huber_delta=huber_delta,
+            volume_statistics_dataset=volume_statistics_dataset,
         )
     )

@@ -21,7 +21,7 @@ in every step, the environment considers a window of the next prerecorded touche
 The selection always moves forward in the recorded data, and once no full window of touches remains, the episode is truncated.
 Refer to the [TactileMNISTRealSnap](TactileMNISTRealSnap.md) documentation for a detailed description of the touch selection scheme, the `TactileRealSnapConfig` class, and the rendering.
 
-The prediction target is the volume of the touched object, normalized by the statistics of the mesh dataset.
+The prediction target is the volume of the touched object, normalized by the statistics of the simulated MNIST 3D training objects, and the loss is the same normalized Huber loss as in [TactileMNISTVolume](TactileMNISTVolume.md#loss-function), so policies trained in simulation see the same target scale.
 The object volumes are computed from the `printed_train`/`printed_test` splits of [MNIST 3D](datasets.md#mnist-3d), which contain the models of the 3D printed digits used to collect the real touch data.
 Consequently, unlike in TactileMNISTRealSnap, the `mesh_dataset` config option is required in this environment.
 

@@ -249,6 +249,18 @@ def mk_real_snap_config(
     )
 
 
+def mk_volume_statistics_dataset(dataset_name: str, split: str) -> MeshDataset | None:
+    """
+    Dataset whose volume statistics standardize the targets of the volume estimation environments: the training split
+    for every split, so that the targets of the evaluation splits are on the scale a policy was trained on.
+    """
+    if split == "train":
+        return None
+    return SimpleMeshDataset(
+        load_dataset(f"TimSchneider42/tactile-mnist-{dataset_name}", split="train")
+    )
+
+
 def register_envs():
     for split in ["train", "test"]:
         suffixes = [f"-{split}"]
@@ -412,6 +424,9 @@ def register_envs():
                                     mk_config(
                                         _ds_name, _split, args, default_config, config
                                     ),
+                                    volume_statistics_dataset=mk_volume_statistics_dataset(
+                                        _ds_name, _split
+                                    ),
                                     **kwargs,
                                 )
                             ),
@@ -419,6 +434,9 @@ def register_envs():
                                 TactileVolumeEstimationVectorEnv(
                                     mk_config(
                                         _ds_name, _split, args, default_config, config
+                                    ),
+                                    volume_statistics_dataset=mk_volume_statistics_dataset(
+                                        _ds_name, _split
                                     ),
                                     **kwargs,
                                 ),

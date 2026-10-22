@@ -35,6 +35,12 @@ In case of the ABC Dataset, the normalization parameters are as follows:
 Note that when running the environment for the first time, computing these values from the training dataset might take some time.
 However, this is only done once and the values are cached for future runs.
 
+## Loss Function
+
+The loss (and hence the negative reward) is the Huber loss of the normalized volume (`ap_gym.HuberLossFn`) with $\delta = 1$: quadratic for errors up to one standard deviation and linear beyond, so the objects in the heavy right tail of the volume distribution do not dominate the loss.
+It is normalized such that the best blind guess, i.e. the constant prediction with the lowest expected loss on the training objects, scores 1.
+Under the Huber loss, this constant is not the mean volume but its Huber location estimate.
+
 ## Example Usage
 
 ```python

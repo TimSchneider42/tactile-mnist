@@ -24,7 +24,6 @@ from ap_gym import (
     CrossEntropyLossFn,
     ImageSpace,
     LogitSpace,
-    MSELossFn,
 )
 from ap_gym.types import PredType, PredTargetType
 from ap_gym.util import update_info_metrics_vec
@@ -718,14 +717,23 @@ class TactileRealSnapVolumeEstimationVectorEnv(
         num_envs: int,
         render_mode: Literal["rgb_array", "human"] = "rgb_array",
         renderer_show_shadow_objects: bool = True,
+        huber_delta: float | None = None,
     ):
+        """
+        :param huber_delta: Error (in standard deviations of the volume) beyond which the Huber loss of the volume
+            prediction grows linearly. Defaults to the one of the simulated environments.
+        """
         if config.mesh_dataset is None:
             raise ValueError(
                 "TactileRealSnapVolumeEstimationVectorEnv requires config.mesh_dataset to be set, as the "
                 "prediction targets are computed from the object meshes."
             )
         # Avoid a circular import
-        from .tactile_volume_estimation_env import get_volume_statistics
+        from .tactile_volume_estimation_env import (
+            DEFAULT_HUBER_DELTA,
+            get_volume_statistics,
+            mk_volume_loss_fn,
+        )
 
         if config.volume_statistics_mesh_dataset is not None:
             statistics_mesh_dataset = config.volume_statistics_mesh_dataset
@@ -750,7 +758,11 @@ class TactileRealSnapVolumeEstimationVectorEnv(
             num_envs,
             single_prediction_space=pred_space,
             single_prediction_target_space=pred_space,
-            loss_fn=MSELossFn(target_std=1.0).normalized,
+            loss_fn=mk_volume_loss_fn(
+                statistics_mesh_dataset,
+                statistics,
+                DEFAULT_HUBER_DELTA if huber_delta is None else huber_delta,
+            ),
             render_mode=render_mode,
         )
 
@@ -835,6 +847,7 @@ def TactileRealSnapVolumeEstimationEnv(
     config: TactileRealSnapConfig,
     render_mode: Literal["rgb_array", "human"] = "rgb_array",
     renderer_show_shadow_objects: bool = True,
+    huber_delta: float | None = None,
 ) -> ActivePerceptionVectorToSingleWrapper[ObsType, ActType, np.ndarray, np.ndarray]:
     return ActivePerceptionVectorToSingleWrapper(
         TactileRealSnapVolumeEstimationVectorEnv(
@@ -842,5 +855,6 @@ def TactileRealSnapVolumeEstimationEnv(
             1,
             render_mode=render_mode,
             renderer_show_shadow_objects=renderer_show_shadow_objects,
+            huber_delta=huber_delta,
         )
     )
