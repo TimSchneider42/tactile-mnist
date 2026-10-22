@@ -18,15 +18,22 @@ from tactile_mnist import CACHE_BASE_DIR, MeshDataset
 logger = logging.getLogger(__name__)
 
 _worker_threadpool_limiter: threadpoolctl.threadpool_limits | None = None
+_worker_extraction_fn: Callable[[int], dict[str, float | np.ndarray]] | None = None
 
 
-def _limit_worker_blas_threads():
+def _init_stats_worker(extraction_fn: Callable[[int], dict[str, float | np.ndarray]]):
     # Limit each worker to a single BLAS thread, as the workers would otherwise spawn one BLAS thread per CPU core
     # each, oversubscribing the CPU massively.
-    global _worker_threadpool_limiter
+    global _worker_threadpool_limiter, _worker_extraction_fn
     _worker_threadpool_limiter = threadpoolctl.threadpool_limits(
         limits=1, user_api="blas"
     )
+    # The extraction function (and with it the dataset) is sent to each worker once instead of with every task
+    _worker_extraction_fn = extraction_fn
+
+
+def _run_stats_worker(idx: int) -> dict[str, float | np.ndarray]:
+    return _worker_extraction_fn(idx)
 
 
 def transformation_where(
@@ -153,16 +160,20 @@ def get_dataset_stats(
     def compute():
         # Spawned (not forked) workers: the parent typically has CUDA and JAX's thread pools initialized at this point,
         # which forking can deadlock.
+        processes = min(multiprocessing.cpu_count(), 8)
         with multiprocessing.get_context("spawn").Pool(
-            processes=min(multiprocessing.cpu_count(), 8),
-            initializer=_limit_worker_blas_threads,
+            processes=processes,
+            initializer=_init_stats_worker,
+            initargs=(partial(extraction_fn, ds=dataset, **kwargs),),
         ) as pool:
-            # imap (not imap_unordered) keeps the dataset order
+            # imap (not imap_unordered) keeps the dataset order. Chunks keep the per-task overhead small for large
+            # procedural datasets with cheap objects.
             values = list(
                 tqdm.tqdm(
                     pool.imap(
-                        partial(extraction_fn, ds=dataset, **kwargs),
+                        _run_stats_worker,
                         range(len(dataset)),
+                        chunksize=max(1, len(dataset) // (processes * 64)),
                     ),
                     total=len(dataset),
                 )
