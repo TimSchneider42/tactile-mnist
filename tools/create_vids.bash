@@ -1,144 +1,37 @@
 #!/bin/bash
+# Creates the preview videos in docs/img/env for the registered environments. Without environment IDs, it covers every
+# registered tactile_mnist environment except the -train aliases and the -sparse variants.
+#   create_vids.bash [--recreate-existing] [ENV_ID ...]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 RECREATE_EXISTING=false
+ENVS=()
 for arg in "$@"; do
   case "$arg" in
   --recreate-existing) RECREATE_EXISTING=true ;;
-  *)
-    echo "Usage: $0 [--recreate-existing]" >&2
+  -*)
+    echo "Usage: $0 [--recreate-existing] [ENV_ID ...]" >&2
     exit 1
     ;;
+  *) ENVS+=("$arg") ;;
   esac
 done
 
-ENVS=(
-  TactileMNISTRealSnap-v0
-  TactileMNISTVolumeRealSnap-v0
-  TactileMNISTRealSnap-Taxim-v0
-  TactileMNISTVolumeRealSnap-Taxim-v0
-  TactileMNIST-v0
-  TactileMNIST-DR-v0
-  TactileMNISTSnap-v0
-  TactileMNISTSnap-DR-v0
-  TactileMNISTVolume-v0
-  TactileMNISTVolume-DR-v0
-  TactileMNISTVolumeSnap-v0
-  TactileMNISTVolumeSnap-DR-v0
-  ABCVolume-v0
-  ABCVolume-DR-v0
-  TactileMNISTRealSnap-CycleGAN-v0
-  TactileMNISTVolumeRealSnap-CycleGAN-v0
-  TactileMNIST-CycleGAN-v0
-  TactileMNIST-CycleGAN-DR-v0
-  TactileMNISTSnap-CycleGAN-v0
-  TactileMNISTSnap-CycleGAN-DR-v0
-  TactileMNISTVolume-CycleGAN-v0
-  TactileMNISTVolume-CycleGAN-DR-v0
-  TactileMNISTVolumeSnap-CycleGAN-v0
-  TactileMNISTVolumeSnap-CycleGAN-DR-v0
-  ABCVolume-CycleGAN-v0
-  ABCVolume-CycleGAN-DR-v0
-  TactileMNISTRealSnap-Depth-v0
-  TactileMNISTVolumeRealSnap-Depth-v0
-  TactileMNIST-Depth-v0
-  TactileMNIST-Depth-DR-v0
-  TactileMNISTSnap-Depth-v0
-  TactileMNISTSnap-Depth-DR-v0
-  TactileMNISTVolume-Depth-v0
-  TactileMNISTVolume-Depth-DR-v0
-  TactileMNISTVolumeSnap-Depth-v0
-  TactileMNISTVolumeSnap-Depth-DR-v0
-  ABCVolume-Depth-v0
-  ABCVolume-Depth-DR-v0
-  Starstruck-v0
-  Starstruck-DR-v0
-  ABCCenterOfMass-v0
-  ABCCenterOfMass-DR-v0
-  TactileMNISTCenterOfMass-v0
-  TactileMNISTCenterOfMass-DR-v0
-  TactileMNISTCenterOfMassSnap-v0
-  TactileMNISTCenterOfMassSnap-DR-v0
-  Starstruck-Depth-v0
-  Starstruck-Depth-DR-v0
-  ABCCenterOfMass-Depth-v0
-  ABCCenterOfMass-Depth-DR-v0
-  TactileMNISTCenterOfMass-Depth-v0
-  TactileMNISTCenterOfMass-Depth-DR-v0
-  TactileMNISTCenterOfMassSnap-Depth-v0
-  TactileMNISTCenterOfMassSnap-Depth-DR-v0
-  TactileMNISTRealSnap-test-v0
-  TactileMNISTVolumeRealSnap-test-v0
-  TactileMNISTRealSnap-Taxim-test-v0
-  TactileMNISTVolumeRealSnap-Taxim-test-v0
-  TactileMNIST-test-v0
-  TactileMNIST-DR-test-v0
-  TactileMNISTSnap-test-v0
-  TactileMNISTSnap-DR-test-v0
-  TactileMNISTVolume-test-v0
-  TactileMNISTVolume-DR-test-v0
-  TactileMNISTVolumeSnap-test-v0
-  TactileMNISTVolumeSnap-DR-test-v0
-  ABCVolume-test-v0
-  ABCVolume-DR-test-v0
-  TactileMNISTRealSnap-CycleGAN-test-v0
-  TactileMNISTVolumeRealSnap-CycleGAN-test-v0
-  TactileMNIST-CycleGAN-test-v0
-  TactileMNIST-CycleGAN-DR-test-v0
-  TactileMNISTSnap-CycleGAN-test-v0
-  TactileMNISTSnap-CycleGAN-DR-test-v0
-  TactileMNISTVolume-CycleGAN-test-v0
-  TactileMNISTVolume-CycleGAN-DR-test-v0
-  TactileMNISTVolumeSnap-CycleGAN-test-v0
-  TactileMNISTVolumeSnap-CycleGAN-DR-test-v0
-  ABCVolume-CycleGAN-test-v0
-  ABCVolume-CycleGAN-DR-test-v0
-  TactileMNISTRealSnap-Depth-test-v0
-  TactileMNISTVolumeRealSnap-Depth-test-v0
-  TactileMNIST-Depth-test-v0
-  TactileMNIST-Depth-DR-test-v0
-  TactileMNISTSnap-Depth-test-v0
-  TactileMNISTSnap-Depth-DR-test-v0
-  TactileMNISTVolume-Depth-test-v0
-  TactileMNISTVolume-Depth-DR-test-v0
-  TactileMNISTVolumeSnap-Depth-test-v0
-  TactileMNISTVolumeSnap-Depth-DR-test-v0
-  ABCVolume-Depth-test-v0
-  ABCVolume-Depth-DR-test-v0
-  Starstruck-test-v0
-  Starstruck-DR-test-v0
-  ABCCenterOfMass-test-v0
-  ABCCenterOfMass-DR-test-v0
-  TactileMNISTCenterOfMass-test-v0
-  TactileMNISTCenterOfMass-DR-test-v0
-  TactileMNISTCenterOfMassSnap-test-v0
-  TactileMNISTCenterOfMassSnap-DR-test-v0
-  Starstruck-Depth-test-v0
-  Starstruck-Depth-DR-test-v0
-  ABCCenterOfMass-Depth-test-v0
-  ABCCenterOfMass-Depth-DR-test-v0
-  TactileMNISTCenterOfMass-Depth-test-v0
-  TactileMNISTCenterOfMass-Depth-DR-test-v0
-  TactileMNISTCenterOfMassSnap-Depth-test-v0
-  TactileMNISTCenterOfMassSnap-Depth-DR-test-v0
-  Minecraft-v0
-  Minecraft-DR-v0
-  Toolbox-v0
-  Toolbox-DR-v0
-  Toolbox-small-v0
-  Toolbox-small-DR-v0
-  MinecraftPose-v0
-  MinecraftPose-DR-v0
-  Minecraft-Depth-v0
-  Minecraft-Depth-DR-v0
-  Toolbox-Depth-v0
-  Toolbox-Depth-DR-v0
-  Toolbox-small-Depth-v0
-  Toolbox-small-Depth-DR-v0
-  MinecraftPose-Depth-v0
-  MinecraftPose-Depth-DR-v0
-)
+if [ ${#ENVS[@]} -eq 0 ]; then
+  mapfile -t ENVS < <(
+    python -c '
+import gymnasium as gym
+import tactile_mnist
+
+for env_id, spec in gym.registry.items():
+    entry_point = spec.entry_point
+    module = entry_point if isinstance(entry_point, str) else entry_point.__module__
+    if module.startswith("tactile_mnist") and not env_id.endswith(("-train-v0", "-sparse-v0")):
+        print(env_id)
+'
+  ) || exit 1
+fi
 
 create_vid() {
   local env="$1"
@@ -156,5 +49,3 @@ for env in "${ENVS[@]}"; do
   echo "Creating video for $env..."
   create_vid "$env" "${OUTPUT_DIR}/$env.webp"
 done
-
-wait
