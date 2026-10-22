@@ -103,9 +103,9 @@ The prediction dimensionality follows the chosen model ($k \cdot d + 4$).
 
 ## Overview of Implemented Environments
 
-| Environment ID                                     | Dataset                                | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                 |
-|----------------------------------------------------|----------------------------------------|------------|-----------------|--------------------------|-------------------------------------------------------------|
-| [TactileMNISTShape-v0](TactileMNISTShape.md)       | [MNIST 3D](datasets.md#mnist-3d)       | 16         | disabled        | enabled                  | Reconstruct the shape of objects from the _MNIST 3D_ dataset. |
+| Environment ID                                     | Dataset                                | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                                             |
+|----------------------------------------------------|----------------------------------------|------------|-----------------|--------------------------|-----------------------------------------------------------------------------------------|
+| [TactileMNISTShape-v0](TactileMNISTShape.md)       | [MNIST 3D](datasets.md#mnist-3d)       | 16         | disabled        | enabled                  | Reconstruct the shape of objects from the _MNIST 3D_ dataset.                           |
 | [TactileMNISTShapeStatic-v0](TactileMNISTShape.md) | [MNIST 3D](datasets.md#mnist-3d)       | 16         | disabled        | disabled                 | Same as TactileMNISTShape-v0 but the object pose stays fixed while it is being touched. |
-| [ABCShape-v0](ABCShape.md)                         | [ABC Dataset](datasets.md#abc-dataset) | 32         | enabled         | enabled                  | Reconstruct the shape of objects from the _ABC_ dataset.    |
-| [ABCShapeStatic-v0](ABCShape.md)                   | [ABC Dataset](datasets.md#abc-dataset) | 32         | enabled         | disabled                 | Same as ABCShape-v0 but the object pose stays fixed while it is being touched. |
+| [ABCShape-v0](ABCShape.md)                         | [ABC Dataset](datasets.md#abc-dataset) | 32         | enabled         | enabled                  | Reconstruct the shape of objects from the _ABC_ dataset.                                |
+| [ABCShapeStatic-v0](ABCShape.md)                   | [ABC Dataset](datasets.md#abc-dataset) | 32         | enabled         | disabled                 | Same as ABCShape-v0 but the object pose stays fixed while it is being touched.          |
