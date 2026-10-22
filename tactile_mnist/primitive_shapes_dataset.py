@@ -3,8 +3,7 @@
 Every object is one of four geometric primitives, a cylinder, a cuboid, an extruded triangle (a triangular prism), or a
 half cylinder, with randomly drawn dimensions, so objects of the same class differ in size and proportions. Like the Starstruck
 dataset, the objects are derived on the fly from their index with a stable pseudo random number generator instead of
-being loaded from a stored dataset. As with Starstruck, there is no test split: the objects are drawn fresh from a
-continuous distribution, so the agent sees new objects throughout training anyway.
+being loaded from a stored dataset. The train and test splits are drawn from separate seed streams.
 
 The meshes are centered on the origin in their canonical orientation, in which they also rest on the platform:
 cylinders and half cylinders stand on their base and prisms lie on their triangular face (all axes along z). The
@@ -44,7 +43,9 @@ HEIGHT_RANGE = (0.020, 0.040)
 MIN_TRIANGLE_ANGLE = np.deg2rad(25)
 CYLINDER_SECTIONS = 64
 
-DEFAULT_SIZE = 300_000
+SPLITS = ("train", "test")
+# 100,000 objects per class in every split
+DEFAULT_SPLIT_SIZES = {"train": 400_000, "test": 400_000}
 DEFAULT_SEED = 0
 
 
@@ -154,9 +155,12 @@ def _primitive_volume(
     return float(area * dimensions[2])
 
 
-def _sample_datapoint(index: int, seed: int) -> PrimitiveShapesMeshDataPoint:
-    # The leading 0 of the spawn key keeps the objects of the former train split
-    rng = np.random.default_rng(np.random.SeedSequence(seed, spawn_key=(0, index)))
+def _sample_datapoint(
+    index: int, seed: int, split: str = "train"
+) -> PrimitiveShapesMeshDataPoint:
+    rng = np.random.default_rng(
+        np.random.SeedSequence(seed, spawn_key=(SPLITS.index(split), index))
+    )
     label = index % len(LABEL_NAMES)
     triangle = None
     if label == 0:
@@ -184,33 +188,38 @@ class PrimitiveShapesMeshDataset(
     """
     PrimitiveShapes mesh dataset whose objects are generated on the fly.
 
-    Datapoint i has label i % 4, so the dataset is balanced; its dimensions come from a generator seeded with
-    SeedSequence(seed, spawn_key=(0, i)). The meshes are only generated when a datapoint's mesh field is accessed and
+    Datapoint i of a split has label i % 4, so every split is balanced; its dimensions come from a generator seeded
+    with SeedSequence(seed, spawn_key=(split index, i)). The meshes are only generated when a datapoint's mesh field is accessed and
     are cached on the datapoint afterwards.
     """
 
     def __init__(
         self,
-        size: int = DEFAULT_SIZE,
+        split: str = "train",
+        size: int | None = None,
         seed: int = DEFAULT_SEED,
         cache_size: int = 0,
         _indices: np.ndarray | None = None,
     ):
         super().__init__(cache_size=cache_size)
-        self.__size = size
+        if split not in SPLITS:
+            raise ValueError(f"Unknown split {split!r}, expected one of {SPLITS}.")
+        self.__split = split
+        self.__size = DEFAULT_SPLIT_SIZES[split] if size is None else size
         self.__seed = seed
         self.__indices = _indices
 
     def _get_item(self, index: int) -> PrimitiveShapesMeshDataPoint:
         if self.__indices is not None:
             index = int(self.__indices[index])
-        return _sample_datapoint(index, self.__seed)
+        return _sample_datapoint(index, self.__seed, self.__split)
 
     def _select(self, indices: np.ndarray) -> PrimitiveShapesMeshDataset:
         indices = np.asarray(indices)
         if self.__indices is not None:
             indices = self.__indices[indices]
         return PrimitiveShapesMeshDataset(
+            self.__split,
             self.__size,
             self.__seed,
             cache_size=self.cache_size,
@@ -240,6 +249,10 @@ class PrimitiveShapesMeshDataset(
         return tuple(self[labels == label] for label in range(len(LABEL_NAMES)))
 
     @property
+    def split(self) -> str:
+        return self.__split
+
+    @property
     def seed(self) -> int:
         return self.__seed
 
@@ -248,7 +261,7 @@ class PrimitiveShapesMeshDataset(
         return "primitive-shapes"
 
     def _cache_key_body(self) -> str:
-        key = f"seed{self.__seed}_size{self.__size}"
+        key = f"{self.__split}_seed{self.__seed}_size{self.__size}"
         if self.__indices is not None:
             indices_hash = hashlib.sha256(
                 np.asarray(self.__indices, dtype=np.int64).tobytes()

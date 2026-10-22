@@ -20,9 +20,8 @@ In the _Starstruck_ environment, the agent must count the number of stars in a s
 Since all stars look the same, distinguishing stars from other objects is rather straightforward.
 Instead, the main challenge posed in this environment is to learn an effective search strategy to systematically cover as much space as possible.
 
-The scenes are not stored anywhere but generated procedurally on the fly: each of the 300,000 scenes is derived deterministically from its index with a stable pseudo random number generator (see the [dataset description](datasets.md#starstruck)).
+The scenes are not stored anywhere but generated procedurally on the fly: each of the 300,000 scenes of the train split and the 300,000 scenes of the test split is derived deterministically from its index with a stable pseudo random number generator (see the [dataset description](datasets.md#starstruck)).
 Hence, the agent cannot simply memorize the object arrangements and has to learn a search strategy that generalizes.
-For the same reason, there is no separate test split.
 
 ## Example Usage
 
@@ -41,8 +40,13 @@ envs = ap_gym.make_vec("Starstruck-v0", num_envs=4)
 
 ## Variants
 
-| Environment ID         | Description                                                                                                   | Preview                                                                                     |
-|------------------------|---------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
-| Starstruck-DR-v0       | Same as Starstruck-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled.       | <img src="img/env/Starstruck-DR-v0.webp" alt="Starstruck-DR-v0" width="200px"/>             |
-| Starstruck-Depth-v0    | Uses a depth image instead of rendering tactile images.                                                       | <img src="img/env/Starstruck-Depth-v0.webp" alt="Starstruck-Depth-v0" width="200px"/>       |
-| Starstruck-Depth-DR-v0 | Same as Starstruck-Depth-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/Starstruck-Depth-DR-v0.webp" alt="Starstruck-Depth-DR-v0" width="200px"/> |
+| Environment ID              | Description                                                                                                                                                    | Preview                                                                                               |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| Starstruck-train-v0         | Alias for Starstruck-v0.                                                                                                                                       | <img src="img/env/Starstruck-v0.webp" alt="Starstruck-v0" width="200px"/>                             |
+| Starstruck-DR-v0            | Same as Starstruck-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. Starstruck-DR-train-v0 is an alias for it.             | <img src="img/env/Starstruck-DR-v0.webp" alt="Starstruck-DR-v0" width="200px"/>                       |
+| Starstruck-test-v0          | Uses the test split of _Starstruck_ instead of the train split.                                                                                                | <img src="img/env/Starstruck-test-v0.webp" alt="Starstruck-test-v0" width="200px"/>                   |
+| Starstruck-DR-test-v0       | Same as Starstruck-test-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled.                                                   | <img src="img/env/Starstruck-DR-test-v0.webp" alt="Starstruck-DR-test-v0" width="200px"/>             |
+| Starstruck-Depth-train-v0   | Uses a depth image instead of rendering tactile images.                                                                                                        | <img src="img/env/Starstruck-Depth-v0.webp" alt="Starstruck-Depth-v0" width="200px"/>                 |
+| Starstruck-Depth-DR-v0      | Same as Starstruck-Depth-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. Starstruck-Depth-DR-train-v0 is an alias for it. | <img src="img/env/Starstruck-Depth-DR-v0.webp" alt="Starstruck-Depth-DR-v0" width="200px"/>           |
+| Starstruck-Depth-test-v0    | Same as Starstruck-Depth-train-v0 but uses the test split of _Starstruck_ instead of the train split.                                                          | <img src="img/env/Starstruck-Depth-test-v0.webp" alt="Starstruck-Depth-test-v0" width="200px"/>       |
+| Starstruck-Depth-DR-test-v0 | Same as Starstruck-Depth-test-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled.                                             | <img src="img/env/Starstruck-Depth-DR-test-v0.webp" alt="Starstruck-Depth-DR-test-v0" width="200px"/> |

@@ -34,7 +34,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.dataset == "starstruck":
-        dataset = StarstruckMeshDataset()
+        dataset = StarstruckMeshDataset(split=args.split)
     else:
         dataset = SimpleMeshDataset(load_dataset(args.dataset, split=args.split))
 

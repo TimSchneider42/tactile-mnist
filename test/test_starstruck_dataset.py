@@ -18,7 +18,7 @@ from tactile_mnist import (
     TactilePerceptionConfig,
 )
 from tactile_mnist.starstruck_dataset import (
-    DEFAULT_SIZE,
+    DEFAULT_SPLIT_SIZES,
     LABEL_NAMES,
     MAX_DISTRACTORS,
     MAX_STARS,
@@ -49,16 +49,19 @@ def generation_counter(monkeypatch) -> dict[str, int]:
     return counter
 
 
-def test_default_size_and_labels():
-    dataset = StarstruckMeshDataset()
-    assert isinstance(dataset, MeshDataset)
-    assert len(dataset) == DEFAULT_SIZE
-    assert dataset.label_names == LABEL_NAMES == ("1", "2", "3")
-    assert len(StarstruckMeshDataset(size=10)) == 10
+def test_splits_have_default_sizes_and_labels():
+    for split, size in DEFAULT_SPLIT_SIZES.items():
+        dataset = StarstruckMeshDataset(split)
+        assert isinstance(dataset, MeshDataset)
+        assert len(dataset) == size
+        assert dataset.label_names == LABEL_NAMES == ("1", "2", "3")
+    assert len(StarstruckMeshDataset("train", size=10)) == 10
+    with pytest.raises(ValueError):
+        StarstruckMeshDataset("holdout")
 
 
 def test_metadata_is_derived_from_index():
-    dataset = StarstruckMeshDataset()
+    dataset = StarstruckMeshDataset("train")
     datapoints = [dataset[i] for i in range(3000)]
     assert [dp.id for dp in datapoints] == list(range(3000))
     assert [dp.label for dp in datapoints] == [
@@ -76,13 +79,14 @@ def test_metadata_is_derived_from_index():
 
 
 def test_scenes_are_deterministic_and_distinct():
-    reference = StarstruckMeshDataset()[7]
-    same = StarstruckMeshDataset()[7]
+    reference = StarstruckMeshDataset("train")[7]
+    same = StarstruckMeshDataset("train")[7]
     assert same.seed == reference.seed
     assert np.array_equal(same.mesh.vertices, reference.mesh.vertices)
     for other in [
-        StarstruckMeshDataset()[8],
-        StarstruckMeshDataset(seed=1)[7],
+        StarstruckMeshDataset("train")[8],
+        StarstruckMeshDataset("test")[7],
+        StarstruckMeshDataset("train", seed=1)[7],
     ]:
         assert other.seed != reference.seed
         assert not np.array_equal(other.mesh.vertices, reference.mesh.vertices)
@@ -127,7 +131,7 @@ def test_scene_geometry():
     assert not np.any(
         np.isclose(volumes[:, None], volumes[None])[~np.eye(3, dtype=bool)]
     )
-    dataset = StarstruckMeshDataset()
+    dataset = StarstruckMeshDataset("train")
     for dp in [dataset[i] for i in range(NUM_CHECKED_SCENES)]:
         mesh = dp.mesh
         assert mesh.is_watertight
@@ -148,7 +152,7 @@ def test_scene_geometry():
 
 
 def test_subsets():
-    dataset = StarstruckMeshDataset()
+    dataset = StarstruckMeshDataset("train")
     subset = dataset[[3, 5, 7]]
     assert isinstance(subset, StarstruckMeshDataset) and len(subset) == 3
     assert subset[1].seed == dataset[5].seed and subset[1].id == 5
@@ -166,7 +170,7 @@ def test_subsets():
 
 
 def test_mesh_is_generated_once_per_datapoint(generation_counter):
-    dataset = StarstruckMeshDataset()
+    dataset = StarstruckMeshDataset("train")
     dp = dataset[0]
     assert generation_counter["calls"] == 0
     assert dp.mesh is dp.mesh
@@ -185,7 +189,7 @@ def test_env_generates_every_scene_once(generation_counter):
     step_limit = 4
     env = TactileClassificationVectorEnv(
         TactilePerceptionConfig(
-            StarstruckMeshDataset(),
+            StarstruckMeshDataset("train"),
             step_limit=step_limit,
             sensor_output_size=(32, 32),
             allow_sensor_rotation=False,
@@ -213,19 +217,19 @@ def test_env_generates_every_scene_once(generation_counter):
 
 
 def test_volume_matches_the_scene_mesh():
-    dataset = StarstruckMeshDataset(size=20)
+    dataset = StarstruckMeshDataset("train", size=20)
     for dp in dataset:
         assert dp.volume == pytest.approx(dp.mesh.volume, rel=1e-9)
 
 
 def test_volume_does_not_lay_out_the_scene():
-    dp = StarstruckMeshDataset(size=1)[0]
+    dp = StarstruckMeshDataset("train", size=1)[0]
     dp.volume
     assert "mesh" not in vars(dp)
 
 
 def test_transformed_data_point_forwards_the_volume():
-    dp = StarstruckMeshDataset(size=1)[0]
+    dp = StarstruckMeshDataset("train", size=1)[0]
     rotation = Rotation.from_euler("x", 90, degrees=True)
     mesh = dp.mesh.copy()
     mesh.apply_transform(

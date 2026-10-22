@@ -9,7 +9,7 @@ import pytest
 import tactile_mnist  # noqa: F401 (registers the environments)
 from tactile_mnist import MeshDataset, PrimitiveShapesMeshDataset
 from tactile_mnist.primitive_shapes_dataset import (
-    DEFAULT_SIZE,
+    DEFAULT_SPLIT_SIZES,
     LABEL_NAMES,
     MIN_TRIANGLE_ANGLE,
     triangle_angles,
@@ -41,10 +41,15 @@ def samples():
     return [dataset[int(i)] for i in indices]
 
 
-def test_default_size_and_labels():
+def test_splits_have_default_sizes_and_labels():
+    for split, size in DEFAULT_SPLIT_SIZES.items():
+        dataset = PrimitiveShapesMeshDataset(split)
+        assert isinstance(dataset, MeshDataset)
+        assert len(dataset) == size
+    assert len(PrimitiveShapesMeshDataset("train", size=10)) == 10
+    with pytest.raises(ValueError):
+        PrimitiveShapesMeshDataset("holdout")
     dataset = PrimitiveShapesMeshDataset()
-    assert isinstance(dataset, MeshDataset)
-    assert len(dataset) == DEFAULT_SIZE
     assert dataset.label_names == LABEL_NAMES
     assert [dataset[i].label for i in range(8)] == [0, 1, 2, 3] * 2
     np.testing.assert_array_equal(dataset.labels[:8], [0, 1, 2, 3] * 2)
@@ -98,6 +103,7 @@ def test_objects_are_deterministic_and_distinct():
     )
     for other in [
         PrimitiveShapesMeshDataset()[11],
+        PrimitiveShapesMeshDataset("test")[7],
         PrimitiveShapesMeshDataset(seed=1)[7],
     ]:
         assert not np.array_equal(other.dimensions, reference.dimensions)
@@ -111,18 +117,19 @@ def test_cache_keys_identify_the_content():
         len(
             {
                 dataset.cache_key,
+                PrimitiveShapesMeshDataset("test", size=16).cache_key,
                 PrimitiveShapesMeshDataset(size=16, seed=1).cache_key,
                 PrimitiveShapesMeshDataset(size=17).cache_key,
                 dataset[:4].cache_key,
             }
         )
-        == 4
+        == 5
     )
 
 
-def test_environments_are_registered_without_test_split():
+def test_environments_are_registered_for_both_splits():
     ids = {i for i in gym.registry if i.startswith("PrimitiveShapes")}
     for task in ["PrimitiveShapes", "PrimitiveShapesVolume"]:
         for variant in ["", "-DR", "-Depth", "-Depth-DR"]:
-            assert f"{task}{variant}-v0" in ids
-    assert not any("-test-" in i or "-train-" in i for i in ids)
+            for split in ["", "-train", "-test"]:
+                assert f"{task}{variant}{split}-v0" in ids

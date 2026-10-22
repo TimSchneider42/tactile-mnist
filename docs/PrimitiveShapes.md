@@ -21,8 +21,8 @@ The objects are large relative to the platform, so finding them is easy.
 Instead, the challenge lies in telling the shapes apart: since the dimensions of every object are drawn at random, the classes overlap in size and only differ in their outline.
 A touch on a flat top face looks the same for every class, so the agent has to seek out the edges and sides of the object, and with sensor rotation enabled, it can tilt the sensor to touch them.
 
-The objects are not stored anywhere but generated procedurally on the fly: each of the 300,000 objects is derived deterministically from its index with a stable pseudo random number generator (see the [dataset description](datasets.md#primitiveshapes)).
-As the dimensions are drawn from a continuous distribution, the agent cannot memorize the objects, and there is no separate test split.
+The objects are not stored anywhere but generated procedurally on the fly: each of the 400,000 objects of the train split and the 400,000 objects of the test split is derived deterministically from its index with a stable pseudo random number generator (see the [dataset description](datasets.md#primitiveshapes)).
+As the dimensions are drawn from a continuous distribution, the agent cannot memorize the objects.
 
 ## Example Usage
 
@@ -41,8 +41,13 @@ envs = ap_gym.make_vec("PrimitiveShapes-v0", num_envs=4)
 
 ## Variants
 
-| Environment ID              | Description                                                                                                        | Preview                                                                                               |
-|-----------------------------|--------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
-| PrimitiveShapes-DR-v0       | Same as PrimitiveShapes-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled.       | <img src="img/env/PrimitiveShapes-DR-v0.webp" alt="PrimitiveShapes-DR-v0" width="200px"/>             |
-| PrimitiveShapes-Depth-v0    | Uses a depth image instead of rendering tactile images.                                                            | <img src="img/env/PrimitiveShapes-Depth-v0.webp" alt="PrimitiveShapes-Depth-v0" width="200px"/>       |
-| PrimitiveShapes-Depth-DR-v0 | Same as PrimitiveShapes-Depth-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. | <img src="img/env/PrimitiveShapes-Depth-DR-v0.webp" alt="PrimitiveShapes-Depth-DR-v0" width="200px"/> |
+| Environment ID                   | Description                                                                                                                                                              | Preview                                                                                                         |
+|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| PrimitiveShapes-train-v0         | Alias for PrimitiveShapes-v0.                                                                                                                                            | <img src="img/env/PrimitiveShapes-v0.webp" alt="PrimitiveShapes-v0" width="200px"/>                             |
+| PrimitiveShapes-DR-v0            | Same as PrimitiveShapes-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. PrimitiveShapes-DR-train-v0 is an alias for it.             | <img src="img/env/PrimitiveShapes-DR-v0.webp" alt="PrimitiveShapes-DR-v0" width="200px"/>                       |
+| PrimitiveShapes-test-v0          | Uses the test split of _PrimitiveShapes_ instead of the train split.                                                                                                     | <img src="img/env/PrimitiveShapes-test-v0.webp" alt="PrimitiveShapes-test-v0" width="200px"/>                   |
+| PrimitiveShapes-DR-test-v0       | Same as PrimitiveShapes-test-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled.                                                        | <img src="img/env/PrimitiveShapes-DR-test-v0.webp" alt="PrimitiveShapes-DR-test-v0" width="200px"/>             |
+| PrimitiveShapes-Depth-train-v0   | Uses a depth image instead of rendering tactile images.                                                                                                                  | <img src="img/env/PrimitiveShapes-Depth-v0.webp" alt="PrimitiveShapes-Depth-v0" width="200px"/>                 |
+| PrimitiveShapes-Depth-DR-v0      | Same as PrimitiveShapes-Depth-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled. PrimitiveShapes-Depth-DR-train-v0 is an alias for it. | <img src="img/env/PrimitiveShapes-Depth-DR-v0.webp" alt="PrimitiveShapes-Depth-DR-v0" width="200px"/>           |
+| PrimitiveShapes-Depth-test-v0    | Same as PrimitiveShapes-Depth-train-v0 but uses the test split of _PrimitiveShapes_ instead of the train split.                                                          | <img src="img/env/PrimitiveShapes-Depth-test-v0.webp" alt="PrimitiveShapes-Depth-test-v0" width="200px"/>       |
+| PrimitiveShapes-Depth-DR-test-v0 | Same as PrimitiveShapes-Depth-test-v0 but with [domain randomization](TactilePerceptionConfig.md#sensor-noise) enabled.                                                  | <img src="img/env/PrimitiveShapes-Depth-DR-test-v0.webp" alt="PrimitiveShapes-Depth-DR-test-v0" width="200px"/> |
