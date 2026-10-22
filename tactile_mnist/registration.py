@@ -461,46 +461,6 @@ def register_envs():
                 ("", "taxim"),
                 ("-Depth", "depth"),
             ]:
-                register_with_dr_variant(
-                    f"Starstruck{sensor_type_name}",
-                    f"{s}-v0",
-                    entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
-                        TactileClassificationEnv(
-                            mk_config(
-                                StarstruckMeshDataset,
-                                _split,
-                                args,
-                                default_config,
-                                config,
-                            ),
-                            **kwargs,
-                        )
-                    ),
-                    vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
-                        TactileClassificationVectorEnv(
-                            mk_config(
-                                StarstruckMeshDataset,
-                                _split,
-                                args,
-                                default_config,
-                                config,
-                            ),
-                            **kwargs,
-                        ),
-                    ),
-                    kwargs=dict(
-                        default_config=dict(
-                            sensor_output_size=(64, 64),
-                            allow_sensor_rotation=False,
-                            randomize_initial_object_pose=False,
-                            perturb_object_pose=False,
-                            step_limit=32,
-                            renderer_show_class_weights=True,
-                            sensor_type=sensor_type,
-                        ),
-                    ),
-                )
-
                 for (
                     env_name,
                     ds_name,
@@ -570,6 +530,50 @@ def register_envs():
                             ),
                             real_base_depth_dataset=real_base_depth_dataset,
                         )
+
+    # Starstruck is generated procedurally (see StarstruckMeshDataset) and has no test split
+    for sensor_type_name, sensor_type in [
+        ("", "taxim"),
+        ("-Depth", "depth"),
+    ]:
+        register_with_dr_variant(
+            f"Starstruck{sensor_type_name}",
+            entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveClassificationLogWrapper(
+                TactileClassificationEnv(
+                    mk_config(
+                        lambda _: StarstruckMeshDataset(),
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                    ),
+                    **kwargs,
+                )
+            ),
+            vector_entry_point=lambda *args, default_config, config=None, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
+                TactileClassificationVectorEnv(
+                    mk_config(
+                        lambda _: StarstruckMeshDataset(),
+                        "train",
+                        args,
+                        default_config,
+                        config,
+                    ),
+                    **kwargs,
+                ),
+            ),
+            kwargs=dict(
+                default_config=dict(
+                    sensor_output_size=(64, 64),
+                    allow_sensor_rotation=False,
+                    randomize_initial_object_pose=False,
+                    perturb_object_pose=False,
+                    step_limit=32,
+                    renderer_show_class_weights=True,
+                    sensor_type=sensor_type,
+                ),
+            ),
+        )
 
     # Minecraft item meshes are generated on the fly from Mojang's official
     # assets; the resulting dataset has no train/test split

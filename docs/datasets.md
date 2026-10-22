@@ -24,7 +24,7 @@ from tactile_mnist import SimpleMeshDataset, StarstruckMeshDataset
 
 mnist_3d_dataset = SimpleMeshDataset(load_dataset("TimSchneider42/tactile-mnist-mnist3d", split="train"))
 abc_dataset = SimpleMeshDataset(load_dataset("TimSchneider42/tactile-mnist-abc-dataset-small", split="train"))
-starstruck_dataset = StarstruckMeshDataset(split="train")
+starstruck_dataset = StarstruckMeshDataset()
 ```
 
 Next to the `train` split, the `test`, `holdout`, `printed_train`, and `printed_test` splits are also available for _MNIST 3D_.
@@ -109,19 +109,19 @@ Each scene consists of one to three identical five-pointed stars (outer radius 1
 Stars first, then distractors, all objects are placed at uniformly random positions inside the cell with uniformly random rotations about the vertical axis, rejecting positions closer than 20 mm to an already placed object.
 
 Unlike the other mesh datasets, _Starstruck_ is not downloaded but generated procedurally on the fly by `StarstruckMeshDataset`:
-scene `i` of a split has `1 + i % 3` stars, and its distractor count and layout are drawn from a stable pseudo random number generator seeded with the dataset seed, the split, and `i`.
+scene `i` has `1 + i % 3` stars, and its distractor count and layout are drawn from a stable pseudo random number generator seeded with the dataset seed and `i`.
 Hence, the dataset can be arbitrarily large at no storage cost, and every scene is reproducible from its index alone.
+There is no test split, as the agent sees freshly drawn scenes throughout training anyway.
 Meshes are generated only once a datapoint's `mesh` field is accessed (about 2 ms per scene) and cached on the datapoint afterwards.
 
 ```python
 from tactile_mnist import StarstruckMeshDataset
 
-# Default split sizes: 300,000 scenes each; size and seed can be overridden
-train_dataset = StarstruckMeshDataset(split="train")
-test_dataset = StarstruckMeshDataset(split="test")
-small_dataset = StarstruckMeshDataset(split="train", size=1000, seed=42)
+# 300,000 scenes by default; size and seed can be overridden
+dataset = StarstruckMeshDataset()
+small_dataset = StarstruckMeshDataset(size=1000, seed=42)
 
-data_point = train_dataset[0]
+data_point = dataset[0]
 data_point.star_count, data_point.distractor_count  # metadata, available without generating the mesh
 data_point.mesh  # trimesh.Trimesh of the scene, generated on first access
 ```

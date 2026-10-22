@@ -8,7 +8,7 @@ the static version of the Starstruck dataset (mesh_datasets/starstruck/generate_
 tactile-mnist-generation). The only difference is how the per-scene metadata is drawn: that script shuffled
 a balanced list of star counts and drew the distractor counts and a base seed from one generator up front, whereas
 here the star count cycles through the labels with the index and the distractor count and layout seed of scene i come
-from a generator seeded with SeedSequence(seed, spawn_key=(split, i)), so no scene depends on any other.
+from a generator seeded with SeedSequence(seed, spawn_key=(0, i)), so no scene depends on any other.
 """
 
 from __future__ import annotations
@@ -38,8 +38,7 @@ MAX_DISTRACTORS = 5
 
 LABEL_NAMES = tuple(str(n) for n in range(MIN_STARS, MAX_STARS + 1))
 
-SPLITS = ("train", "test")
-DEFAULT_SPLIT_SIZES = {"train": 300_000, "test": 300_000}
+DEFAULT_SIZE = 300_000
 DEFAULT_SEED = 0
 
 # Objects are placed such that a circle of the outer star radius around their center lies inside the padded cell
@@ -196,24 +195,21 @@ class StarstruckMeshDataset(
     """
     Starstruck mesh dataset whose scenes are generated on the fly.
 
-    Datapoint i of a split has label i % 3 (i.e. 1 + i % 3 stars), so every split is balanced; its distractor count
-    and scene seed come from a generator seeded with SeedSequence(seed, spawn_key=(split index, i)). The meshes are
-    only generated when a datapoint's mesh field is accessed and are cached on the datapoint afterwards.
+    Datapoint i has label i % 3 (i.e. 1 + i % 3 stars), so the dataset is balanced; its distractor count and scene
+    seed come from a generator seeded with SeedSequence(seed, spawn_key=(0, i)). The meshes are only generated when a
+    datapoint's mesh field is accessed and are cached on the datapoint afterwards. There is no test split: as the
+    scenes are drawn fresh from a continuous distribution, the agent sees new scenes throughout training anyway.
     """
 
     def __init__(
         self,
-        split: str = "train",
-        size: int | None = None,
+        size: int = DEFAULT_SIZE,
         seed: int = DEFAULT_SEED,
         cache_size: int = 0,
         _indices: np.ndarray | None = None,
     ):
         super().__init__(cache_size=cache_size)
-        if split not in SPLITS:
-            raise ValueError(f"Unknown split {split!r}, expected one of {SPLITS}.")
-        self.__split = split
-        self.__size = DEFAULT_SPLIT_SIZES[split] if size is None else size
+        self.__size = size
         self.__seed = seed
         self.__indices = _indices
 
@@ -221,9 +217,8 @@ class StarstruckMeshDataset(
         if self.__indices is not None:
             index = int(self.__indices[index])
         meta_rng = np.random.default_rng(
-            np.random.SeedSequence(
-                self.__seed, spawn_key=(SPLITS.index(self.__split), index)
-            )
+            # The leading 0 of the spawn key keeps the scenes of the former train split
+            np.random.SeedSequence(self.__seed, spawn_key=(0, index))
         )
         return StarstruckMeshDataPoint(
             id=index,
@@ -239,7 +234,6 @@ class StarstruckMeshDataset(
         if self.__indices is not None:
             indices = self.__indices[indices]
         return StarstruckMeshDataset(
-            self.__split,
             self.__size,
             self.__seed,
             cache_size=self.cache_size,
@@ -267,10 +261,6 @@ class StarstruckMeshDataset(
     def by_labels(self) -> tuple[StarstruckMeshDataset, ...]:
         labels = self.labels
         return tuple(self[labels == label] for label in range(len(LABEL_NAMES)))
-
-    @property
-    def split(self) -> str:
-        return self.__split
 
     @property
     def seed(self) -> int:
