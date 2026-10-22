@@ -10,7 +10,6 @@ from typing import (
     Any,
 )
 
-import filelock
 import gymnasium as gym
 import numpy as np
 import tqdm
@@ -29,7 +28,6 @@ from cod_vae import (
     sample_surface_points,
 )
 from .cod_vae_loss_fn import CODVAELatentMSELossFn, CODVAEReconstructionLossFn
-from .constants import CACHE_BASE_DIR
 from .mesh_dataset import MeshDataset
 from .prefetched_dataset import PrefetchedDataset
 from .tactile_perception_renderer import MESH_INVISIBLE
@@ -39,7 +37,7 @@ from .tactile_perception_vector_env import (
     TransformedDataPoint,
     ActType,
 )
-from .util import get_cache_hash
+from .util import cached_arrays
 
 if TYPE_CHECKING:
     from .tactile_perception_vector_env import ObsType
@@ -317,25 +315,11 @@ def _load_or_compute_prediction_target_stats(
         object_placement_margin=config.object_placement_margin,
         loss_fn_kwargs=tuple(sorted(content_loss_kwargs.items())),
     )
-    cache_dir = CACHE_BASE_DIR / "cod_vae_prediction_target_stats"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    ds_fingerprint = dataset.huggingface_dataset._fingerprint
-    cache_file = cache_dir / f"{get_cache_hash(ds_fingerprint, kwargs)}.npz"
-    with filelock.FileLock(cache_dir / f"{ds_fingerprint}.lock"):
-        if cache_file.exists():
-            try:
-                with np.load(cache_file) as data:
-                    return dict(data)
-            except Exception as ex:
-                logger.warning(
-                    f"Loading the prediction target statistics from cache failed "
-                    f"with the following exception: {ex}"
-                )
-        print(
-            "Computing COD-VAE prediction target statistics (the results will be "
-            "cached)..."
-        )
-        stats = _compute_prediction_target_stats(
+    return cached_arrays(
+        dataset,
+        "cod_vae_prediction_target_stats",
+        kwargs,
+        lambda: _compute_prediction_target_stats(
             dataset,
             vae,
             loss_fn,
@@ -344,9 +328,8 @@ def _load_or_compute_prediction_target_stats(
             object_scale,
             num_rotation_samples,
             seed,
-        )
-        np.savez(cache_file, **stats)
-        return stats
+        ),
+    )
 
 
 class TactileShapeReconstructionVectorEnv(
