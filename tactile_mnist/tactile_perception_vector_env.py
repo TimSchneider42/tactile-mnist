@@ -41,7 +41,7 @@ from .prefetched_dataset import PrefetchedDataset
 from .sensor_noise import SensorNoiseConfig, SensorNoiseRenderer
 from .tactile_perception_renderer import TactilePerceptionRenderer
 from .tactile_renderer import TactileRenderer, mk_tactile_renderer
-from .util import OverridableStaticField, transformation_where
+from .util import OverridableStaticField, get_dataset_stats, transformation_where
 
 if TYPE_CHECKING:
     import jax
@@ -51,6 +51,53 @@ if TYPE_CHECKING:
 
 ActType = dict[str, np.ndarray]
 ArrayType = TypeVar("ArrayType")
+
+
+def _compute_object_height_idx(idx: int, ds: MeshDataset, smallest_dimension_up: bool):
+    dp = TactilePerceptionVectorEnv._pre_process_dp(
+        ds[idx], smallest_dimension_up=smallest_dimension_up
+    )
+    return {"height": float(np.ptp(dp.mesh.vertices[:, 2]))}
+
+
+def get_max_object_height(
+    datasets: Sequence[MeshDataset], smallest_dimension_up: bool = False
+) -> float:
+    """
+    Height (in m) of the tallest object of the datasets as the environments place it: after the pre-processing of
+    _pre_process_dp, resting on the platform. All further pose changes (the initial pose randomization and the
+    perturbations in every step) rotate the objects about the vertical axis only and leave their heights unchanged.
+    """
+    unique_datasets = list({id(ds): ds for ds in datasets}.values())
+    return max(
+        float(
+            np.max(
+                get_dataset_stats(
+                    ds,
+                    "object_height",
+                    _compute_object_height_idx,
+                    dict(smallest_dimension_up=smallest_dimension_up),
+                )["height"]
+            )
+        )
+        for ds in unique_datasets
+    )
+
+
+def get_sensor_z_max(max_object_height: float, max_tilt_angle: float = 0.0) -> float:
+    """
+    Upper bound (in m) of the sensor height (the z-component of the sensor position, which lies
+    GELSIGHT_MINI_GEL_THICKNESS_MM behind the gel surface along the sensor axis) over touches on objects of at most
+    max_object_height. A sensor tilted by theta touches with a point of its gel surface up to half the gel diagonal r
+    away from its axis, so the sensor position lies up to t cos(theta) + r sin(theta) above the contact (t: gel
+    thickness).
+
+    :param max_tilt_angle: Largest tilt of the sensor (0 if it cannot rotate).
+    """
+    t = GELSIGHT_MINI_GEL_THICKNESS_MM / 1000
+    r = float(np.linalg.norm(GELSIGHT_MINI_SENSOR_SURFACE_SIZE)) / 2
+    theta = min(max_tilt_angle, np.arctan2(r, t))
+    return max_object_height + t * np.cos(theta) + r * np.sin(theta)
 
 
 @dataclass(frozen=True)
@@ -65,6 +112,11 @@ class TactilePerceptionConfig:
     sensor_output_size: Sequence[int] | None = None
     randomize_initial_sensor_pose: bool = True
     allow_sensor_rotation: bool = True
+    # Upper limit (in m) of the sensor height, which the z-component of the sensor_pos observation normalizes to [-1,
+    # 1] (together with the lower limit 0, the platform surface). If None, it is the bound get_sensor_z_max derives
+    # from the tallest object of the dataset(s) and the largest sensor tilt. Set it to 0.02 to reproduce the fixed
+    # limit of earlier versions (e.g. to resume a run trained with them).
+    sensor_z_max: float | None = None
     sensor_backend: Literal["torch", "jax", "numpy", "auto"] = "auto"
     sensor_type: Literal["taxim", "depth"] = "taxim"
     sensor_device: str | None = None
@@ -182,6 +234,17 @@ class TactilePerceptionVectorEnv(
         else:
             assert len(self.__config.dataset) == num_envs
             datasets = list(self.__config.dataset)
+        if self.__config.sensor_z_max is None:
+            sensor_z_max = get_sensor_z_max(
+                get_max_object_height(datasets, self.__config.smallest_dimension_up),
+                (
+                    self.__config.max_tilt_angle
+                    if self.__config.allow_sensor_rotation
+                    else 0.0
+                ),
+            )
+        else:
+            sensor_z_max = self.__config.sensor_z_max
         self.__datasets = [
             PrefetchedDataset(ds, load_fn=lambda dp: dp.mesh).open() for ds in datasets
         ]
@@ -269,7 +332,7 @@ class TactilePerceptionVectorEnv(
                 [
                     np.array(self.__config.cell_size) / 2
                     - np.array(self.__config.cell_padding),
-                    [0.02],
+                    [sensor_z_max],
                 ]
             ),
         )

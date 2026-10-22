@@ -27,6 +27,7 @@ from ap_gym import (
 )
 from ap_gym.types import PredType, PredTargetType
 from ap_gym.util import update_info_metrics_vec
+from datasets import load_dataset
 from gymnasium.envs.registration import EnvSpec
 from gymnasium.vector.utils import batch_space
 from transformation import Transformation
@@ -39,6 +40,7 @@ from .constants import (
 )
 from .depth_estimator import DepthEstimator, mk_depth_estimator
 from .mesh_dataset import MeshDataPoint, MeshDataset
+from .simple_mesh_dataset import SimpleMeshDataset
 from .tactile_perception_renderer import TactilePerceptionRenderer
 from .tactile_renderer import TactileRenderer, mk_tactile_renderer
 from .touch_data import TouchSingle, TouchSingleDataset
@@ -72,6 +74,11 @@ class TactileRealSnapConfig:
     # Mesh dataset whose volume statistics standardize the volume targets (the simulated training objects, so that
     # predictions decode with the scale the policy was trained with). Defaults to mesh_dataset.
     volume_statistics_mesh_dataset: MeshDataset | None = None
+    # Upper limit (in m) of the sensor height, which the z-component of the sensor_pos observation normalizes to [-1,
+    # 1] (see TactilePerceptionConfig.sensor_z_max). If None, it is the limit of the simulated TactileMNIST
+    # environments, derived from the MNIST 3D training objects (the recorded objects are 3D prints of MNIST 3D digits),
+    # so that policies trained there see the same scale.
+    sensor_z_max: float | None = None
     # The zero of the recorded gel z-positions drifts between rounds (by up to 3mm), as it depends on the state of the
     # gel and the calibration of the robot at the time of recording. If recalibrate_sensor_z is set, the recorded
     # z-positions of each round are re-zeroed on the deepest touch of that round, which is the platform surface (each
@@ -220,6 +227,27 @@ class TactileRealSnapVectorEnv(
         self.observation_space = batch_space(self.single_observation_space, num_envs)
         self.loss_fn = loss_fn
 
+        if config.sensor_z_max is None:
+            # Avoid a circular import
+            from .tactile_perception_vector_env import (
+                get_max_object_height,
+                get_sensor_z_max,
+            )
+
+            # The simulated TactileMNIST environments do not rotate the sensor
+            sensor_z_max = get_sensor_z_max(
+                get_max_object_height(
+                    [
+                        SimpleMeshDataset(
+                            load_dataset(
+                                "TimSchneider42/tactile-mnist-mnist3d", split="train"
+                            )
+                        )
+                    ]
+                )
+            )
+        else:
+            sensor_z_max = config.sensor_z_max
         self.__sensor_pos_limits = (
             np.concatenate(
                 [
@@ -230,7 +258,7 @@ class TactileRealSnapVectorEnv(
             np.concatenate(
                 [
                     np.array(config.cell_size) / 2 - np.array(config.cell_padding),
-                    [0.02],
+                    [sensor_z_max],
                 ]
             ),
         )
