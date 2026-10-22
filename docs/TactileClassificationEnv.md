@@ -6,7 +6,7 @@ Instead, it must actively control the sensor to find and classify the object.
 
 For more details on tactile perception environments in general, see the [Tactile Perception Environments documentation](TactilePerceptionEnv.md).
 
-Currently implemented are the following three tasks, which are described in more detail in their respective documentations:
+Currently implemented are the following four tasks, which are described in more detail in their respective documentations:
 
 <div align="center">
     <table style="border-collapse: collapse; border: none;">
@@ -27,6 +27,14 @@ Currently implemented are the following three tasks, which are described in more
                 <img src="img/env/Minecraft-v0.webp" alt="Minecraft-v0" width="200px"/><br/>
                 <a href="Minecraft.md">
                     Minecraft-v0
+                </a>
+            </td>
+        </tr>
+        <tr style="border: none;">
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/PrimitiveShapes-v0.webp" alt="PrimitiveShapes-v0" width="200px"/><br/>
+                <a href="PrimitiveShapes.md">
+                    PrimitiveShapes-v0
                 </a>
             </td>
         </tr>
@@ -75,9 +83,10 @@ The prediction target is a scalar integer in the range $[0, K - 1]$, representin
 
 ## Overview of Implemented Environments
 
-| Environment ID                                     | Dataset                                                    | # classes | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                  |
-|----------------------------------------------------|------------------------------------------------------------|-----------|------------|-----------------|--------------------------|--------------------------------------------------------------|
-| [TactileMNIST-v0](TactileMNIST.md)                 | [MNIST 3D](datasets.md#mnist-3d)                           | 10        | 16         | disabled        | enabled                  | Classify objects from the _MNIST 3D_ dataset.                |
-| [TactileMNISTRealSnap-v0](TactileMNISTRealSnap.md) | [Real Tactile MNIST](datasets.md#available-touch-datasets) | 10        | 16         | disabled        | n/a                      | Classify 3D printed digits from prerecorded real touch data. |
-| [Starstruck-v0](Starstruck.md)                     | [Starstruck](datasets.md#starstruck)                       | 3         | 32         | disabled        | disabled                 | Count the number of stars in the scene.                      |
-| [Minecraft-v0](Minecraft.md)                       |                                                            | 299       | 32         | disabled        | enabled                  | Classify Minecraft items.                                    |
+| Environment ID                                     | Dataset                                                    | # classes | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                           |
+|----------------------------------------------------|------------------------------------------------------------|-----------|------------|-----------------|--------------------------|-----------------------------------------------------------------------|
+| [TactileMNIST-v0](TactileMNIST.md)                 | [MNIST 3D](datasets.md#mnist-3d)                           | 10        | 16         | disabled        | enabled                  | Classify objects from the _MNIST 3D_ dataset.                         |
+| [TactileMNISTRealSnap-v0](TactileMNISTRealSnap.md) | [Real Tactile MNIST](datasets.md#available-touch-datasets) | 10        | 16         | disabled        | n/a                      | Classify 3D printed digits from prerecorded real touch data.          |
+| [Starstruck-v0](Starstruck.md)                     | [Starstruck](datasets.md#starstruck)                       | 3         | 32         | disabled        | disabled                 | Count the number of stars in the scene.                               |
+| [PrimitiveShapes-v0](PrimitiveShapes.md)           | [PrimitiveShapes](datasets.md#primitiveshapes)             | 4         | 32         | enabled         | enabled                  | Tell apart cylinders, cuboids, triangular prisms, and half cylinders. |
+| [Minecraft-v0](Minecraft.md)                       |                                                            | 299       | 32         | disabled        | enabled                  | Classify Minecraft items.                                             |

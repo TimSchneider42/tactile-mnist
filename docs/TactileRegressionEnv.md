@@ -50,6 +50,14 @@ Currently implemented are the following tasks, which are described in more detai
                 </a>
             </td>
         </tr>
+        <tr style="border: none;">
+            <td align="center" style="border: none; padding: 10px;">
+                <img src="img/env/PrimitiveShapesVolume-v0.webp" alt="PrimitiveShapesVolume-v0" width="200px"/><br/>
+                <a href="PrimitiveShapesVolume.md">
+                    PrimitiveShapesVolume-v0
+                </a>
+            </td>
+        </tr>
     </table>
 </div>
 
@@ -77,7 +85,7 @@ All tactile regression environments share the following properties:
 
 where $N \in \mathbb{N}$ is the number of dimensions of the predicted value.
 
-The volume estimation environments (`TactileMNISTVolume-v0`, `ABCVolume-v0`, and their variants) use a normalized Huber loss instead of the MSE, see [TactileMNISTVolume](TactileMNISTVolume.md#loss-function).
+The volume estimation environments (`TactileMNISTVolume-v0`, `ABCVolume-v0`, `PrimitiveShapesVolume-v0`, and their variants) use a normalized Huber loss instead of the MSE, see [TactileMNISTVolume](TactileMNISTVolume.md#loss-function).
 
 ## Prediction Space
 
@@ -94,4 +102,5 @@ The agent's objective is to approximate the prediction target as closely as poss
 | [TactileMNISTVolume-v0](TactileMNISTVolume.md)                 | [MNIST 3D](datasets.md#mnist-3d)                           | 1   | 16         | disabled        | enabled                  | Estimate the volume of objects from the _MNIST 3D_ dataset.                |
 | [TactileMNISTVolumeRealSnap-v0](TactileMNISTVolumeRealSnap.md) | [Real Tactile MNIST](datasets.md#available-touch-datasets) | 1   | 16         | disabled        | n/a                      | Estimate the volume of 3D printed digits from prerecorded real touch data. |
 | [ABCVolume-v0](ABCVolume.md)                                   | [ABC Dataset](datasets.md#abc-dataset)                     | 1   | 32         | enabled         | enabled                  | Estimate the volume of objects from the _ABC_ dataset.                     |
+| [PrimitiveShapesVolume-v0](PrimitiveShapesVolume.md)           | [PrimitiveShapes](datasets.md#primitiveshapes)             | 1   | 32         | enabled         | enabled                  | Estimate the volume of geometric primitives.                               |
 | [MinecraftPose-v0](MinecraftPose.md)                           |                                                            | 4   | 64         | disabled        | enabled                  | Estimate the pose of a Minecraft item.                                     |
