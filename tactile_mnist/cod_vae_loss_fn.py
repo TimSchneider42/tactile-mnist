@@ -107,28 +107,22 @@ loss — is assembled. Until these statistics are set, a coarse heuristic
 from __future__ import annotations
 
 import ctypes
-import dataclasses
 import logging
 import math
-import multiprocessing
 import os
 from dataclasses import dataclass
 from functools import lru_cache, partial
 from typing import Any
 
-import filelock
 import numpy as np
-import threadpoolctl
-import tqdm
 from ap_gym import LossFn
 from scipy.spatial.transform import Rotation
 
 from cod_vae import CODVAEBase
 from cod_vae.training.preprocess import sample_occupancy_pools
-from .constants import CACHE_BASE_DIR
 from .mesh_dataset import MeshDataset
 from .simple_mesh_dataset import SimpleMeshDataset
-from .util import get_cache_hash
+from .util import get_dataset_stats
 
 try:
     import torch
@@ -167,7 +161,7 @@ def _compute_mesh_pool(
     num_near_points: int,
     near_stddevs: tuple[float, ...],
     seed: int,
-) -> tuple[int, dict[str, np.ndarray]]:
+) -> dict[str, np.ndarray]:
     """
     Compute the occupancy pool of one mesh (module-level so worker processes can
     pickle it): the bit-packed occupancy labels of the mesh's contiguous slice of the
@@ -193,7 +187,7 @@ def _compute_mesh_pool(
         near_dtype=np.float16,
     )
 
-    return mesh_index, {
+    return {
         "vol_start": np.int64(vol_start),
         "vol_label_bits": np.packbits(pools["vol_label"]),
         "vol_pool_num_occupied": np.int32(pools["vol_label"].sum()),
@@ -242,55 +236,15 @@ def _load_or_compute_pools(
         near_stddevs=near_stddevs,
         seed=seed,
     )
-    cache_dir = CACHE_BASE_DIR / "cod_vae_occupancy_pools"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    ds_fingerprint = dataset.huggingface_dataset._fingerprint
-    cache_file = cache_dir / f"{get_cache_hash(ds_fingerprint, kwargs)}.npz"
-    with filelock.FileLock(cache_dir / f"{ds_fingerprint}.lock"):
-        if cache_file.exists():
-            try:
-                with np.load(cache_file) as data:
-                    return _OccupancyPools(**data)
-            except Exception as ex:
-                logger.warning(
-                    f"Loading the occupancy pools from cache failed with the "
-                    f"following exception: {ex}"
-                )
-        print("Computing COD-VAE occupancy pools (the results will be cached)...")
-        mesh_pools: list[dict[str, np.ndarray] | None] = [None] * len(dataset)
-        # Spawned (not forked) workers: the parent typically has CUDA and JAX's
-        # thread pools initialized at this point, which forking can deadlock.
-        # Limit each worker to a single BLAS thread, as the workers would otherwise
-        # spawn one BLAS thread per CPU core each, oversubscribing the CPU massively.
-        # The initializer must be picklable for the spawn context, hence no lambda.
-        with multiprocessing.get_context("spawn").Pool(
-            processes=min(multiprocessing.cpu_count(), 8),
-            initializer=partial(
-                threadpoolctl.threadpool_limits, limits=1, user_api="blas"
-            ),
-        ) as pool:
-            for mesh_index, mesh_pool in tqdm.tqdm(
-                pool.imap_unordered(
-                    partial(
-                        _compute_mesh_pool,
-                        ds=dataset.huggingface_dataset,
-                        **kwargs,
-                    ),
-                    range(len(dataset)),
-                ),
-                total=len(dataset),
-            ):
-                mesh_pools[mesh_index] = mesh_pool
-        pools = _OccupancyPools(
-            database=_volume_database(seed, vol_database_size),
-            **{
-                name: np.stack([mesh_pool[name] for mesh_pool in mesh_pools])
-                for name in (f.name for f in dataclasses.fields(_OccupancyPools))
-                if name != "database"
-            },
-        )
-        np.savez(cache_file, **dataclasses.asdict(pools))
-        return pools
+    mesh_pools = get_dataset_stats(
+        dataset, "cod_vae_occupancy_pools", _compute_mesh_pool, kwargs
+    )
+    # The database is shared by all meshes and cheap to regenerate from the seed (caches written before it was dropped
+    # from the cached arrays still contain it)
+    mesh_pools.pop("database", None)
+    return _OccupancyPools(
+        database=_volume_database(seed, vol_database_size), **mesh_pools
+    )
 
 
 def _cuda_driver_total_memory(cuda_ordinal: int) -> int | None:
