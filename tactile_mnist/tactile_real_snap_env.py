@@ -583,6 +583,9 @@ class TactileRealSnapVectorEnv(
         truncated |= exhausted & ~terminated
 
         obs, info = self.__get_obs_info()
+        # Episodes that end because the recording ran out of touches end early, with fewer touches than the step limit
+        # allows, and are excluded from the logs
+        info["episode_discard_logs"] = exhausted & ~time_out
 
         action_reward = np.where(self.__prev_done, 0, action_reward)
         self.__prev_done = terminated | truncated
@@ -841,7 +844,12 @@ class TactileRealSnapVolumeEstimationVectorEnv(
             )
 
         if np.any(terminated | truncated):
-            info = update_info_metrics_vec(info, self.__metrics, terminated | truncated)
+            info = update_info_metrics_vec(
+                info,
+                self.__metrics,
+                terminated | truncated,
+                info["episode_discard_logs"],
+            )
 
         return obs, action_reward, terminated, truncated, info, targets
 
