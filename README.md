@@ -5,25 +5,25 @@
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/TactileMNIST-v0.webp" alt="TactileMNIST-v0" width="180px"/><br/>
             <a href="docs/TactileMNIST.md">
-                TactileMNIST-v0
+                <sup>TactileMNIST-v0</sup>
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/Starstruck-v0.webp" alt="Starstruck-v0" width="180px"/><br/>
             <a href="docs/Starstruck.md">
-                Starstruck-v0
+                <sup>Starstruck-v0</sup>
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/PrimitiveGeometries-v0.webp" alt="PrimitiveGeometries-v0" width="180px"/><br/>
             <a href="docs/PrimitiveGeometries.md">
-                PrimitiveGeometries-v0
+                <sup>PrimitiveGeometries-v0</sup>
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/Minecraft-v0.webp" alt="Minecraft-v0" width="180px"/><br/>
             <a href="docs/Minecraft.md">
-                Minecraft-v0
+                <sup>Minecraft-v0</sup>
             </a>
         </td>
     </tr>
@@ -33,25 +33,25 @@
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/TactileMNISTCenterOfMass-v0.webp" alt="TactileMNISTCenterOfMass-v0" width="180px"/><br/>
             <a href="docs/TactileMNISTCenterOfMass.md">
-                TactileMNISTCenterOfMass-v0
+                <sup>TactileMNISTCenterOfMass-v0</sup>
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/ABCCenterOfMass-v0.webp" alt="ABCCenterOfMass-v0" width="180px"/><br/>
             <a href="docs/ABCCenterOfMass.md">
-                ABCCenterOfMass-v0
+                <sup>ABCCenterOfMass-v0</sup>
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/Toolbox-v0.webp" alt="Toolbox-v0" width="180px"/><br/>
             <a href="docs/Toolbox.md">
-                Toolbox-v0
+                <sup>Toolbox-v0</sup>
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/MinecraftPose-v0.webp" alt="MinecraftPose-v0" width="180px"/><br/>
             <a href="docs/MinecraftPose.md">
-                MinecraftPose-v0
+                <sup>MinecraftPose-v0</sup>
             </a>
         </td>
     </tr>
@@ -61,19 +61,19 @@
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/TactileMNISTVolume-v0.webp" alt="TactileMNISTVolume-v0" width="180px"/><br/>
             <a href="docs/TactileMNISTVolume.md">
-                TactileMNISTVolume-v0
+                <sup>TactileMNISTVolume-v0</sup>
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/ABCVolume-v0.webp" alt="ABCVolume-v0" width="180px"/><br/>
             <a href="docs/ABCVolume.md">
-                ABCVolume-v0
+                <sup>ABCVolume-v0</sup>
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/PrimitiveGeometriesVolume-v0.webp" alt="PrimitiveGeometriesVolume-v0" width="180px"/><br/>
             <a href="docs/PrimitiveGeometriesVolume.md">
-                PrimitiveGeometriesVolume-v0
+                <sup>PrimitiveGeometriesVolume-v0</sup>
             </a>
         </td>
     </tr>
