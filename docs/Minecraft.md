@@ -9,7 +9,7 @@ Refer to the [tactile classification environments overview](TactileClassificatio
 |------------------------------|--------------|
 | **Environment ID**           | Minecraft-v0 |
 | **Number of classes**        | 299          |
-| **Step limit**               | 32           |
+| **Step limit**               | 16           |
 | **Sensor rotation**          | disabled     |
 | **Object pose perturbation** | enabled      |
 

@@ -708,7 +708,7 @@ def register_envs():
                 default_config=dict(
                     sensor_output_size=(64, 64),
                     allow_sensor_rotation=False,
-                    step_limit=32,
+                    step_limit=16,
                     sensor_type=sensor_type,
                     renderer_show_orig_mesh_colors=True,
                 )
