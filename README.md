@@ -3,21 +3,27 @@
 <table style="border-collapse: collapse; border: none;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/TactileMNIST-v0.webp" alt="TactileMNIST-v0" width="240px"/><br/>
+            <img src="docs/img/env/TactileMNIST-v0.webp" alt="TactileMNIST-v0" width="180px"/><br/>
             <a href="docs/TactileMNIST.md">
                 TactileMNIST-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/Starstruck-v0.webp" alt="Starstruck-v0" width="240px"/><br/>
+            <img src="docs/img/env/Starstruck-v0.webp" alt="Starstruck-v0" width="180px"/><br/>
             <a href="docs/Starstruck.md">
                 Starstruck-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/Toolbox-v0.webp" alt="Toolbox-v0" width="240px"/><br/>
-            <a href="docs/Toolbox.md">
-                Toolbox-v0
+            <img src="docs/img/env/PrimitiveShapes-v0.webp" alt="PrimitiveShapes-v0" width="180px"/><br/>
+            <a href="docs/PrimitiveShapes.md">
+                PrimitiveShapes-v0
+            </a>
+        </td>
+        <td align="center" style="border: none; padding: 10px;">
+            <img src="docs/img/env/Minecraft-v0.webp" alt="Minecraft-v0" width="180px"/><br/>
+            <a href="docs/Minecraft.md">
+                Minecraft-v0
             </a>
         </td>
     </tr>
@@ -25,21 +31,27 @@
 <table style="border-collapse: collapse; border: none;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/ABCCenterOfMass-v0.webp" alt="ABCCenterOfMass-v0" width="240px"/><br/>
+            <img src="docs/img/env/TactileMNISTCenterOfMass-v0.webp" alt="TactileMNISTCenterOfMass-v0" width="180px"/><br/>
+            <a href="docs/TactileMNISTCenterOfMass.md">
+                TactileMNISTCenterOfMass-v0
+            </a>
+        </td>
+        <td align="center" style="border: none; padding: 10px;">
+            <img src="docs/img/env/ABCCenterOfMass-v0.webp" alt="ABCCenterOfMass-v0" width="180px"/><br/>
             <a href="docs/ABCCenterOfMass.md">
                 ABCCenterOfMass-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/TactileMNISTVolume-v0.webp" alt="TactileMNISTVolume-v0" width="240px"/><br/>
-            <a href="docs/TactileMNISTVolume.md">
-                TactileMNISTVolume-v0
+            <img src="docs/img/env/Toolbox-v0.webp" alt="Toolbox-v0" width="180px"/><br/>
+            <a href="docs/Toolbox.md">
+                Toolbox-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/ABCVolume-v0.webp" alt="ABCVolume-v0" width="240px"/><br/>
-            <a href="docs/ABCVolume.md">
-                ABCVolume-v0
+            <img src="docs/img/env/MinecraftPose-v0.webp" alt="MinecraftPose-v0" width="180px"/><br/>
+            <a href="docs/MinecraftPose.md">
+                MinecraftPose-v0
             </a>
         </td>
     </tr>
@@ -47,15 +59,21 @@
 <table style="border-collapse: collapse; border: none;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/Minecraft-v0.webp" alt="Minecraft-v0" width="240px"/><br/>
-            <a href="docs/Minecraft.md">
-                Minecraft-v0
+            <img src="docs/img/env/TactileMNISTVolume-v0.webp" alt="TactileMNISTVolume-v0" width="180px"/><br/>
+            <a href="docs/TactileMNISTVolume.md">
+                TactileMNISTVolume-v0
             </a>
         </td>
         <td align="center" style="border: none; padding: 10px;">
-            <img src="docs/img/env/MinecraftPose-v0.webp" alt="MinecraftPose-v0" width="240px"/><br/>
-            <a href="docs/MinecraftPose.md">
-                MinecraftPose-v0
+            <img src="docs/img/env/ABCVolume-v0.webp" alt="ABCVolume-v0" width="180px"/><br/>
+            <a href="docs/ABCVolume.md">
+                ABCVolume-v0
+            </a>
+        </td>
+        <td align="center" style="border: none; padding: 10px;">
+            <img src="docs/img/env/PrimitiveShapesVolume-v0.webp" alt="PrimitiveShapesVolume-v0" width="180px"/><br/>
+            <a href="docs/PrimitiveShapesVolume.md">
+                PrimitiveShapesVolume-v0
             </a>
         </td>
     </tr>
