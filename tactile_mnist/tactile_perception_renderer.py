@@ -624,68 +624,81 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
             t_size = np.round(img_size * self.__class_weight_screen_size_rel).astype(
                 np.int_
             )
-            target_pos_rel = np.array(
-                [
-                    self.__class_weight_screen_pos_rel[0],
-                    1.0 - self.__class_weight_screen_pos_rel[1],
-                ]
-            )
-            t_pos = np.round(target_pos_rel * img_size - t_size / 2).astype(np.int_)
-
-            line_thickness_rel = 0.01
-            line_thickness = line_thickness_rel * t_size[1]
-
-            n = self.class_weights.shape[1]
-            bar_margin = 0.1
-            max_bar_width_rel = 0.2
-            padding = 0.05
-            bar_width_rel = min(
-                max_bar_width_rel,
-                (1.0 - 2 * padding) / ((n - 1) * (1 + bar_margin) + 1),
-            )
-            bar_width = bar_width_rel * t_size[0]
-            bar_pos_x_rel = np.linspace(
-                padding + bar_width_rel / 2, 1 - padding - bar_width_rel / 2, n
-            )
-            line_pos_y = 0.99 * t_size[1] - line_thickness / 2
 
             for i in range(img.shape[0]):
                 screen = Image.new("RGBA", tuple(t_size), (0, 0, 0, 0))
                 draw = ImageDraw.Draw(screen)
 
-                for j, (pos_x_rel_center, weight) in enumerate(
-                    zip(bar_pos_x_rel, self.class_weights[i])
-                ):
-                    bar_height_rel = (1.0 - 2 * padding) * weight
-                    pos_x_rel = pos_x_rel_center - 0.5 * bar_width_rel
-                    bar_height = bar_height_rel * t_size[1]
-                    pos_x = pos_x_rel * t_size[0]
-                    pos_y = line_pos_y - bar_height
+                target_pos_rel = np.array(
+                    [
+                        self.__class_weight_screen_pos_rel[0],
+                        1.0 - self.__class_weight_screen_pos_rel[1],
+                    ]
+                )
+                t_pos = np.round(target_pos_rel * img_size - t_size / 2).astype(np.int_)
 
-                    if (
-                        self.target_class_idx is not None
-                        and self.target_class_idx[i] == j
-                    ):
-                        color = self.__true_class_color
-                    else:
-                        color = self.__false_class_color
+                line_thickness_rel = 0.01
+                line_thickness = line_thickness_rel * t_size[1]
+                line_pos_y = 0.99 * t_size[1] - line_thickness / 2
+                padding = 0.05
 
-                    draw.rectangle(
-                        [(pos_x, pos_y), (pos_x + bar_width, pos_y + bar_height)],
-                        fill=color,
+                if self.class_weights.shape[-1] <= 10:
+                    n = self.class_weights.shape[1]
+                    bar_margin = 0.1
+                    max_bar_width_rel = 0.2
+                    bar_width_rel = min(
+                        max_bar_width_rel,
+                        (1.0 - 2 * padding) / ((n - 1) * (1 + bar_margin) + 1),
+                    )
+                    bar_width = bar_width_rel * t_size[0]
+                    bar_pos_x_rel = np.linspace(
+                        padding + bar_width_rel / 2, 1 - padding - bar_width_rel / 2, n
                     )
 
-                draw.line(
-                    [
-                        (0.01 * t_size[0], line_pos_y),
-                        (0.99 * t_size[0], line_pos_y),
-                    ],
-                    fill="black",
-                    width=int(round(line_thickness)),
-                )
+                    for j, (pos_x_rel_center, weight) in enumerate(
+                        zip(bar_pos_x_rel, self.class_weights[i])
+                    ):
+                        bar_height_rel = (1.0 - 2 * padding) * weight
+                        pos_x_rel = pos_x_rel_center - 0.5 * bar_width_rel
+                        bar_height = bar_height_rel * t_size[1]
+                        pos_x = pos_x_rel * t_size[0]
+                        pos_y = line_pos_y - bar_height
 
-                screen_np = np.array(screen)
-                screen_alpha = screen_np[..., -1:] / 255
+                        if (
+                            self.target_class_idx is not None
+                            and self.target_class_idx[i] == j
+                        ):
+                            color = self.__true_class_color
+                        else:
+                            color = self.__false_class_color
+
+                        draw.rectangle(
+                            [(pos_x, pos_y), (pos_x + bar_width, pos_y + bar_height)],
+                            fill=color,
+                        )
+
+                    draw.line(
+                        [
+                            (0.01 * t_size[0], line_pos_y),
+                            (0.99 * t_size[0], line_pos_y),
+                        ],
+                        fill="black",
+                        width=int(round(line_thickness)),
+                    )
+                elif self.target_class_idx is not None:
+                    weight = self.class_weights[i, self.target_class_idx[i]]
+                    bar_height = t_size[1] * 0.3
+                    pos_y = t_size[1] - bar_height
+                    bar_width = weight * (t_size[0])
+                    bar_full_width = t_size[0]
+                    draw.rectangle(
+                        [(0, pos_y), (bar_full_width, pos_y + bar_height)],
+                        fill=self.__false_class_color,
+                    )
+                    draw.rectangle(
+                        [(0, pos_y), (bar_width, pos_y + bar_height)],
+                        fill=self.__true_class_color,
+                    )
 
                 idx = (
                     i,
@@ -693,6 +706,8 @@ class TactilePerceptionRenderer(Generic[MeshDataPointType]):
                     slice(t_pos[0], t_pos[0] + t_size[0]),
                 )
 
+                screen_np = np.array(screen)
+                screen_alpha = screen_np[..., -1:] / 255
                 img[idx] = (
                     screen_np * screen_alpha + img[idx] * (1 - screen_alpha)
                 ).astype(np.int_)

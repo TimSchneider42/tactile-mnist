@@ -711,6 +711,7 @@ def register_envs():
                     step_limit=16,
                     sensor_type=sensor_type,
                     renderer_show_orig_mesh_colors=True,
+                    renderer_show_class_weights=True,
                 )
             ),
         )
