@@ -52,9 +52,9 @@ Currently implemented are the following tasks, which are described in more detai
         </tr>
         <tr style="border: none;">
             <td align="center" style="border: none; padding: 10px;">
-                <img src="img/env/PrimitiveShapesVolume-v0.webp" alt="PrimitiveShapesVolume-v0" width="200px"/><br/>
-                <a href="PrimitiveShapesVolume.md">
-                    PrimitiveShapesVolume-v0
+                <img src="img/env/PrimitiveGeometriesVolume-v0.webp" alt="PrimitiveGeometriesVolume-v0" width="200px"/><br/>
+                <a href="PrimitiveGeometriesVolume.md">
+                    PrimitiveGeometriesVolume-v0
                 </a>
             </td>
         </tr>
@@ -85,7 +85,7 @@ All tactile regression environments share the following properties:
 
 where $N \in \mathbb{N}$ is the number of dimensions of the predicted value.
 
-The volume estimation environments (`TactileMNISTVolume-v0`, `ABCVolume-v0`, `PrimitiveShapesVolume-v0`, and their variants) use a normalized Huber loss instead of the MSE, see [TactileMNISTVolume](TactileMNISTVolume.md#loss-function).
+The volume estimation environments (`TactileMNISTVolume-v0`, `ABCVolume-v0`, `PrimitiveGeometriesVolume-v0`, and their variants) use a normalized Huber loss instead of the MSE, see [TactileMNISTVolume](TactileMNISTVolume.md#loss-function).
 
 ## Prediction Space
 
@@ -94,13 +94,13 @@ The agent's objective is to approximate the prediction target as closely as poss
 
 ## Overview of Implemented Environments
 
-| Environment ID                                                 | Dataset                                                    | N   | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                                |
-|----------------------------------------------------------------|------------------------------------------------------------|-----|------------|-----------------|--------------------------|----------------------------------------------------------------------------|
-| [Toolbox-v0](Toolbox.md)                                       |                                                            | 4   | 64         | disabled        | enabled                  | Estimate the pose of a tool.                                               |
-| [TactileMNISTCenterOfMass-v0](TactileMNISTCenterOfMass.md)     | [MNIST 3D](datasets.md#mnist-3d)                           | 2   | 16         | disabled        | enabled                  | Estimate the center of mass of objects from the _MNIST 3D_ dataset.        |
-| [ABCCenterOfMass-v0](ABCCenterOfMass.md)                       | [ABC Dataset](datasets.md#abc-dataset)                     | 2   | 32         | enabled         | enabled                  | Estimate the center of mass of objects from the _ABC_ dataset.             |
-| [TactileMNISTVolume-v0](TactileMNISTVolume.md)                 | [MNIST 3D](datasets.md#mnist-3d)                           | 1   | 16         | disabled        | enabled                  | Estimate the volume of objects from the _MNIST 3D_ dataset.                |
-| [TactileMNISTVolumeRealSnap-v0](TactileMNISTVolumeRealSnap.md) | [Real Tactile MNIST](datasets.md#available-touch-datasets) | 1   | 16         | disabled        | n/a                      | Estimate the volume of 3D printed digits from prerecorded real touch data. |
-| [ABCVolume-v0](ABCVolume.md)                                   | [ABC Dataset](datasets.md#abc-dataset)                     | 1   | 32         | enabled         | enabled                  | Estimate the volume of objects from the _ABC_ dataset.                     |
-| [PrimitiveShapesVolume-v0](PrimitiveShapesVolume.md)           | [PrimitiveShapes](datasets.md#primitiveshapes)             | 1   | 32         | enabled         | enabled                  | Estimate the volume of geometric primitives.                               |
-| [MinecraftPose-v0](MinecraftPose.md)                           |                                                            | 4   | 64         | disabled        | enabled                  | Estimate the pose of a Minecraft item.                                     |
+| Environment ID                                                 | Dataset                                                    | N | Step Limit | Sensor Rotation | Object Pose Perturbation | Description                                                                |
+|----------------------------------------------------------------|------------------------------------------------------------|---|------------|-----------------|--------------------------|----------------------------------------------------------------------------|
+| [Toolbox-v0](Toolbox.md)                                       |                                                            | 4 | 64         | disabled        | enabled                  | Estimate the pose of a tool.                                               |
+| [TactileMNISTCenterOfMass-v0](TactileMNISTCenterOfMass.md)     | [MNIST 3D](datasets.md#mnist-3d)                           | 2 | 16         | disabled        | enabled                  | Estimate the center of mass of objects from the _MNIST 3D_ dataset.        |
+| [ABCCenterOfMass-v0](ABCCenterOfMass.md)                       | [ABC Dataset](datasets.md#abc-dataset)                     | 2 | 32         | enabled         | enabled                  | Estimate the center of mass of objects from the _ABC_ dataset.             |
+| [TactileMNISTVolume-v0](TactileMNISTVolume.md)                 | [MNIST 3D](datasets.md#mnist-3d)                           | 1 | 16         | disabled        | enabled                  | Estimate the volume of objects from the _MNIST 3D_ dataset.                |
+| [TactileMNISTVolumeRealSnap-v0](TactileMNISTVolumeRealSnap.md) | [Real Tactile MNIST](datasets.md#available-touch-datasets) | 1 | 16         | disabled        | n/a                      | Estimate the volume of 3D printed digits from prerecorded real touch data. |
+| [ABCVolume-v0](ABCVolume.md)                                   | [ABC Dataset](datasets.md#abc-dataset)                     | 1 | 32         | enabled         | enabled                  | Estimate the volume of objects from the _ABC_ dataset.                     |
+| [PrimitiveGeometriesVolume-v0](PrimitiveGeometriesVolume.md)   | [PrimitiveGeometries](datasets.md#primitivegeometries)         | 1 | 32         | enabled         | enabled                  | Estimate the volume of geometric primitives.                               |
+| [MinecraftPose-v0](MinecraftPose.md)                           |                                                            | 4 | 64         | disabled        | enabled                  | Estimate the pose of a Minecraft item.                                     |

@@ -31,9 +31,9 @@ from .minecraft_dataset import (
     load_minecraft_item_mesh_dataset,
 )
 from .objaverse_xl_dataset import ObjaverseXLMeshDataPoint, ObjaverseXLMeshDataset
-from .primitive_shapes_dataset import (
-    PrimitiveShapesMeshDataPoint,
-    PrimitiveShapesMeshDataset,
+from .primitive_geometries_dataset import (
+    PrimitiveGeometriesMeshDataPoint,
+    PrimitiveGeometriesMeshDataset,
     make_primitive_mesh,
 )
 from .starstruck_dataset import (

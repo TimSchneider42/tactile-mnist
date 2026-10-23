@@ -1,4 +1,4 @@
-"""Tests for the procedurally generated PrimitiveShapes dataset."""
+"""Tests for the procedurally generated PrimitiveGeometries dataset."""
 
 import collections
 
@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 import tactile_mnist  # noqa: F401 (registers the environments)
-from tactile_mnist import MeshDataset, PrimitiveShapesMeshDataset
-from tactile_mnist.primitive_shapes_dataset import (
+from tactile_mnist import MeshDataset, PrimitiveGeometriesMeshDataset
+from tactile_mnist.primitive_geometries_dataset import (
     DEFAULT_SPLIT_SIZES,
     LABEL_NAMES,
     MIN_TRIANGLE_ANGLE,
@@ -36,20 +36,20 @@ def _shape_from_mesh(mesh) -> int:
 
 @pytest.fixture(scope="module")
 def samples():
-    dataset = PrimitiveShapesMeshDataset()
+    dataset = PrimitiveGeometriesMeshDataset()
     indices = np.random.default_rng(0).choice(len(dataset), NUM_SAMPLES, replace=False)
     return [dataset[int(i)] for i in indices]
 
 
 def test_splits_have_default_sizes_and_labels():
     for split, size in DEFAULT_SPLIT_SIZES.items():
-        dataset = PrimitiveShapesMeshDataset(split)
+        dataset = PrimitiveGeometriesMeshDataset(split)
         assert isinstance(dataset, MeshDataset)
         assert len(dataset) == size
-    assert len(PrimitiveShapesMeshDataset("train", size=10)) == 10
+    assert len(PrimitiveGeometriesMeshDataset("train", size=10)) == 10
     with pytest.raises(ValueError):
-        PrimitiveShapesMeshDataset("holdout")
-    dataset = PrimitiveShapesMeshDataset()
+        PrimitiveGeometriesMeshDataset("holdout")
+    dataset = PrimitiveGeometriesMeshDataset()
     assert dataset.label_names == LABEL_NAMES
     assert [dataset[i].label for i in range(8)] == [0, 1, 2, 3] * 2
     np.testing.assert_array_equal(dataset.labels[:8], [0, 1, 2, 3] * 2)
@@ -82,7 +82,7 @@ def test_volume_matches_the_mesh_without_building_it(samples):
     for dp in samples:
         # The cylinder meshes are polygonal approximations and slightly smaller than the exact volume
         assert dp.mesh.volume == pytest.approx(dp.volume, rel=2e-3)
-    dp = PrimitiveShapesMeshDataset(size=1)[0]
+    dp = PrimitiveGeometriesMeshDataset(size=1)[0]
     dp.volume
     assert "mesh" not in vars(dp)
 
@@ -97,29 +97,29 @@ def test_triangles_have_no_slivers(samples):
 
 
 def test_objects_are_deterministic_and_distinct():
-    reference = PrimitiveShapesMeshDataset()[7]
+    reference = PrimitiveGeometriesMeshDataset()[7]
     np.testing.assert_array_equal(
-        PrimitiveShapesMeshDataset()[7].dimensions, reference.dimensions
+        PrimitiveGeometriesMeshDataset()[7].dimensions, reference.dimensions
     )
     for other in [
-        PrimitiveShapesMeshDataset()[11],
-        PrimitiveShapesMeshDataset("test")[7],
-        PrimitiveShapesMeshDataset(seed=1)[7],
+        PrimitiveGeometriesMeshDataset()[11],
+        PrimitiveGeometriesMeshDataset("test")[7],
+        PrimitiveGeometriesMeshDataset(seed=1)[7],
     ]:
         assert not np.array_equal(other.dimensions, reference.dimensions)
 
 
 def test_cache_keys_identify_the_content():
-    dataset = PrimitiveShapesMeshDataset(size=16)
-    assert dataset.cache_key.startswith("primitive-shapes_")
-    assert dataset.cache_key == PrimitiveShapesMeshDataset(size=16).cache_key
+    dataset = PrimitiveGeometriesMeshDataset(size=16)
+    assert dataset.cache_key.startswith("primitive-geometries_")
+    assert dataset.cache_key == PrimitiveGeometriesMeshDataset(size=16).cache_key
     assert (
         len(
             {
                 dataset.cache_key,
-                PrimitiveShapesMeshDataset("test", size=16).cache_key,
-                PrimitiveShapesMeshDataset(size=16, seed=1).cache_key,
-                PrimitiveShapesMeshDataset(size=17).cache_key,
+                PrimitiveGeometriesMeshDataset("test", size=16).cache_key,
+                PrimitiveGeometriesMeshDataset(size=16, seed=1).cache_key,
+                PrimitiveGeometriesMeshDataset(size=17).cache_key,
                 dataset[:4].cache_key,
             }
         )
@@ -128,8 +128,8 @@ def test_cache_keys_identify_the_content():
 
 
 def test_environments_are_registered_for_both_splits():
-    ids = {i for i in gym.registry if i.startswith("PrimitiveShapes")}
-    for task in ["PrimitiveShapes", "PrimitiveShapesVolume"]:
+    ids = {i for i in gym.registry if i.startswith("PrimitiveGeometries")}
+    for task in ["PrimitiveGeometries", "PrimitiveGeometriesVolume"]:
         for variant in ["", "-DR", "-Depth", "-Depth-DR"]:
             for split in ["", "-train", "-test"]:
                 assert f"{task}{variant}{split}-v0" in ids

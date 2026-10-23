@@ -1,4 +1,4 @@
-"""Procedurally generated PrimitiveShapes mesh dataset.
+"""Procedurally generated PrimitiveGeometries mesh dataset.
 
 Every object is one of four geometric primitives, a cylinder, a cuboid, an extruded triangle (a triangular prism), or a
 half cylinder, with randomly drawn dimensions, so objects of the same class differ in size and proportions. Like the Starstruck
@@ -117,7 +117,7 @@ def make_primitive_mesh(
 
 
 @dataclass
-class PrimitiveShapesMeshDataPoint(MeshDataPoint):
+class PrimitiveGeometriesMeshDataPoint(MeshDataPoint):
     id: int
     label: int
     # Extents along x, y, z in the canonical orientation (for cylinders, x = y = diameter, z = height; for prisms,
@@ -157,7 +157,7 @@ def _primitive_volume(
 
 def _sample_datapoint(
     index: int, seed: int, split: str = "train"
-) -> PrimitiveShapesMeshDataPoint:
+) -> PrimitiveGeometriesMeshDataPoint:
     rng = np.random.default_rng(
         np.random.SeedSequence(seed, spawn_key=(SPLITS.index(split), index))
     )
@@ -177,16 +177,16 @@ def _sample_datapoint(
     else:
         radius = rng.uniform(*HALF_CYLINDER_RADIUS_RANGE)
         dimensions = np.array([2 * radius, radius, rng.uniform(*HEIGHT_RANGE)])
-    return PrimitiveShapesMeshDataPoint(
+    return PrimitiveGeometriesMeshDataPoint(
         id=index, label=label, dimensions=dimensions, triangle=triangle
     )
 
 
-class PrimitiveShapesMeshDataset(
-    MeshDataset[PrimitiveShapesMeshDataPoint, "PrimitiveShapesMeshDataset"]
+class PrimitiveGeometriesMeshDataset(
+    MeshDataset[PrimitiveGeometriesMeshDataPoint, "PrimitiveGeometriesMeshDataset"]
 ):
     """
-    PrimitiveShapes mesh dataset whose objects are generated on the fly.
+    PrimitiveGeometries mesh dataset whose objects are generated on the fly.
 
     Datapoint i of a split has label i % 4, so every split is balanced; its dimensions come from a generator seeded
     with SeedSequence(seed, spawn_key=(split index, i)). The meshes are only generated when a datapoint's mesh field is accessed and
@@ -209,16 +209,16 @@ class PrimitiveShapesMeshDataset(
         self.__seed = seed
         self.__indices = _indices
 
-    def _get_item(self, index: int) -> PrimitiveShapesMeshDataPoint:
+    def _get_item(self, index: int) -> PrimitiveGeometriesMeshDataPoint:
         if self.__indices is not None:
             index = int(self.__indices[index])
         return _sample_datapoint(index, self.__seed, self.__split)
 
-    def _select(self, indices: np.ndarray) -> PrimitiveShapesMeshDataset:
+    def _select(self, indices: np.ndarray) -> PrimitiveGeometriesMeshDataset:
         indices = np.asarray(indices)
         if self.__indices is not None:
             indices = self.__indices[indices]
-        return PrimitiveShapesMeshDataset(
+        return PrimitiveGeometriesMeshDataset(
             self.__split,
             self.__size,
             self.__seed,
@@ -238,13 +238,15 @@ class PrimitiveShapesMeshDataset(
         indices = np.arange(self.__size) if self.__indices is None else self.__indices
         return indices % len(LABEL_NAMES)
 
-    def filter_labels(self, labels: int | Iterable[int]) -> PrimitiveShapesMeshDataset:
+    def filter_labels(
+        self, labels: int | Iterable[int]
+    ) -> PrimitiveGeometriesMeshDataset:
         if not isinstance(labels, Iterable):
             labels = [labels]
         return self[np.isin(self.labels, list(labels))]
 
     @property
-    def by_labels(self) -> tuple[PrimitiveShapesMeshDataset, ...]:
+    def by_labels(self) -> tuple[PrimitiveGeometriesMeshDataset, ...]:
         labels = self.labels
         return tuple(self[labels == label] for label in range(len(LABEL_NAMES)))
 
@@ -258,7 +260,7 @@ class PrimitiveShapesMeshDataset(
 
     @classmethod
     def _cache_key_prefix(cls) -> str:
-        return "primitive-shapes"
+        return "primitive-geometries"
 
     def _cache_key_body(self) -> str:
         key = f"{self.__split}_seed{self.__seed}_size{self.__size}"

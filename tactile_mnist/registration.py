@@ -13,7 +13,7 @@ from .minecraft_dataset import load_minecraft_item_mesh_dataset
 from .mesh_dataset import MeshDataset
 from .sensor_noise import SensorNoiseConfig
 from .simple_mesh_dataset import SimpleMeshDataset
-from .primitive_shapes_dataset import PrimitiveShapesMeshDataset
+from .primitive_geometries_dataset import PrimitiveGeometriesMeshDataset
 from .starstruck_dataset import StarstruckMeshDataset
 from .tactile_classification_env import (
     TactileClassificationEnv,
@@ -532,11 +532,11 @@ def register_envs():
                             real_base_depth_dataset=real_base_depth_dataset,
                         )
 
-    # Starstruck and PrimitiveShapes are generated procedurally (see StarstruckMeshDataset and
-    # PrimitiveShapesMeshDataset); their train and test splits are drawn from separate seed streams.
-    # PrimitiveShapes: cylinders, cuboids, triangular prisms and half cylinders, explored in 3D like the ABC objects
+    # Starstruck and PrimitiveGeometries are generated procedurally (see StarstruckMeshDataset and
+    # PrimitiveGeometriesMeshDataset); their train and test splits are drawn from separate seed streams.
+    # PrimitiveGeometries: cylinders, cuboids, triangular prisms and half cylinders, explored in 3D like the ABC objects
     # (sensor rotation enabled); the objects rest in their canonical orientation.
-    primitive_shapes_config = dict(
+    primitive_geometries_config = dict(
         sensor_output_size=(64, 64),
         allow_sensor_rotation=True,
         step_limit=32,
@@ -591,12 +591,12 @@ def register_envs():
                     ),
                 )
                 register_with_dr_variant(
-                    f"PrimitiveShapes{sensor_type_name}",
+                    f"PrimitiveGeometries{sensor_type_name}",
                     f"{s}-v0",
                     entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationLogWrapper(
                         TactileClassificationEnv(
                             mk_config(
-                                PrimitiveShapesMeshDataset,
+                                PrimitiveGeometriesMeshDataset,
                                 _split,
                                 args,
                                 default_config,
@@ -608,7 +608,7 @@ def register_envs():
                     vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveClassificationVectorLogWrapper(
                         TactileClassificationVectorEnv(
                             mk_config(
-                                PrimitiveShapesMeshDataset,
+                                PrimitiveGeometriesMeshDataset,
                                 _split,
                                 args,
                                 default_config,
@@ -619,26 +619,26 @@ def register_envs():
                     ),
                     kwargs=dict(
                         default_config=dict(
-                            **primitive_shapes_config,
+                            **primitive_geometries_config,
                             renderer_show_class_weights=True,
                             sensor_type=sensor_type,
                         ),
                     ),
                 )
                 register_with_dr_variant(
-                    f"PrimitiveShapesVolume{sensor_type_name}",
+                    f"PrimitiveGeometriesVolume{sensor_type_name}",
                     f"{s}-v0",
                     entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionLogWrapper(
                         TactileVolumeEstimationEnv(
                             mk_config(
-                                PrimitiveShapesMeshDataset,
+                                PrimitiveGeometriesMeshDataset,
                                 _split,
                                 args,
                                 default_config,
                                 config,
                             ),
                             # The targets of the test split are standardized with the statistics of the train split
-                            volume_statistics_dataset=PrimitiveShapesMeshDataset(
+                            volume_statistics_dataset=PrimitiveGeometriesMeshDataset(
                                 "train"
                             ),
                             **kwargs,
@@ -647,14 +647,14 @@ def register_envs():
                     vector_entry_point=lambda *args, default_config, config=None, _split=split, **kwargs: ap_gym.ActiveRegressionVectorLogWrapper(
                         TactileVolumeEstimationVectorEnv(
                             mk_config(
-                                PrimitiveShapesMeshDataset,
+                                PrimitiveGeometriesMeshDataset,
                                 _split,
                                 args,
                                 default_config,
                                 config,
                             ),
                             # The targets of the test split are standardized with the statistics of the train split
-                            volume_statistics_dataset=PrimitiveShapesMeshDataset(
+                            volume_statistics_dataset=PrimitiveGeometriesMeshDataset(
                                 "train"
                             ),
                             **kwargs,
@@ -662,7 +662,7 @@ def register_envs():
                     ),
                     kwargs=dict(
                         default_config=dict(
-                            **primitive_shapes_config,
+                            **primitive_geometries_config,
                             sensor_type=sensor_type,
                         ),
                     ),
