@@ -1,6 +1,6 @@
 # The Tactile MNIST Active Perception Benchmark Suite
 
-<table style="border-collapse: collapse; border: none;">
+<table style="border-collapse: collapse; border: none; font-size: 12px;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/TactileMNIST-v0.webp" alt="TactileMNIST-v0" width="180px"/><br/>
@@ -28,7 +28,7 @@
         </td>
     </tr>
 </table>
-<table style="border-collapse: collapse; border: none;">
+<table style="border-collapse: collapse; border: none; font-size: 12px;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/TactileMNISTCenterOfMass-v0.webp" alt="TactileMNISTCenterOfMass-v0" width="180px"/><br/>
@@ -56,7 +56,7 @@
         </td>
     </tr>
 </table>
-<table style="border-collapse: collapse; border: none;">
+<table style="border-collapse: collapse; border: none; font-size: 12px;">
     <tr style="border: none;">
         <td align="center" style="border: none; padding: 10px;">
             <img src="docs/img/env/TactileMNISTVolume-v0.webp" alt="TactileMNISTVolume-v0" width="180px"/><br/>
