@@ -840,15 +840,18 @@ class TactilePerceptionVectorEnv(
         if perturb_mask is None:
             perturb_mask = mask
         if self.__config.perturb_object_pose:
+            # Every environment draws its own perturbation
             translation_perturbation = self.np_random.normal(
-                scale=self.config.translation_perturbation_scale, size=2
+                scale=self.config.translation_perturbation_scale,
+                size=(self.num_envs, 2),
             )
             rotation_perturbation = self.np_random.normal(
-                scale=self.config.rotation_perturbation_scale
+                scale=self.config.rotation_perturbation_scale, size=self.num_envs
             )
+            zeros = np.zeros((self.num_envs, 1))
             perturbation = Transformation.from_pos_euler(
-                np.concatenate([translation_perturbation, [0]]),
-                [0, 0, rotation_perturbation],
+                np.concatenate([translation_perturbation, zeros], axis=-1),
+                np.concatenate([zeros, zeros, rotation_perturbation[:, None]], axis=-1),
             )
             self._set_object_poses(
                 self.__object_poses_platform_frame * perturbation,

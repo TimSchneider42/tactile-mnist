@@ -145,3 +145,21 @@ def test_first_touch_after_an_autoreset_is_not_perturbed(dataset):
         np.testing.assert_allclose(
             touch_poses[t + 1, env_idx], reset_partial_poses[t + 1, env_idx]
         )
+
+
+def test_each_environment_draws_its_own_perturbation(dataset):
+    _, touch_poses, _, new_episode, _ = _rollout(dataset)
+    # Relative pose change between two consecutive touches of a continuing episode, per environment
+    changes = []
+    for t in range(1, len(touch_poses)):
+        if not np.any(new_episode[t]):
+            changes.append(
+                [
+                    np.linalg.inv(touch_poses[t - 1, i]) @ touch_poses[t, i]
+                    for i in range(NUM_ENVS)
+                ]
+            )
+    assert changes
+    changes = np.array(changes)
+    # The environments must not all move their objects by the same transformation
+    assert not np.allclose(changes[:, 0], changes[:, 1])
