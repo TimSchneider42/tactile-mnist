@@ -592,10 +592,12 @@ class TactilePerceptionVectorEnv(
         pass
 
     def __get_obs_info(
-        self, sensor_target_poses: Transformation
+        self,
+        sensor_target_poses: Transformation,
+        perturb_mask: Sequence[bool] | None = None,
     ) -> tuple["ObsType", dict[str, Any]]:
         sensor_output, depth_output, sensor_pose = self.execute_step(
-            sensor_target_poses
+            sensor_target_poses, perturb_mask=perturb_mask
         )
 
         sensor_pos_min, sensor_pos_max = self.__sensor_pos_limits
@@ -643,8 +645,10 @@ class TactilePerceptionVectorEnv(
                 initial_sensor_target_poses,
             )
         ]
+        # The first touch of an episode happens at the initial object pose
         return self.__get_obs_info(
-            Transformation.batch_concatenate(sensor_target_poses)
+            Transformation.batch_concatenate(sensor_target_poses),
+            perturb_mask=np.zeros(self.num_envs, dtype=np.bool_),
         )
 
     @staticmethod
@@ -809,17 +813,48 @@ class TactilePerceptionVectorEnv(
         else:
             truncated = time_out
 
-        obs, info = self.__get_obs_info(sensor_target_pose)
+        # Environments that were reset at the start of this step make the first touch of their episode, which happens
+        # at the initial object pose
+        obs, info = self.__get_obs_info(
+            sensor_target_pose, perturb_mask=~self.__prev_done
+        )
 
         action_reward = np.where(self.__prev_done, 0, action_reward)
         self.__prev_done = terminated | truncated
         return obs, action_reward, terminated, truncated, info, targets
 
     def execute_step(
-        self, sensor_target_pose: Transformation, mask: Sequence[bool] | None = None
+        self,
+        sensor_target_pose: Transformation,
+        mask: Sequence[bool] | None = None,
+        perturb_mask: Sequence[bool] | None = None,
     ):
+        """
+        Move the sensors of the environments selected by `mask` to `sensor_target_pose` and touch.
+
+        If perturb_object_pose is set, the objects of the environments selected by `perturb_mask` (default: `mask`)
+        are perturbed before the touch, so that the touch observes the pose the next prediction is scored against.
+        """
         if mask is None:
             mask = np.ones(self.num_envs, dtype=np.bool_)
+        if perturb_mask is None:
+            perturb_mask = mask
+        if self.__config.perturb_object_pose:
+            translation_perturbation = self.np_random.normal(
+                scale=self.config.translation_perturbation_scale, size=2
+            )
+            rotation_perturbation = self.np_random.normal(
+                scale=self.config.rotation_perturbation_scale
+            )
+            perturbation = Transformation.from_pos_euler(
+                np.concatenate([translation_perturbation, [0]]),
+                [0, 0, rotation_perturbation],
+            )
+            self._set_object_poses(
+                self.__object_poses_platform_frame * perturbation,
+                mask=np.asarray(mask, dtype=np.bool_)
+                & np.asarray(perturb_mask, dtype=np.bool_),
+            )
         self.__current_sensor_target_poses_platform_frame = transformation_where(
             mask, sensor_target_pose, self.__current_sensor_target_poses_platform_frame
         )
@@ -850,20 +885,6 @@ class TactilePerceptionVectorEnv(
         self.__renderer.sensor_shadow_poses = (
             self.__current_sensor_target_poses_platform_frame
         )
-        if self.__config.perturb_object_pose:
-            translation_perturbation = self.np_random.normal(
-                scale=self.config.translation_perturbation_scale, size=2
-            )
-            rotation_perturbation = self.np_random.normal(
-                scale=self.config.rotation_perturbation_scale
-            )
-            perturbation = Transformation.from_pos_euler(
-                np.concatenate([translation_perturbation, [0]]),
-                [0, 0, rotation_perturbation],
-            )
-            self._set_object_poses(
-                self.__object_poses_platform_frame * perturbation, mask=mask
-            )
         return sensor_output, depth_output, self.__current_sensor_pose_platform_frame
 
     def _set_object_poses(
