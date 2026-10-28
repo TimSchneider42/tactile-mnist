@@ -37,12 +37,14 @@
                 <a href="https://arxiv.org/abs/2506.06361">Paper</a>
                 <a href="https://github.com/TimSchneider42/tactile-mnist">Code</a>
                 <a href="https://github.com/TimSchneider42/active-perception-gym">ap_gym</a>
+                <a href="#citation">Cite</a>
             </nav>
         </div>
     </div>
 
     <div class="wrap">
         <div class="heroBox">
+            <div class="venue-badge">NeurIPS 2026 &middot; Spotlight</div>
             <h1 class="title">
                 Tactile MNIST: <br>
                 <span>A Benchmark for Active Tactile Perception</span>
@@ -116,25 +118,25 @@
             <p class="blurb">
                 Tactile perception has the potential to significantly enhance dexterous robotic manipulation by
                 providing rich local information that can complement or substitute for other sensory modalities such as
-                vision. However, because tactile sensing is inherently local, it is not well-suited for tasks that
-                require broad spatial awareness or global scene understanding on its own. A human-inspired strategy to
-                address this issue is to consider active perception techniques instead. That is, to actively guide
-                sensors toward regions with more informative or significant features and integrate such information over
-                time in order to understand a scene or complete a task. Both active perception and different methods for
-                tactile sensing have received significant attention recently. Yet, despite advancements, both fields
-                lack standardized benchmarks. To bridge this gap, we introduce the Tactile MNIST Benchmark Suite, an
-                open-source, Gymnasium-compatible benchmark specifically designed for active tactile perception tasks,
-                including localization, classification, and volume estimation. Our benchmark suite offers diverse
-                simulation scenarios, from simple toy environments all the way to complex tactile perception tasks using
-                vision-based tactile sensors. Furthermore, we also offer a comprehensive dataset comprising 13,500
-                synthetic 3D MNIST digit models and 153,600 real-world tactile samples collected from 600 3D printed
-                digits. Using this dataset, we train a CycleGAN for realistic tactile simulation rendering. By providing
-                standardized protocols and reproducible evaluation frameworks, our benchmark suite facilitates
-                systematic progress in the fields of tactile sensing and active perception.
+                vision. However, tactile sensing is an inherently local sensor modality, providing information only at
+                the points of contact. This strict locality necessitates the use of active perception techniques to
+                acquire useful, task-relevant information from manipulated objects or the environment in general.
+                Hence, the agent must actively guide sensors toward regions with more informative or significant
+                features and integrate such information over time in order to understand a scene or complete a task.
+                However, while active perception and tactile sensing methods have received significant attention
+                recently, both fields lack standardized benchmarks. To bridge this gap, we introduce the Tactile MNIST
+                Benchmark Suite, an open-source, Gymnasium-compatible benchmark specifically designed for active tactile
+                perception tasks, including localization, classification, and volume estimation. Our benchmark suite
+                offers diverse simulation scenarios, from simple toy environments all the way to complex tactile
+                perception tasks using vision-based tactile sensors. Furthermore, we also offer a comprehensive dataset
+                comprising 13,580 synthetic 3D MNIST digit models and 153,600 real-world tactile samples collected from
+                600 3D printed digits. Using this dataset, we train a CycleGAN for realistic tactile simulation
+                rendering. By providing standardized protocols and reproducible evaluation frameworks, our benchmark
+                suite facilitates systematic progress in the fields of tactile sensing and active perception in general.
             </p>
 
             <div class="ctaRow">
-                <a href="https://arxiv.org/abs/2506.06361" class="btn primary">Read Paper</a>
+                <a href="https://arxiv.org/abs/2506.06361" class="btn primary">Paper</a>
                 <a href="https://github.com/TimSchneider42/tactile-mnist" class="btn">Dataset and Code</a>
             </div>
         </div>
@@ -145,8 +147,11 @@
 
             <div class="content-block">
                 <p>
-                    The Tactile MNIST benchmark provides four simulated active tactile classification tasks ranging from
-                    classification and counting to pose and volume estimation. Each task comes with a unique set of
+                    The Tactile MNIST benchmark provides eight simulated active tactile perception tasks ranging from
+                    classification and counting to pose, volume, and center of mass estimation. In every task, the
+                    agent controls a simulated GelSight Mini sensor and receives no visual input, so it has to infer
+                    the required property from touch alone. In ABCCenterOfMass, ABCVolume, and both PrimitiveGeometries
+                    tasks, the agent can also rotate the sensor, e.g., to touch the sides of an object. Each task comes with a unique set of
                     challenges and, thus, Tactile MNIST requires adaptive algorithms and clever exploration strategies.
                     The aim of these benchmark tasks is to provide an extensible framework for a fair comparison of
                     active tactile perception methods. All tasks are implemented as <a
@@ -156,166 +161,497 @@
                 </p>
             </div>
 
-            <div class="EnvGrid">
-
+            <h3 class="toy-group-title">Classification and Counting</h3>
+            <p class="toy-group-desc">Identify which object is present, or how many of them, from touch alone.</p>
+            <div class="EnvGrid toy-grid">
                 <!-- TactileMNIST -->
                 <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/TactileMNIST.md"
-                    class="EnvCard">
-                    <h3>TactileMNIST</h3>
-                    <div class="EnvMedia">
-                        <img src="img/env/TactileMNIST-v0.webp" alt="TactileMNIST-v0">
+                    class="EnvCard toy-card flip-card" style="--accent: #56B4E9">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/TactileMNIST-v0.webp" alt="TactileMNIST-v0"></div>
+                            <h3>TactileMNIST</h3>
+                            <p>Classify 3D models of handwritten digits by touch, which requires contour following.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>TactileMNIST</h3>
+                            <p>
+                                The agent's objective is to classify 3D models of handwritten digits by touch alone.
+                                Aside from finding the object, the main challenge in the TactileMNIST environment is
+                                to learn contour following strategies to efficiently classify it once found. Object
+                                pose perturbation is enabled, meaning that the object shifts around slightly while
+                                being touched.
+                            </p>
+                            <div class="score-bars" data-task="TactileMNIST" data-env="TactileMNIST" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
                     </div>
-                    <p>
-                        In the TactileMNIST environment, the agent's objective is to classify 3D models of handwritten
-                        digits by touch alone.
-                        Aside from finding the object, the main challenge in the TactileMNIST environment is to learn
-                        contour following strategies to efficiently classify it once found.
-                        Object pose perturbation is enabled, meaning that the object shifts around slightly while being
-                        touched.
-                    </p>
                 </a>
-
                 <!-- Starstruck -->
-                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/Starstruck.md" class="EnvCard">
-                    <h3>Starstruck</h3>
-                    <div class="EnvMedia">
-                        <img src="img/env/Starstruck-v0.webp" alt="Starstruck-v0">
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/Starstruck.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #56B4E9">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/Starstruck-v0.webp" alt="Starstruck-v0"></div>
+                            <h3>Starstruck</h3>
+                            <p>Count the stars in a scene cluttered with other objects.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>Starstruck</h3>
+                            <p>
+                                The agent must count the number of stars in a scene cluttered with other objects.
+                                Since all stars look the same, distinguishing stars from other objects is rather
+                                straightforward. The main challenge is to learn an effective search strategy to
+                                systematically cover as much space as possible.
+                            </p>
+                            <div class="score-bars" data-task="Starstruck" data-env="Starstruck" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
                     </div>
-                    <p>
-                        In the Starstruck environment, the agent must count the number of stars in a scene cluttered
-                        with other objects.
-                        Since all stars look the same, distinguishing stars from other objects is rather
-                        straightforward.
-                        The main challenge is to learn an effective search strategy to systematically cover as much
-                        space as possible.
-                    </p>
                 </a>
+                <!-- PrimitiveGeometries -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/PrimitiveGeometries.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #56B4E9">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/PrimitiveGeometries-v0.webp" alt="PrimitiveGeometries-v0"></div>
+                            <h3>PrimitiveGeometries</h3>
+                            <p>Tell apart four geometric primitives whose sizes overlap.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>PrimitiveGeometries</h3>
+                            <p>
+                                The agent must tell apart four geometric primitives: cylinders, cuboids, triangular
+                                prisms, and half cylinders. Since their dimensions are drawn at random, the classes
+                                overlap in size. Some parts of an object are shared by several classes, while others
+                                are unique to one, so the agent has to find the parts that tell the classes apart.
+                            </p>
+                            <div class="score-bars" data-task="PrimitiveGeometries" data-env="PrimitiveGeometries" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
 
+            <h3 class="toy-group-title">Pose and Center of Mass Estimation</h3>
+            <p class="toy-group-desc">Find an object and regress where it lies or where its mass is centered.</p>
+            <div class="EnvGrid toy-grid">
                 <!-- Toolbox -->
-                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/Toolbox.md" class="EnvCard">
-                    <h3>Toolbox</h3>
-                    <div class="EnvMedia">
-                        <img src="img/env/Toolbox-v0.webp" alt="Toolbox-v0">
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/Toolbox.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #E69F00">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/Toolbox-v0.webp" alt="Toolbox-v0"></div>
+                            <h3>Toolbox</h3>
+                            <p>Find a wrench and estimate its 2D position and orientation.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>Toolbox</h3>
+                            <p>
+                                The agent's objective is to locate a wrench positioned randomly on a platform and
+                                estimate its precise 2D position and 1D orientation. Unlike the previous
+                                classification tasks, Toolbox poses a regression problem that requires combining
+                                multiple touch observations to resolve ambiguities inherent in the wrench’s shape.
+                            </p>
+                            <div class="score-bars" data-task="Toolbox" data-env="Toolbox" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
                     </div>
-                    <p>
-                        In the Toolbox environment, the agent's objective is to locate a wrench positioned randomly on a
-                        platform and estimate its precise 2D position and 1D orientation.
-                        Unlike the previous classification tasks, Toolbox poses a regression problem that requires
-                        combining multiple touch observations to resolve ambiguities inherent in the wrench’s shape.
-                    </p>
                 </a>
+                <!-- ABCCenterOfMass -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/ABCCenterOfMass.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #E69F00">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/ABCCenterOfMass-v0.webp" alt="ABCCenterOfMass-v0"></div>
+                            <h3>ABCCenterOfMass</h3>
+                            <p>Estimate the center of mass of an unknown CAD model.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>ABCCenterOfMass</h3>
+                            <p>
+                                The agent's objective is to locate an object from the ABC dataset and estimate its 2D
+                                center of mass projected onto the platform. Unlike in Toolbox, the object shape is
+                                unknown in every episode, so the agent has to both find and thoroughly explore it.
+                            </p>
+                            <div class="score-bars" data-task="ABCCenterOfMass" data-env="ABCCenterOfMass" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
 
+            <h3 class="toy-group-title">Volume Estimation</h3>
+            <p class="toy-group-desc">Estimate an object's volume, which requires measuring its shape by touch.</p>
+            <div class="EnvGrid toy-grid">
                 <!-- TactileMNISTVolume -->
                 <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/TactileMNISTVolume.md"
-                    class="EnvCard">
-                    <h3>TactileMNISTVolume</h3>
-                    <div class="EnvMedia">
-                        <img src="img/env/TactileMNISTVolume-v0.webp" alt="TactileMNISTVolume-v0">
+                    class="EnvCard toy-card flip-card" style="--accent: #D55E00">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/TactileMNISTVolume-v0.webp" alt="TactileMNISTVolume-v0"></div>
+                            <h3>TactileMNISTVolume</h3>
+                            <p>Estimate the volume of 3D models of handwritten digits.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>TactileMNISTVolume</h3>
+                            <p>
+                                The agent's objective is to estimate the volume of 3D models of handwritten digits by
+                                touch alone. Aside from finding the object, the main challenge is to learn contour
+                                following strategies to efficiently explore it once found.
+                            </p>
+                            <div class="score-bars" data-task="TactileMNISTVolume" data-env="TactileMNISTVolume" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
                     </div>
-                    <p>
-                        In the TactileMNISTVolume environment, the agent's objective is to estimate the volume of 3D
-                        models of handwritten digits by touch alone.
-                        Aside from finding the object, the main challenge is to learn contour following strategies to
-                        efficiently explore it once found.
-                    </p>
                 </a>
-
+                <!-- PrimitiveGeometriesVolume -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/PrimitiveGeometriesVolume.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #D55E00">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/PrimitiveGeometriesVolume-v0.webp" alt="PrimitiveGeometriesVolume-v0"></div>
+                            <h3>PrimitiveGeometriesVolume</h3>
+                            <p>Estimate the volume of a geometric primitive with a few well-placed touches.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>PrimitiveGeometriesVolume</h3>
+                            <p>
+                                The agent's objective is to estimate the volume of a geometric primitive: a cylinder,
+                                a cuboid, a triangular prism, or a half cylinder. Since the objects are simple, a few
+                                well-placed touches suffice: the agent has to find out the shape of the object,
+                                measure its footprint, and determine its height.
+                            </p>
+                            <div class="score-bars" data-task="PrimitiveGeometriesVolume" data-env="PrimitiveGeometriesVolume" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+                <!-- ABCVolume -->
+                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/ABCVolume.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #D55E00">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/ABCVolume-v0.webp" alt="ABCVolume-v0"></div>
+                            <h3>ABCVolume</h3>
+                            <p>Estimate the volume of complex industrial CAD models.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>ABCVolume</h3>
+                            <p>
+                                ABCVolume is a harder version of PrimitiveGeometriesVolume: the agent's objective is
+                                to estimate the volume of realistic industrial CAD models from the ABC dataset by
+                                touch alone. These objects are much more complex and diverse in shape than geometric
+                                primitives, so a few touches no longer suffice and the agent has to adapt its
+                                exploration to each object.
+                            </p>
+                            <div class="score-bars" data-task="ABCVolume" data-env="ABCVolume" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
             </div>
 
         </div>
 
-        <!-- NEW DATASET SECTION DESIGN -->
+        <div class="section toy-section">
+            <h2>Active Perception Gym Toy Tasks</h2>
+
+            <div class="content-block">
+                <p>
+                    All Tactile MNIST tasks are built on <a
+                        href="https://github.com/TimSchneider42/active-perception-gym" class="text-primary">ap_gym</a>,
+                    a Gymnasium-compatible framework for active perception. In ap_gym, the agent has to make a
+                    prediction in every step, and each environment comes with a differentiable loss function that
+                    scores this prediction. In addition to the tactile tasks, ap_gym ships a set of lightweight toy
+                    environments that abstract away contact models and dynamics. They enable rapid prototyping of active
+                    perception strategies, but despite their simple appearance, they pose significant challenges due to
+                    partial observability and delayed action payoffs.
+                </p>
+            </div>
+
+            <h3 class="toy-group-title">Image Classification</h3>
+            <p class="toy-group-desc">Classify an image by moving a small glimpse that never shows the full image at
+            once.</p>
+            <div class="EnvGrid toy-grid">
+                <!-- CircleSquare -->
+                <a href="https://github.com/TimSchneider42/active-perception-gym/blob/main/doc/CircleSquare.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #56B4E9">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia"><img src="img/ap_gym/CircleSquare-v0.webp" alt="CircleSquare-v0"></div>
+                            <h3>CircleSquare</h3>
+                            <p>Find the object and decide whether it is a circle or a square.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>CircleSquare</h3>
+                            <p>
+                                The agent moves a 5&times;5 glimpse over a 28&times;28 grayscale image and must decide
+                                whether it shows a circle or a square. A color gradient guides it towards the object.
+                                The main challenge is the sparse reward: the agent must take many steps before gaining
+                                any information.
+                            </p>
+                            <div class="score-bars" data-task="CircleSquare" data-env="CircleSquare" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+                <!-- MNIST -->
+                <a href="https://github.com/TimSchneider42/active-perception-gym/blob/main/doc/MNIST.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #56B4E9">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia"><img src="img/ap_gym/MNIST-v0.webp" alt="MNIST-v0"></div>
+                            <h3>MNIST</h3>
+                            <p>Classify handwritten digits, which requires contour following.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>MNIST</h3>
+                            <p>
+                                The agent moves a 5&times;5 glimpse over a 28&times;28 handwritten digit and predicts
+                                one of 10 classes within 16 steps. It receives information more quickly than in
+                                CircleSquare, but always sees an incomplete picture, so it must learn contour
+                                following to gather enough information.
+                            </p>
+                            <div class="score-bars" data-task="MNIST" data-env="MNIST" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+                <!-- CIFAR10 -->
+                <a href="https://github.com/TimSchneider42/active-perception-gym/blob/main/doc/CIFAR10.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #56B4E9">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia"><img src="img/ap_gym/CIFAR10-v0.webp" alt="CIFAR10-v0"></div>
+                            <h3>CIFAR10</h3>
+                            <p>Classify natural images into 10 categories.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>CIFAR10</h3>
+                            <p>
+                                The agent explores a 32&times;32 RGB image through a 5&times;5 glimpse and predicts
+                                one of 10 classes within 16 steps. Compared to MNIST, the data is much more diverse
+                                and complex.
+                            </p>
+                            <div class="score-bars" data-task="CIFAR10" data-env="CIFAR10" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+                <!-- TinyImageNet -->
+                <a href="https://github.com/TimSchneider42/active-perception-gym/blob/main/doc/TinyImageNet.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #56B4E9">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia"><img src="img/ap_gym/TinyImageNet-v0.webp" alt="TinyImageNet-v0"></div>
+                            <h3>TinyImageNet</h3>
+                            <p>Classify larger natural images into 200 categories.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>TinyImageNet</h3>
+                            <p>
+                                The agent explores a 64&times;64 RGB image through a 10&times;10 glimpse and predicts
+                                one of 200 classes within 16 steps. The larger images and the greater number of
+                                classes require more sophisticated exploration strategies.
+                            </p>
+                            <div class="score-bars" data-task="TinyImageNet" data-env="TinyImageNet" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <h3 class="toy-group-title">Image Search</h3>
+            <p class="toy-group-desc">Find where a given target patch is located within a larger image.</p>
+            <div class="EnvGrid toy-grid">
+                <!-- CIFAR10Search -->
+                <a href="https://github.com/TimSchneider42/active-perception-gym/blob/main/doc/CIFAR10Search.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #E69F00">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia"><img src="img/ap_gym/CIFAR10Search-v0.webp" alt="CIFAR10Search-v0"></div>
+                            <h3>CIFAR10Search</h3>
+                            <p>Localize a 5&times;5 patch in a 32&times;32 CIFAR10 image.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>CIFAR10Search</h3>
+                            <p>
+                                The agent sees its current 5&times;5 glimpse and the target patch, moves the glimpse
+                                across a 32&times;32 CIFAR10 image, and predicts the target's 2D position in every
+                                step. Limited visibility forces a strategic search to reduce the localization error.
+                            </p>
+                            <div class="score-bars" data-task="CIFAR10Search" data-env="CIFAR10Search" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+                <!-- TinyImageNetSearch -->
+                <a href="https://github.com/TimSchneider42/active-perception-gym/blob/main/doc/TinyImageNetSearch.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #E69F00">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia"><img src="img/ap_gym/TinyImageNetSearch-v0.webp" alt="TinyImageNetSearch-v0"></div>
+                            <h3>TinyImageNetSearch</h3>
+                            <p>Localize a 10&times;10 patch in a 64&times;64 TinyImageNet image.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>TinyImageNetSearch</h3>
+                            <p>
+                                The same task as CIFAR10Search, but the agent must localize a 10&times;10 patch in a
+                                64&times;64 TinyImageNet image. The greater resolution and diversity make localization
+                                more challenging.
+                            </p>
+                            <div class="score-bars" data-task="TinyImageNetSearch" data-env="TinyImageNetSearch" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <h3 class="toy-group-title">2D Self-Localization</h3>
+            <p class="toy-group-desc">Estimate the agent's own position. Here, the agent changes the very quantity it
+            predicts by moving.</p>
+            <div class="EnvGrid toy-grid">
+                <!-- LightDark -->
+                <a href="https://github.com/TimSchneider42/active-perception-gym/blob/main/doc/LightDark.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #009E73">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia"><img src="img/ap_gym/LightDark-v0.webp" alt="LightDark-v0"></div>
+                            <h3>LightDark</h3>
+                            <p>Observation noise depends on brightness, so the agent must find the light to localize itself.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>LightDark</h3>
+                            <p>
+                                The agent moves in 2D, observes a noisy estimate of its own position, and predicts its
+                                true position. The noise is low in bright and high in dark areas, so the agent must
+                                learn to move towards the light without knowing where it is, facing uncertainty about
+                                both its prediction and the outcome of its actions.
+                            </p>
+                            <div class="score-bars" data-task="LightDark" data-env="LightDark" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+                <!-- LIDARLocRooms -->
+                <a href="https://github.com/TimSchneider42/active-perception-gym/blob/main/doc/LIDARLocRooms.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #009E73">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia"><img src="img/ap_gym/LIDARLocRooms-v0.webp" alt="LIDARLocRooms-v0"></div>
+                            <h3>LIDARLocRooms</h3>
+                            <p>Localize with 8 LIDAR beams in open rooms, where readings are often uninformative. A static map variant is also available.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>LIDARLocRooms</h3>
+                            <p>
+                                The agent observes 8 LIDAR distance readings, odometry, and the map, and predicts its
+                                own position. In the middle of large rooms, the LIDAR often returns no information, so
+                                it must navigate to gather some. The layout changes every episode, so the agent has to
+                                learn to process the map; in LIDARLocRoomsStatic, the map stays fixed and can be
+                                memorized.
+                            </p>
+                            <div class="score-bars" data-task="LIDARLocRooms" data-env="LIDARLocRooms" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+                <!-- LIDARLocMaze -->
+                <a href="https://github.com/TimSchneider42/active-perception-gym/blob/main/doc/LIDARLocMaze.md"
+                    class="EnvCard toy-card flip-card" style="--accent: #009E73">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia"><img src="img/ap_gym/LIDARLocMaze-v0.webp" alt="LIDARLocMaze-v0"></div>
+                            <h3>LIDARLocMaze</h3>
+                            <p>Localize in narrow mazes where many regions look alike. A static map variant is also available.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>LIDARLocMaze</h3>
+                            <p>
+                                The agent observes 8 LIDAR distance readings, odometry, and the map, and predicts its
+                                own position in a maze of narrow corridors. It always receives LIDAR readings, but
+                                many regions look alike. The maze is procedurally generated every episode; in
+                                LIDARLocMazeStatic, it stays fixed and can be memorized.
+                            </p>
+                            <div class="score-bars" data-task="LIDARLocMaze" data-env="LIDARLocMaze" aria-hidden="true"></div>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
         <div class="section">
-            <div class="dataset-hero-container">
-                <div class="dataset-hero-text">
-                    <h2>The Tactile MNIST Datasets</h2>
-                    <p>
-                        In addition to the benchmark tasks, Tactile MNIST provides two large datasets: MNIST 3D and the
-                        Real
-                        Tactile MNIST Dataset. The former is a dataset of 3D models of hand-written MNIST digits, which
-                        are used in the TactileMNIST and TactileMNISTVolume environments. The latter is a dataset of
-                        real-world tactile interactions with 3D-printed MNIST 3D objects, which we use to train a
-                        CycleGAN
-                        for realistic tactile simulations. Both datasets are available on Huggingface. To access them,
-                        check
-                        out our GitHub repository.
-                    </p>
-                </div>
-                <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/datasets.md"
-                    class="btn white-btn">Explore Datasets</a>
+            <h2>The Tactile MNIST Datasets</h2>
+
+            <div class="content-block">
+                <p>
+                    In addition to the benchmark tasks, Tactile MNIST provides two large datasets: MNIST 3D and the Real
+                    Tactile MNIST Dataset. The former is a dataset of 3D models of hand-written MNIST digits, which are
+                    used in the TactileMNIST and TactileMNISTVolume environments. The latter is a dataset of real-world
+                    tactile interactions with 3D-printed MNIST 3D objects, which we use to train a CycleGAN for
+                    realistic tactile simulations. Both datasets are available on Huggingface. To access them, check
+                    out our <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/datasets.md"
+                        class="text-primary">GitHub repository</a>.
+                </p>
             </div>
 
             <div class="EnvGrid dataset-grid">
-                <!-- MNIST 3D (Renamed from Details) -->
                 <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/datasets.md"
-                    class="EnvCard horizontal">
-                    <div class="horizontal-left-col">
-                        <h3>The MNIST 3D Dataset</h3>
-                        <div class="EnvMedia digits-grid">
-                            <img src="web_assets/digit_0.png" alt="Digit 0">
-                            <img src="web_assets/digit_3.png" alt="Digit 3">
-                            <img src="web_assets/digit_7.png" alt="Digit 7">
-                            <img src="web_assets/digit_8.png" alt="Digit 8">
+                    class="EnvCard flip-card dataset-card">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media dataset-figure">
+                                <img class="cover" src="img/dataset/mnist_3d_overview_cropped.png" alt="A field of MNIST 3D digit models">
+                            </div>
+                            <h3>The MNIST 3D Dataset</h3>
+                            <p>13,580 3D-printable meshes of handwritten digits.</p>
                         </div>
-                    </div>
-                    <div class="card-content">
-                        <p>
-                            MNIST 3D is a collection of 13,580 auto-generated 3D-printable meshes derived from a 500 ×
-                            500
-                            pixel high-resolution MNIST variant and scaled to fit in a 10 × 10 cm square. The MNIST 3D
-                            dataset poses an exciting tactile classification challenge, as it has significant
-                            variability in
-                            shape and size within the classes, while also being large enough to facilitate learning from
-                            data. A single touch is rarely enough to classify objects from this dataset, as segments of
-                            hand-written digits are usually ambiguous. Hence, even after finding the object, the agent
-                            has
-                            to apply some strategy (e.g., contour following) to gather enough information for a
-                            successful
-                            classification. In addition to tactile sensing, this dataset could also be used as a
-                            benchmark
-                            for 3D mesh classification methods. More details on the generation of the MNIST 3D dataset
-                            can
-                            be found in our
-                            <span class="text-primary">paper</span>.
-                        </p>
+                        <div class="flip-face flip-back">
+                            <h3>The MNIST 3D Dataset</h3>
+                            <p>
+                                MNIST 3D is a collection of 13,580 auto-generated 3D-printable meshes of handwritten
+                                digits, derived from a high-resolution MNIST variant and scaled to fit in a 10 × 10 cm
+                                square. The digits vary strongly in shape and size within each class, while the dataset
+                                is large enough to learn from data. Since single segments of a digit are usually
+                                ambiguous, a single touch is rarely enough to classify it, so the agent needs a strategy
+                                such as contour following.
+                            </p>
+                            <div class="digit-closeups">
+                                <img src="web_assets/digit_0.png" alt="MNIST 3D digit 0">
+                                <img src="web_assets/digit_3.png" alt="MNIST 3D digit 3">
+                                <img src="web_assets/digit_7.png" alt="MNIST 3D digit 7">
+                                <img src="web_assets/digit_8.png" alt="MNIST 3D digit 8">
+                            </div>
+                            <span class="flip-more">Datasets &rarr;</span>
+                        </div>
                     </div>
                 </a>
 
-                <!-- Real Tactile Interactions -->
                 <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/datasets.md"
-                    class="EnvCard horizontal">
-                    <div class="horizontal-left-col">
-                        <h3>Real Tactile Interactions</h3>
-                        <div class="EnvMedia">
-                            <img src="img/dataset/data_collection.png" alt="Real Interactions">
+                    class="EnvCard flip-card dataset-card">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media dataset-figure">
+                                <img src="img/dataset/real_data_portrait.webp" alt="Real Tactile MNIST data collection: (a) the robot setup with a Franka Research 3 and a GelSight Mini touching a 3D-printed digit, (b) single touches, (c) 256 touches overlaid at their corrected positions">
+                            </div>
+                            <h3>Real Tactile Interactions</h3>
+                            <p>153,600 real touches of 600 3D-printed digits, recorded with a GelSight Mini.</p>
                         </div>
-                    </div>
-                    <div class="card-content">
-                        <p>
-                            The Tactile MNIST benchmark includes a real-world, static tactile dataset of 3D-printed
-                            MNIST 3D
-                            digits captured with a GelSight Mini tactile sensor mounted on a Franka Research 3 robot:
-                            the
-                            Real Tactile MNIST Dataset. The dataset contains video sequences of 153,600 touches across
-                            600
-                            digits, which amounts to 256 touches per object collected in sequence. For data acquisition,
-                            we
-                            laid each 3D-printed MNIST digit in a 12x12cm grid on a rubber mat and used a Franka
-                            Research 3
-                            robot arm, with a GelSight Mini tactile sensor, to press the sensor down at random locations
-                            in
-                            the cell. Once we measured a normal force exceeding 5N, we stopped pressing and registered
-                            the
-                            time stamp. To prevent degradation of the elastomer gel, we replaced the GelSight sensor’s
-                            gel
-                            pad after every 76,800 touches (i.e., halfway through each dataset). Finally, we partitioned
-                            each dataset into training (90 %) and test (10 %) splits, ensuring uniform class
-                            distributions
-                            across each split. Note that we also provide two processed versions of this dataset, where
-                            we
-                            replaced the videos with still images at the time of contact, one in full resolution at
-                            320x240px and one scaled to 64x64px for faster loading and training.
-                        </p>
+                        <div class="flip-face flip-back">
+                            <h3>Real Tactile Interactions</h3>
+                            <p>
+                                The Real Tactile MNIST Dataset contains 153,600 touches of 600 3D-printed MNIST 3D
+                                digits, 256 per digit, recorded with a GelSight Mini sensor mounted on a Franka
+                                Research 3 robot that pressed the sensor down at random locations in each digit's cell.
+                                Unlike in simulation, an agent learning from this data has to deal with real sensor
+                                noise and the gradual degradation of the sensor's gel, which makes it a challenging
+                                testbed.
+                            </p>
+                            <span class="flip-more">Datasets &rarr;</span>
+                        </div>
                     </div>
                 </a>
             </div>
@@ -331,34 +667,95 @@
                 </p>
             </div>
 
-            <div class="EnvGrid">
+            <div class="EnvGrid toy-grid">
                 <!-- TactileMNIST-CycleGAN -->
                 <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/TactileMNIST.md"
-                    class="EnvCard">
-                    <h3>TactileMNIST-CycleGAN</h3>
-                    <div class="EnvMedia">
-                        <img src="img/env/TactileMNIST-CycleGAN-v0.webp" alt="TactileMNIST-CycleGAN-v0">
+                    class="EnvCard toy-card flip-card" style="--accent: #56B4E9">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/TactileMNIST-CycleGAN-v0.webp" alt="TactileMNIST-CycleGAN-v0"></div>
+                            <h3>TactileMNIST-CycleGAN</h3>
+                            <p>TactileMNIST with realistic tactile images rendered by a CycleGAN.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>TactileMNIST-CycleGAN</h3>
+                            <p>
+                                The same task as TactileMNIST: classify 3D models of handwritten digits by touch alone. Instead of Taxim, a CycleGAN trained on the Real Tactile MNIST Dataset renders the tactile images, so the agent receives observations that resemble those of a real GelSight Mini sensor. A variant with domain randomization is also available.
+                            </p>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
                     </div>
-                    <p>
-                        The TactileMNIST-CycleGAN environment is a CycleGAN variant of TactileMNIST.
-                    </p>
                 </a>
 
                 <!-- TactileMNISTVolume-CycleGAN -->
                 <a href="https://github.com/TimSchneider42/tactile-mnist/blob/main/docs/TactileMNISTVolume.md"
-                    class="EnvCard">
-                    <h3>TactileMNISTVolume-CycleGAN</h3>
-                    <div class="EnvMedia">
-                        <img src="img/env/TactileMNISTVolume-CycleGAN-v0.webp" alt="TactileMNISTVolume-CycleGAN-v0">
+                    class="EnvCard toy-card flip-card" style="--accent: #D55E00">
+                    <div class="flip-inner">
+                        <div class="flip-face flip-front">
+                            <div class="EnvMedia plain-media"><img src="img/env/TactileMNISTVolume-CycleGAN-v0.webp" alt="TactileMNISTVolume-CycleGAN-v0"></div>
+                            <h3>TactileMNISTVolume-CycleGAN</h3>
+                            <p>TactileMNISTVolume with realistic tactile images rendered by a CycleGAN.</p>
+                        </div>
+                        <div class="flip-face flip-back">
+                            <h3>TactileMNISTVolume-CycleGAN</h3>
+                            <p>
+                                The same task as TactileMNISTVolume: estimate the volume of 3D models of handwritten digits by touch alone. Instead of Taxim, a CycleGAN trained on the Real Tactile MNIST Dataset renders the tactile images, so the agent receives observations that resemble those of a real GelSight Mini sensor. A variant with domain randomization is also available.
+                            </p>
+                            <span class="flip-more">Docs &rarr;</span>
+                        </div>
                     </div>
-                    <p>
-                        The TactileMNISTVolume-CycleGAN environment is a CycleGAN variant of TactileMNISTVolume.
-                    </p>
                 </a>
             </div>
         </div>
 
+        <div class="section citation-section" id="citation">
+            <h2>Citation</h2>
+
+            <div class="content-block">
+                <p>
+                    If you use Tactile MNIST or ap_gym in your research, please cite our NeurIPS 2026 paper:
+                </p>
+            </div>
+
+            <div class="bibtex-box">
+                <button class="copy-btn" type="button" onclick="copyBibtex(this)">Copy</button>
+                <pre id="bibtex"><code>@inproceedings{schneider2026tactile,
+  title     = {Tactile {MNIST}: Benchmarking Active Tactile Perception},
+  author    = {Schneider, Tim and Duret, Guillaume and de Farias, Cristiana and
+               Calandra, Roberto and Chen, Liming and Peters, Jan},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2026}
+}</code></pre>
+            </div>
+        </div>
+
     </div>
+
+    <script src="score_bars.js" defer></script>
+    <script>
+        function copyBibtex(btn) {
+            const text = document.getElementById("bibtex").innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = "Copied!";
+                setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+            });
+        }
+
+        // Touch devices have no hover: the first tap flips an environment card, a second tap follows its link.
+        (function () {
+            const noHover = window.matchMedia("(hover: none)");
+            const cards = document.querySelectorAll(".flip-card");
+            cards.forEach((card) => card.addEventListener("click", (e) => {
+                if (!noHover.matches || card.classList.contains("flipped")) return;
+                e.preventDefault();
+                cards.forEach((c) => c.classList.remove("flipped"));
+                card.classList.add("flipped");
+            }));
+            document.addEventListener("click", (e) => {
+                if (!e.target.closest(".flip-card")) cards.forEach((c) => c.classList.remove("flipped"));
+            });
+        })();
+    </script>
 
     <footer>
         <div class="logo-row">

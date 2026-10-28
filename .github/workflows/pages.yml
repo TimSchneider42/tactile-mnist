@@ -1,0 +1,54 @@
+# Builds the project page from docs/ and the baseline data of this repository and of ap_gym (its main branch) and
+# deploys it to GitHub Pages. Requires Settings > Pages > Source: "GitHub Actions".
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "baseline-data/**"
+      - ".github/workflows/pages.yml"
+  # ap_gym's baseline data changes in its own repository
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: TimSchneider42/active-perception-gym
+          ref: main
+          path: .ap_gym
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Assemble the site
+        run: docs/tools/build_site.sh .ap_gym _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

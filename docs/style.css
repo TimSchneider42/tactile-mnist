@@ -576,3 +576,377 @@ footer {
     color: var(--muted);
     font-weight: 500;
 }
+
+/* Venue Badge */
+.venue-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    margin-bottom: 20px;
+    border-radius: 980px;
+    background: linear-gradient(90deg, var(--primary-red), var(--primary-blue));
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* ap_gym Toy Tasks */
+.toy-section {
+    margin-top: 80px;
+}
+
+.toy-group-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 50px 0 4px;
+}
+
+.toy-group-desc {
+    font-size: 15px;
+    color: var(--muted);
+    margin: 0 0 20px;
+}
+
+.toy-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.EnvCard.toy-card {
+    padding: 16px;
+}
+
+.toy-card .EnvMedia {
+    aspect-ratio: 1;
+    margin-bottom: 14px;
+}
+
+.EnvCard.toy-card h3 {
+    font-size: 17px;
+    margin-bottom: 6px;
+}
+
+.EnvCard.toy-card p {
+    font-size: 14px;
+    margin-bottom: 0;
+    text-align: left;
+}
+
+/* Flip cards: front = animation, name, one sentence; back = details and baseline chart.
+   Both faces sit in the same grid cell, so the card is as tall as its taller face and never overflows. */
+.EnvCard.flip-card {
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    perspective: 1200px;
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.EnvCard.flip-card:hover {
+    box-shadow: none;
+}
+
+.EnvCard.flip-card:focus-visible {
+    outline: none;
+}
+
+.flip-inner {
+    flex: 1;
+    display: grid;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.flip-face {
+    grid-area: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transition: box-shadow 0.3s ease;
+}
+
+.flip-card:hover .flip-face,
+.flip-card.flipped .flip-face {
+    box-shadow: var(--shadow-md);
+}
+
+.flip-card:focus-visible .flip-face {
+    box-shadow: 0 0 0 3px var(--primary-blue), var(--shadow-md);
+}
+
+.flip-back {
+    transform: rotateY(180deg);
+    position: relative;
+    overflow: hidden;
+    border-top: 3px solid var(--primary-red);
+}
+
+.flip-back > * {
+    position: relative;
+}
+
+.EnvCard.toy-card .flip-back p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #444;
+    flex-grow: 1;
+    margin: 0 0 12px;
+}
+
+.flip-more {
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-red);
+    align-self: flex-end;
+}
+
+@media (hover: hover) {
+    .flip-card:hover .flip-inner {
+        transform: rotateY(180deg);
+    }
+}
+
+.flip-card:focus-visible .flip-inner,
+.flip-card.flipped .flip-inner {
+    transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .flip-inner,
+    .flip-card:hover .flip-inner,
+    .flip-card:focus-visible .flip-inner,
+    .flip-card.flipped .flip-inner {
+        transform: none;
+        transition: none;
+    }
+
+    .flip-face {
+        transition: opacity 0.3s ease;
+    }
+
+    .flip-back {
+        transform: none;
+        opacity: 0;
+    }
+
+    .flip-card:hover .flip-back,
+    .flip-card:focus-visible .flip-back,
+    .flip-card.flipped .flip-back {
+        opacity: 1;
+    }
+
+    .flip-card:hover .flip-front,
+    .flip-card:focus-visible .flip-front,
+    .flip-card.flipped .flip-front {
+        opacity: 0;
+    }
+}
+
+/* Baseline bar chart on the card backs (drawn by score_bars.js from data.json) */
+.score-bars {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 6px;
+    align-items: center;
+    font-size: 10px;
+    line-height: 1;
+    color: var(--muted);
+    padding-right: 8px;
+    /* reserve room for five methods, so the card does not grow when the chart arrives */
+    min-height: 92px;
+    align-content: end;
+}
+
+.sb-lbl {
+    text-align: right;
+    color: #555;
+}
+
+.sb-track {
+    position: relative;
+    height: 13px;
+    border-right: 1px dashed #999;
+    background: linear-gradient(to right, transparent calc(50% - 0.5px), rgba(0, 0, 0, 0.08) calc(50% - 0.5px),
+            rgba(0, 0, 0, 0.08) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+}
+
+.sb-bar {
+    position: absolute;
+    left: 0;
+    top: 2px;
+    bottom: 2px;
+    border-radius: 0 2px 2px 0;
+}
+
+.sb-err {
+    position: absolute;
+    top: 50%;
+    height: 1px;
+    background: var(--text-color);
+}
+
+.sb-ticks {
+    position: relative;
+    height: 13px;
+    border-top: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.sb-ticks span {
+    position: absolute;
+    top: 3px;
+    transform: translateX(-50%);
+}
+
+.sb-cap {
+    grid-column: 2;
+    text-align: center;
+    margin-top: 2px;
+}
+
+/* Citation */
+.citation-section {
+    margin-top: 80px;
+}
+
+.bibtex-box {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+/* Brand gradient accent, as in the title */
+.bibtex-box::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--primary-red), var(--primary-blue));
+}
+
+.bibtex-box pre {
+    margin: 0;
+    padding: 28px 30px;
+    overflow-x: auto;
+    color: var(--text-color);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.copy-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 980px;
+    background: var(--primary-blue);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+    background: #2a5a9e;
+    box-shadow: 0 5px 15px rgba(34, 76, 132, 0.4);
+}
+
+.cyclegan-grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+/* the tactile animations already have a white background: no box behind them */
+.EnvMedia.plain-media {
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+/* justified card text */
+.flip-card .flip-face p {
+    text-align: justify;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+}
+
+/* dataset cards: full-width flip cards */
+.EnvCard.dataset-card {
+    padding: 20px;
+}
+
+/* close-ups of single MNIST 3D models on the back of the dataset card */
+.digit-closeups {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: auto;
+}
+
+.digit-closeups img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+}
+
+.digits-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 16px;
+    aspect-ratio: auto;
+    background: #f8f8fa;
+}
+
+.digits-row img {
+    height: 140px;
+    aspect-ratio: auto;
+}
+
+/* portrait dataset cards, side by side; both pictures in the shape of the portrait Fig. 4 */
+.EnvGrid.dataset-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    max-width: 1000px;
+}
+
+.EnvMedia.dataset-figure {
+    aspect-ratio: 1090 / 970;
+}
+
+.EnvMedia.dataset-figure img.cover {
+    object-fit: cover;
+    object-position: center bottom;
+}
+
+.dataset-card .flip-back p {
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+/* per-task accent colours from the paper's Fig. 1 (classification, search/pose, localization, volume),
+   shown on the card backs only */
+.flip-card .flip-back {
+    border-top-color: var(--accent, var(--primary-red));
+}
+.flip-card .flip-more {
+    color: color-mix(in srgb, var(--accent, var(--primary-red)) 65%, #000);
+}

@@ -14,3 +14,7 @@ __pycache__
 
 /venv
 tactile_mnist/_version.py
+
+# Written from baseline-data/ (and ap_gym's) by docs/tools/build_site.sh
+/docs/data.json
+/_site/
