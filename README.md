@@ -173,6 +173,11 @@ Below is an overview of the datasets provided in this package:
 
 A detailed description of the datasets can be found in the [Dataset documentation](docs/datasets.md).
 
+## Baseline Data
+
+The learning curves of the baselines on all benchmark tasks (returns, prediction losses, accuracies and errors over training, 5 seeds each) are available as CSV files in [baseline-data](baseline-data).
+The format of these files is described in [baseline-data/README.md](baseline-data/README.md).
+
 ## Troubleshooting
 
 ### Torch-Scatter Undefined Symbol Error
