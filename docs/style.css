@@ -951,17 +951,37 @@ footer {
     color: color-mix(in srgb, var(--accent, var(--primary-red)) 65%, #000);
 }
 
-/* centred card rows */
+/* large environment cards, two per row like the dataset cards */
 .EnvGrid.toy-grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 30px;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
 }
-.EnvGrid.toy-grid > .EnvCard {
-    flex: 0 1 calc((100% - 3 * 20px) / 4);
-    min-width: 200px;
+.EnvCard.toy-card .flip-face {
+    padding: 20px;
+}
+.EnvCard.toy-card .EnvMedia {
+    aspect-ratio: 4 / 3;
+}
+.EnvCard.toy-card h3 {
+    font-size: 22px;
+}
+.EnvCard.toy-card p,
+.EnvCard.toy-card .flip-back p {
+    font-size: 15px;
+    line-height: 1.6;
+}
+@media (max-width: 700px) {
+    .EnvGrid.toy-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 .toy-group-title,
 .toy-group-desc {
-    text-align: center;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
 }
