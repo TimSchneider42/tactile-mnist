@@ -950,3 +950,18 @@ footer {
 .flip-card .flip-more {
     color: color-mix(in srgb, var(--accent, var(--primary-red)) 65%, #000);
 }
+
+/* centred card rows */
+.EnvGrid.toy-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.EnvGrid.toy-grid > .EnvCard {
+    flex: 0 1 calc((100% - 3 * 20px) / 4);
+    min-width: 200px;
+}
+.toy-group-title,
+.toy-group-desc {
+    text-align: center;
+}
