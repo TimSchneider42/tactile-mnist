@@ -117,6 +117,8 @@ class TactilePerceptionConfig:
     # from the tallest object of the dataset(s) and the largest sensor tilt. Set it to 0.02 to reproduce the fixed
     # limit of earlier versions (e.g. to resume a run trained with them).
     sensor_z_max: float | None = None
+    # Datasets whose tallest object sets sensor_z_max (default: the environment's own)
+    height_statistics_datasets: Sequence[MeshDataset] | None = None
     sensor_backend: Literal["torch", "jax", "numpy", "auto"] = "auto"
     sensor_type: Literal["taxim", "depth"] = "taxim"
     sensor_device: str | None = None
@@ -236,7 +238,14 @@ class TactilePerceptionVectorEnv(
             datasets = list(self.__config.dataset)
         if self.__config.sensor_z_max is None:
             sensor_z_max = get_sensor_z_max(
-                get_max_object_height(datasets, self.__config.smallest_dimension_up),
+                get_max_object_height(
+                    (
+                        datasets
+                        if self.__config.height_statistics_datasets is None
+                        else self.__config.height_statistics_datasets
+                    ),
+                    self.__config.smallest_dimension_up,
+                ),
                 (
                     self.__config.max_tilt_angle
                     if self.__config.allow_sensor_rotation

@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Sequence
 
 import datasets
 from datasets import load_dataset
@@ -87,28 +87,42 @@ def mk_config(
     default_config: dict[str, Any],
     config: dict[str, Any] | None = None,
     mesh_dataset_config: dict[str, Any] | None = None,
+    height_statistics_splits: Sequence[str] = ("train", "test"),
 ):
-    if callable(dataset_name):
-        dataset = dataset_name(split)
-    else:
-        dataset = load_dataset(
-            f"TimSchneider42/tactile-mnist-{dataset_name}", split=split
-        )
-    if isinstance(dataset, MeshDataset):
-        assert (
-            not mesh_dataset_config
-        ), "mesh_dataset_config only applies to Huggingface datasets."
-        mesh_dataset = dataset
-    else:
-        mesh_dataset = SimpleMeshDataset(
+    """:param height_statistics_splits: Splits that set sensor_z_max, all by default so every split shares it."""
+
+    def mk_mesh_dataset(s: str) -> MeshDataset:
+        if callable(dataset_name):
+            dataset = dataset_name(s)
+        else:
+            dataset = load_dataset(
+                f"TimSchneider42/tactile-mnist-{dataset_name}", split=s
+            )
+        if isinstance(dataset, MeshDataset):
+            assert (
+                not mesh_dataset_config
+            ), "mesh_dataset_config only applies to Huggingface datasets."
+            return dataset
+        return SimpleMeshDataset(
             dataset,
             **({} if mesh_dataset_config is None else mesh_dataset_config),
+        )
+
+    mesh_dataset = mk_mesh_dataset(split)
+    merged_config = {**default_config, **({} if config is None else config)}
+    if merged_config.get("sensor_z_max") is None:
+        merged_config.setdefault(
+            "height_statistics_datasets",
+            [
+                mesh_dataset if s == split else mk_mesh_dataset(s)
+                for s in height_statistics_splits
+            ],
         )
     return TactilePerceptionConfig(
         mesh_dataset,
         *args,
         # Values given in config override the defaults of the environment
-        **{**default_config, **({} if config is None else config)},
+        **merged_config,
     )
 
 
@@ -687,6 +701,7 @@ def register_envs():
                         default_config,
                         config,
                         dict(cache_size="full"),
+                        height_statistics_splits=("train",),
                     ),
                     **kwargs,
                 )
@@ -700,6 +715,7 @@ def register_envs():
                         default_config,
                         config,
                         dict(cache_size="full"),
+                        height_statistics_splits=("train",),
                     ),
                     **kwargs,
                 ),
@@ -732,6 +748,7 @@ def register_envs():
                                 default_config,
                                 config,
                                 dict(cache_size="full"),
+                                height_statistics_splits=("train",),
                             ),
                             **kwargs,
                         )
@@ -745,6 +762,7 @@ def register_envs():
                                 default_config,
                                 config,
                                 dict(cache_size="full"),
+                                height_statistics_splits=("train",),
                             ),
                             **kwargs,
                         ),
