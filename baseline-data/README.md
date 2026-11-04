@@ -51,6 +51,8 @@ All values are per-episode quantities averaged over the episodes completed aroun
 | `*_final`            | Classification: accuracy at the last step of the episode. Regression: Euclidean distance at the last step.         |
 | `train_avg_lin`, `train_final_lin` | Toolbox only: linear (position) error of the pose estimate, averaged over the episode / at its last step.      |
 | `train_avg_ang`, `train_final_ang` | Toolbox only: angular error of the pose estimate, averaged over the episode / at its last step.                |
+| `eval_avg_lin`, `eval_final_lin` | ABCCenterOfMass only: planar distance (m) between the estimated and the true center of mass, averaged over the episode / at its last step. |
+| `eval_avg_cm3`, `eval_final_cm3` | Volume environments only: absolute volume error in cm³, averaged over the episode / at its last step.            |
 | `eval_acc_vec`       | TactileMNIST only: accuracy at each step of the episode (`x` is the step index), at the end of training.          |
 | `eval_clp_vec`       | TactileMNIST only: probability assigned to the correct label at each step of the episode, at the end of training. |
 
