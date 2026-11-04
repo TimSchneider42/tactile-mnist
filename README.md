@@ -178,6 +178,24 @@ A detailed description of the datasets can be found in the [Dataset documentatio
 The learning curves of the baselines on all benchmark tasks (returns, prediction losses, accuracies and errors over training, 5 seeds each) are available as CSV files in [baseline-data](baseline-data).
 The format of these files is described in [baseline-data/README.md](baseline-data/README.md).
 
+### Reproducing the Baselines
+
+The baselines were trained with [APPLE](https://github.com/TimSchneider42/apple).
+To reproduce them, install APPLE as described in its README and run from its directory:
+
+```bash
+# METHOD: crossq, sac or random_act; SEED: 0 to 4
+./run_experiment.bash vit/sac=METHOD tactile_mnist:ENV_ID tactile_mnist:EVAL_ENV_ID seed=SEED
+```
+
+`Toolbox-v0`, `Minecraft-v0` and `MinecraftPose-v0` have no evaluation environment; pass `null` as `EVAL_ENV_ID` for them.
+For example:
+
+```bash
+./run_experiment.bash vit/sac=crossq tactile_mnist:TactileMNIST-v0 tactile_mnist:TactileMNIST-test-v0 seed=0
+./run_experiment.bash vit/sac=sac tactile_mnist:Toolbox-v0 null seed=0
+```
+
 ## Troubleshooting
 
 ### Torch-Scatter Undefined Symbol Error
