@@ -765,7 +765,7 @@ footer {
     color: var(--muted);
     padding-right: 8px;
     /* reserve room for five methods, so the card does not grow when the chart arrives */
-    min-height: 92px;
+    min-height: 167px;
     align-content: end;
 }
 
@@ -776,7 +776,7 @@ footer {
 
 .sb-track {
     position: relative;
-    height: 13px;
+    height: 27px;
     border-right: 1px dashed #999;
     background: linear-gradient(to right, transparent calc(50% - 0.5px), rgba(0, 0, 0, 0.08) calc(50% - 0.5px),
             rgba(0, 0, 0, 0.08) calc(50% + 0.5px), transparent calc(50% + 0.5px));
@@ -785,8 +785,8 @@ footer {
 .sb-bar {
     position: absolute;
     left: 0;
-    top: 2px;
-    bottom: 2px;
+    top: 3px;
+    bottom: 3px;
     border-radius: 0 2px 2px 0;
 }
 
