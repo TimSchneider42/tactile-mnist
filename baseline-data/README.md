@@ -2,7 +2,7 @@
 
 This directory contains the learning curves of the baselines evaluated on the environments of this package.
 They are the data behind the plots on the [project page](https://timschneider42.github.io/tactile-mnist/).
-Every method was trained for 5M environment steps on 5 seeds per environment.
+Every method was trained for 5M environment steps on 5 seeds per environment, except in the sim-to-real experiments (see [Sim-to-real](#sim-to-real)).
 
 ## Layout
 
@@ -53,6 +53,8 @@ All values are per-episode quantities averaged over the episodes completed aroun
 | `train_avg_ang`, `train_final_ang` | Toolbox and MinecraftPose only: angular error of the pose estimate, averaged over the episode / at its last step.                |
 | `eval_avg_lin`, `eval_final_lin` | ABCCenterOfMass and TactileMNISTCenterOfMass only: planar distance (m) between the estimated and the true center of mass, averaged over the episode / at its last step. |
 | `eval_avg_cm3`, `eval_final_cm3` | Volume environments only: absolute volume error in cm³, averaged over the episode / at its last step.            |
+| `train_avg_cm3`, `train_final_cm3` | `TactileMNISTVolumeRealSnap-CycleGAN` only: the same on the simulated training episodes.                       |
+| `*_avg_rel`, `*_final_rel` | `TactileMNISTVolumeRealSnap-CycleGAN` only: ratio of the estimated to the true volume (1 = exact), averaged over the episode / at its last step. |
 | `eval_acc_vec`       | TactileMNIST only: accuracy at each step of the episode (`x` is the step index), at the end of training.          |
 | `eval_clp_vec`       | TactileMNIST only: probability assigned to the correct label at each step of the episode, at the end of training. |
 
@@ -60,16 +62,26 @@ All values are per-episode quantities averaged over the episodes completed aroun
 
 ## Environments
 
-| Directory                   | Task           | Evaluation split |
-|-----------------------------|----------------|------------------|
-| `TactileMNIST`              | Classification | yes              |
-| `Starstruck`                | Classification | yes              |
-| `PrimitiveGeometries`       | Classification | yes              |
-| `TactileMNISTVolume`        | Regression     | yes              |
-| `ABCVolume`                 | Regression     | yes              |
-| `ABCCenterOfMass`           | Regression     | yes              |
-| `TactileMNISTCenterOfMass`  | Regression     | yes              |
-| `PrimitiveGeometriesVolume` | Regression     | yes              |
-| `Toolbox`                   | Pose estimation | no              |
-| `Minecraft`                 | Classification | no               |
-| `MinecraftPose`             | Pose estimation | no              |
+| Directory                             | Task                        | Evaluation split |
+|---------------------------------------|-----------------------------|------------------|
+| `TactileMNIST`                        | Classification              | yes              |
+| `Starstruck`                          | Classification              | yes              |
+| `PrimitiveGeometries`                 | Classification              | yes              |
+| `TactileMNISTVolume`                  | Regression                  | yes              |
+| `ABCVolume`                           | Regression                  | yes              |
+| `ABCCenterOfMass`                     | Regression                  | yes              |
+| `TactileMNISTCenterOfMass`            | Regression                  | yes              |
+| `PrimitiveGeometriesVolume`           | Regression                  | yes              |
+| `Toolbox`                             | Pose estimation             | no               |
+| `Minecraft`                           | Classification              | no               |
+| `MinecraftPose`                       | Pose estimation             | no               |
+| `TactileMNISTRealSnap-CycleGAN`       | Classification, sim-to-real | real recordings  |
+| `TactileMNISTVolumeRealSnap-CycleGAN` | Regression, sim-to-real     | real recordings  |
+
+## Sim-to-real
+
+In the sim-to-real experiments, the agents never see real data during training.
+They are trained in simulation on `TactileMNISTSnap-CycleGAN-DR-train-v0` and `TactileMNISTVolumeSnap-CycleGAN-DR-train-v0`, with the CycleGAN renderer and domain randomization, and evaluated on the recorded touches of the Real Tactile MNIST dataset in `TactileMNISTRealSnap-CycleGAN-test-v0` and `TactileMNISTVolumeRealSnap-CycleGAN-test-v0`.
+Both sides use a touch window of 16 (`snap_touch_positions=16` in simulation, `touch_window_size=16` on the real recordings).
+Every method was trained for 2.5M environment steps on 5 seeds.
+Hence, in these directories, `train_` metrics are measured in simulation and `eval_` metrics on the real recordings.
