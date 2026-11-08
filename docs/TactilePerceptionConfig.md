@@ -63,7 +63,7 @@ Together with the object pose perturbation the environments apply anyway, this i
 | `real_base_depth_dataset`        | `str \| None`         | `None`       | `TimSchneider42/tactile-mnist-touch-real-single-t256-320x240` | Touch dataset whose recorded touches without object contact provide the base depth overlay. `None` disables the overlay.             |
 | `base_depth_contact_scale_range` | `tuple[float, float]` | `(1.0, 1.0)` | `(0.65, 0.95)`                                                | Range of the uniformly drawn factor by which the overlay is scaled for touches with object contact.                                  |
 
-Single components of the domain randomization can be switched off with config overrides instead of separate environment ids.
+Single components of the domain randomization can be switched off with config overrides.
 A mapping passed for `sensor_noise` updates the fields of the variant's `SensorNoiseConfig` rather than replacing it:
 
 ```python
