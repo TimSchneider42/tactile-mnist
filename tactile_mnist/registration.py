@@ -1,3 +1,5 @@
+import dataclasses
+from collections.abc import Mapping
 from typing import Any, Callable, Iterable, Sequence
 
 import datasets
@@ -87,6 +89,23 @@ def mk_snap_touch_positions(step_limit: int) -> int:
     return compute_touch_window_size(SNAP_TOUCH_SEQUENCE_LENGTH, step_limit)
 
 
+def merge_config(
+    default_config: dict[str, Any], config: Mapping[str, Any] | None
+) -> dict[str, Any]:
+    """Values in config override default_config; a mapping for sensor_noise updates the default's fields."""
+    merged = dict(default_config)
+    for key, value in ({} if config is None else config).items():
+        if key == "sensor_noise" and isinstance(value, Mapping):
+            base = merged.get(key)
+            value = (
+                SensorNoiseConfig(**value)
+                if base is None
+                else dataclasses.replace(base, **value)
+            )
+        merged[key] = value
+    return merged
+
+
 def mk_config(
     dataset_name: str | Callable[[str], datasets.Dataset | MeshDataset],
     split: str,
@@ -116,7 +135,7 @@ def mk_config(
         )
 
     mesh_dataset = mk_mesh_dataset(split)
-    merged_config = {**default_config, **({} if config is None else config)}
+    merged_config = merge_config(default_config, config)
     if merged_config.get("sensor_z_max") is None:
         merged_config.setdefault(
             "height_statistics_datasets",
@@ -233,7 +252,7 @@ def mk_real_snap_config(
     volume_statistics_mesh_split: str | None = None,
 ):
     dataset = load_dataset(f"TimSchneider42/tactile-mnist-{dataset_name}", split=split)
-    merged_config = {**default_config, **({} if config is None else config)}
+    merged_config = merge_config(default_config, config)
     if "mesh_dataset" not in merged_config:
         # The mesh dataset is used for visualization purposes only
         merged_config["mesh_dataset"] = SimpleMeshDataset(
