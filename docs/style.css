@@ -213,6 +213,9 @@ a:hover {
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     border: 3px solid white;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    /* Plain grey circle while loading instead of the alt text */
+    background: #d2d2d7;
+    color: transparent;
 }
 
 .author-avatar:hover {
