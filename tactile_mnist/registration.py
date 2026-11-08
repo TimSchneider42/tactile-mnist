@@ -36,11 +36,6 @@ from .tactile_real_snap_env import (
     TactileRealSnapVolumeEstimationVectorEnv,
 )
 from .touch_data import TouchSingleDataset
-from .util import compute_touch_window_size
-
-# The snap variants mimic the touch selection of the TactileMNISTRealSnap environment, which chooses each touch from a
-# window of the prerecorded touches of the current round. All real touch datasets contain 256 touches per round.
-SNAP_TOUCH_SEQUENCE_LENGTH = 256
 
 # All real-snap environments read the full-resolution recordings and scale them down to their output size. The
 # re-rendering variants estimate a depth map from every image at 256x256, so anything smaller would upscale first.
@@ -77,16 +72,6 @@ REAL_SNAP_SENSOR_TYPES = [
     ("-CycleGAN", "cycle_gan"),
     ("-Depth", "depth"),
 ]
-
-
-def mk_snap_touch_positions(step_limit: int) -> int:
-    """
-    Determine how many touch positions the snap variants sample in every step.
-
-    The number matches the window size the TactileMNISTRealSnap environment ends up with for a touch sequence of
-    SNAP_TOUCH_SEQUENCE_LENGTH touches and the given step limit.
-    """
-    return compute_touch_window_size(SNAP_TOUCH_SEQUENCE_LENGTH, step_limit)
 
 
 def merge_config(
@@ -377,7 +362,7 @@ def register_envs():
                 step_limit = 16
                 for snap_suffix, snap_touch_positions in [
                     ("", None),
-                    ("Snap", mk_snap_touch_positions(step_limit)),
+                    ("Snap", TactileRealSnapConfig.touch_window_size),
                 ]:
                     register_with_dr_variant(
                         f"TactileMNIST{snap_suffix}{sensor_type_name}",
@@ -441,7 +426,7 @@ def register_envs():
                     snap_variants = [("", None)]
                     if env_name == "TactileMNIST":
                         snap_variants.append(
-                            ("Snap", mk_snap_touch_positions(step_limit))
+                            ("Snap", TactileRealSnapConfig.touch_window_size)
                         )
                     for snap_suffix, snap_touch_positions in snap_variants:
                         register_with_dr_variant(
@@ -511,7 +496,7 @@ def register_envs():
                     snap_variants = [("", None)]
                     if env_name == "TactileMNIST":
                         snap_variants.append(
-                            ("Snap", mk_snap_touch_positions(step_limit))
+                            ("Snap", TactileRealSnapConfig.touch_window_size)
                         )
                     for snap_suffix, snap_touch_positions in snap_variants:
                         register_with_dr_variant(

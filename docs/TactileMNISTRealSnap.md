@@ -23,8 +23,7 @@ Instead, in every step, the environment considers a window of the next $w$ prere
 The selection always moves forward in the recorded data: if touch $i$ was selected in one step, the next step selects among touches $i + 1, \dots, i + w$.
 On reset, the first touch is selected among the first $w$ touches of the round, closest to a randomly sampled initial target position.
 Once no full window of $w$ touches remains after the current touch, the episode is truncated.
-The window size $w$ is not set directly, but derived from the `approx_truncation_probability` config option: it is chosen as large as possible while keeping the probability of such an early truncation approximately at that value.
-With the default settings (256 prerecorded touches per round, a step limit of 16, and a truncation probability of 0.1), the window contains 23 touches.
+The window size $w$ is set with the `touch_window_size` config option and defaults to 16 touches.
 
 The same touch selection scheme can be simulated in the synthetic TactileMNIST environments by setting the `snap_touch_positions` option of the [TactilePerceptionConfig](TactilePerceptionConfig.md) (see, e.g., the Snap variants of [TactileMNIST](TactileMNIST.md)).
 A volume estimation environment based on the same touch selection scheme is available as [TactileMNISTVolumeRealSnap](TactileMNISTVolumeRealSnap.md).
@@ -55,6 +54,15 @@ The re-rendering variants make it possible to train a policy in simulation and e
 The matching training environments are the `-DR` variants of the snap environments, e.g. [TactileMNISTSnap-CycleGAN-DR-train-v0](TactileMNIST.md) for TactileMNISTRealSnap-CycleGAN-test-v0 (and likewise for [TactileMNISTVolumeRealSnap](TactileMNISTVolumeRealSnap.md)).
 They choose every touch among sampled positions like this environment does and randomize the simulated depth maps to resemble the estimated real ones (see [Sensor Noise](TactilePerceptionConfig.md#sensor-noise)).
 
+```python
+import gymnasium as gym
+
+# Train in simulation
+train_env = gym.make("tactile_mnist:TactileMNISTSnap-CycleGAN-DR-train-v0")
+# Evaluate on the real recordings
+eval_env = gym.make("tactile_mnist:TactileMNISTRealSnap-CycleGAN-test-v0")
+```
+
 ## Rendering
 
 If a mesh dataset is provided via the `mesh_dataset` config option (enabled by default, using the `printed_train`/`printed_test` splits of [MNIST 3D](datasets.md#mnist-3d)), `env.render()` shows the object mesh of the current round together with the effective sensor pose of the selected touch (solid sensor), the requested target sensor position (transparent sensor), and the real tactile image of the current touch.
@@ -68,8 +76,7 @@ The environment is configured with the `TactileRealSnapConfig` class, which cont
 | Parameter                             | Type                                                 | Default            | Description                                                                                                                                                                                                                                                                                                                                                                        |
 |---------------------------------------|------------------------------------------------------|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `dataset`                             | `TouchSingleDataset \| Sequence[TouchSingleDataset]` |                    | The dataset(s) containing prerecorded touches. If a single dataset is provided, it is duplicated for all environments.                                                                                                                                                                                                                                                             |
-| `approx_truncation_probability`       | `float`                                              | `0.1`              | Target probability of an episode being truncated early because the prerecorded touches of the round ran out. The window size is chosen accordingly (see above). The actual probability is slightly higher, as the model behind this computation neglects that the touch selection favors later touches.                                                                            |
-| `touch_window_size`                   | `int \| None`                                        | `None`             | If set, overrides the window size derived from `approx_truncation_probability`.                                                                                                                                                                                                                                                                                                    |
+| `touch_window_size`                   | `int`                                                | `16`               | Number of upcoming prerecorded touches each step chooses from (see above). Once fewer remain after the current touch, the episode is truncated.                                                                                                                                                                                                                                    |
 | `step_limit`                          | `int`                                                | `16`               | The maximum number of steps per episode.                                                                                                                                                                                                                                                                                                                                           |
 | `sensor_output_size`                  | `Sequence[int] \| None`                              | `None`             | The output size of the sensor images in pixels. Defaults to the native resolution of the dataset if not provided.                                                                                                                                                                                                                                                                  |
 | `randomize_initial_sensor_pose`       | `bool`                                               | `True`             | Whether to randomize the initial sensor target position.                                                                                                                                                                                                                                                                                                                           |

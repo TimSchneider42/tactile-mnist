@@ -82,6 +82,5 @@ All values are per-episode quantities averaged over the episodes completed aroun
 
 In the sim-to-real experiments, the agents never see real data during training.
 They are trained in simulation on `TactileMNISTSnap-CycleGAN-DR-train-v0` and `TactileMNISTVolumeSnap-CycleGAN-DR-train-v0`, with the CycleGAN renderer and domain randomization, and evaluated on the recorded touches of the Real Tactile MNIST dataset in `TactileMNISTRealSnap-CycleGAN-test-v0` and `TactileMNISTVolumeRealSnap-CycleGAN-test-v0`.
-Both sides use a touch window of 16 (`snap_touch_positions=16` in simulation, `touch_window_size=16` on the real recordings).
 Every method was trained for 2.5M environment steps on 5 seeds.
 Hence, in these directories, `train_` metrics are measured in simulation and `eval_` metrics on the real recordings.

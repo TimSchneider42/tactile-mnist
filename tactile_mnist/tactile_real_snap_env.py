@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -44,9 +43,7 @@ from .simple_mesh_dataset import SimpleMeshDataset
 from .tactile_perception_renderer import TactilePerceptionRenderer
 from .tactile_renderer import TactileRenderer, mk_tactile_renderer
 from .touch_data import TouchSingle, TouchSingleDataset
-from .util import int_binary_search_right, compute_touch_window_size
 
-logger = logging.getLogger(__file__)
 
 ObsType = dict[str, np.ndarray]
 ActType = dict[str, np.ndarray]
@@ -112,16 +109,8 @@ class TactileRealSnapConfig:
     renderer_show_class_weights: bool = False
     render_transparent_background: bool = False
     renderer_external_camera_resolution: tuple[int, int] = (640, 480)
-    # The touch window size will be chosen such that the probability of running into an early truncation is
-    # approximately this value. There is one caveat: the model used to compute the window size assumes that samples are
-    # chosen uniformly at random from the window. However, this assumption neglects the fact that the distribution is
-    # skewed. Due to survivor bias, the distribution favors later samples: if a sample was already in the previous
-    # window and not chosen, it is likely far away and won't be chosen again. So the actual truncation probability will
-    # be slightly above this value.
-    approx_truncation_probability: float = 0.1
-    # If set, overrides the touch window size derived from approx_truncation_probability (fewer touches per window
-    # make an episode span a shorter part of the recording round, so the object moves less during an episode)
-    touch_window_size: int | None = None
+    # Number of upcoming prerecorded touches each step chooses from
+    touch_window_size: int = 16
 
 
 class TactileRealSnapVectorEnv(
@@ -161,18 +150,7 @@ class TactileRealSnapVectorEnv(
             config.dataset.huggingface_dataset.features["pos_in_cell"].length
         )
 
-        self.__touch_window_size = (
-            compute_touch_window_size(
-                self.__available_touches_per_sequence,
-                config.step_limit,
-                config.approx_truncation_probability,
-            )
-            if config.touch_window_size is None
-            else config.touch_window_size
-        )
-        logger.info(
-            f"Determined touch sequence window size to be {self.__touch_window_size}."
-        )
+        self.__touch_window_size = config.touch_window_size
 
         if config.sensor_output_size is None:
             first_image = np.asarray(self.__datasets[0][0].sensor_image[0])
