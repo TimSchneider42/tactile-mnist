@@ -102,7 +102,7 @@
         for (const [t, x] of [["0", "0"], ["0.5", "50%"], ["1", "100%"]]) {
             ticks.appendChild(el("span", "", `left:${x}`)).textContent = t;
         }
-        box.appendChild(el("span", "sb-cap")).textContent = "loss (1 = blind guess)";
+        box.appendChild(el("span", "sb-cap")).textContent = box.dataset.caption || "loss (1 = blind guess)";
         box.removeAttribute("aria-hidden");
         box.setAttribute("role", "img");
         box.setAttribute("aria-label", `Baseline loss on ${env} (1 = blind guess, lower is better): `

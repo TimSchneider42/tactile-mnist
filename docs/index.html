@@ -675,13 +675,14 @@
                         <div class="flip-face flip-front">
                             <div class="EnvMedia plain-media"><img src="img/env/TactileMNIST-CycleGAN-v0.webp" alt="TactileMNIST-CycleGAN-v0"></div>
                             <h3>TactileMNIST-CycleGAN</h3>
-                            <p>TactileMNIST with realistic tactile images rendered by a CycleGAN.</p>
+                            <p>TactileMNIST with realistic tactile images rendered by a CycleGAN. Baselines trained in simulation, evaluated on real touches.</p>
                         </div>
                         <div class="flip-face flip-back">
                             <h3>TactileMNIST-CycleGAN</h3>
                             <p>
-                                The same task as TactileMNIST: classify 3D models of handwritten digits by touch alone. Instead of Taxim, a CycleGAN trained on the Real Tactile MNIST Dataset renders the tactile images, so the agent receives observations that resemble those of a real GelSight Mini sensor. A variant with domain randomization is also available.
+                                The same task as TactileMNIST: classify 3D models of handwritten digits by touch alone. Instead of Taxim, a CycleGAN trained on the Real Tactile MNIST Dataset renders the tactile images, so the agent receives observations that resemble those of a real GelSight Mini sensor. The baselines below are trained only in simulation, with domain randomization, and evaluated on real recorded touches, where SAC classifies 66% and CrossQ 51% of the digits correctly.
                             </p>
+                            <div class="score-bars" data-task="TactileMNISTRealSnap-CycleGAN" data-env="real recordings after sim-only training" data-caption="loss on real data (1 = blind guess)" aria-hidden="true"></div>
                             <span class="flip-more">Docs &rarr;</span>
                         </div>
                     </div>
@@ -694,13 +695,14 @@
                         <div class="flip-face flip-front">
                             <div class="EnvMedia plain-media"><img src="img/env/TactileMNISTVolume-CycleGAN-v0.webp" alt="TactileMNISTVolume-CycleGAN-v0"></div>
                             <h3>TactileMNISTVolume-CycleGAN</h3>
-                            <p>TactileMNISTVolume with realistic tactile images rendered by a CycleGAN.</p>
+                            <p>TactileMNISTVolume with realistic tactile images rendered by a CycleGAN. Baselines trained in simulation, evaluated on real touches.</p>
                         </div>
                         <div class="flip-face flip-back">
                             <h3>TactileMNISTVolume-CycleGAN</h3>
                             <p>
-                                The same task as TactileMNISTVolume: estimate the volume of 3D models of handwritten digits by touch alone. Instead of Taxim, a CycleGAN trained on the Real Tactile MNIST Dataset renders the tactile images, so the agent receives observations that resemble those of a real GelSight Mini sensor. A variant with domain randomization is also available.
+                                The same task as TactileMNISTVolume: estimate the volume of 3D models of handwritten digits by touch alone. Instead of Taxim, a CycleGAN trained on the Real Tactile MNIST Dataset renders the tactile images, so the agent receives observations that resemble those of a real GelSight Mini sensor. The baselines below are trained only in simulation, with domain randomization, and evaluated on real recorded touches, where the volume estimates of SAC are off by 1.6 cm³ and those of CrossQ by 1.8 cm³.
                             </p>
+                            <div class="score-bars" data-task="TactileMNISTVolumeRealSnap-CycleGAN" data-env="real recordings after sim-only training" data-caption="loss on real data (1 = blind guess)" aria-hidden="true"></div>
                             <span class="flip-more">Docs &rarr;</span>
                         </div>
                     </div>
