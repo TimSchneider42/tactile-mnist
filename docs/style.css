@@ -851,6 +851,29 @@ footer {
     line-height: 1.6;
 }
 
+/* Manual BibTeX highlighting in the brand colors */
+.bib-type {
+    color: var(--primary-red);
+    font-weight: 600;
+}
+
+.bib-key {
+    color: var(--primary-blue);
+    font-weight: 600;
+}
+
+.bib-field {
+    color: var(--primary-blue);
+}
+
+.bib-value {
+    color: #2f6b4f;
+}
+
+.bib-punct {
+    color: var(--muted);
+}
+
 .copy-btn {
     position: absolute;
     top: 14px;
