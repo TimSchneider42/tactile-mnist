@@ -2,7 +2,7 @@
 
 The recorded gel z-positions of the real touch datasets are offset by an unknown per-round constant. The environment
 re-zeroes them on the deepest touch of each round, which corresponds to touching the platform, and aligns them with
-the convention of the simulated environments (touching the platform yields a sensor z of GEL_PENETRATION_DEPTH_MM).
+the -DR variants of the simulated environments (touching the platform yields a sensor z of the gel thickness).
 """
 
 import numpy as np
@@ -10,7 +10,7 @@ import pytest
 from datasets import load_dataset
 
 from tactile_mnist import (
-    GEL_PENETRATION_DEPTH_MM,
+    GELSIGHT_MINI_GEL_THICKNESS_MM,
     TactileRealSnapClassificationVectorEnv,
     TactileRealSnapConfig,
     TouchSingleDataset,
@@ -62,16 +62,18 @@ def test_recalibration_zeroes_z_on_the_deepest_touch_of_the_round(dataset):
     env.reset(seed=0)
     for offset, dp in zip(env.current_sensor_z_offsets, env.current_data_points):
         recorded_min = np.min(dp.gel_pose_cell_frame.translation[:, 2])
-        assert recorded_min + offset == pytest.approx(GEL_PENETRATION_DEPTH_MM / 1000)
+        assert recorded_min + offset == pytest.approx(
+            GELSIGHT_MINI_GEL_THICKNESS_MM / 1000
+        )
     # The rounds were recorded with different gel states, so their offsets differ
     assert np.std(env.current_sensor_z_offsets) > 0
     env.close()
 
 
 def test_recalibrated_z_never_goes_below_the_simulated_platform_height(dataset):
-    """The simulated environments report GEL_PENETRATION_DEPTH_MM when the sensor touches the platform."""
+    """The -DR variants of the simulated environments report the gel thickness when the sensor touches the platform."""
     _, sensor_z, _ = _rollout(dataset, recalibrate=True)
-    platform_z = GEL_PENETRATION_DEPTH_MM / 1000
+    platform_z = GELSIGHT_MINI_GEL_THICKNESS_MM / 1000
     assert np.min(sensor_z) >= platform_z - 1e-9
     # Touching the platform does happen, so the lower end of the range is actually reached
     assert np.min(sensor_z) < platform_z + 1e-3

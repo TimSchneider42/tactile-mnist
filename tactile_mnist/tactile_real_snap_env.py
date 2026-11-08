@@ -35,7 +35,7 @@ from transformation import Transformation
 from .constants import (
     CELL_PADDING,
     CELL_SIZE,
-    GEL_PENETRATION_DEPTH_MM,
+    GELSIGHT_MINI_GEL_THICKNESS_MM,
     GELSIGHT_MINI_SENSOR_SURFACE_SIZE,
 )
 from .depth_estimator import DepthEstimator, mk_depth_estimator
@@ -82,11 +82,16 @@ class TactileRealSnapConfig:
     # The zero of the recorded gel z-positions drifts between rounds (by up to 3mm), as it depends on the state of the
     # gel and the calibration of the robot at the time of recording. If recalibrate_sensor_z is set, the recorded
     # z-positions of each round are re-zeroed on the deepest touch of that round, which is the platform surface (each
-    # round contains touches that miss the object), and shifted such that touching the platform yields the same
-    # sensor z-position as it does in the simulated environments (GEL_PENETRATION_DEPTH_MM above the platform).
-    # Without this correction, the z-component of the sensor_pos observation is offset by an unknown per-round
-    # constant and does not match the simulated environments.
+    # round contains touches that miss the object), and shifted such that the deepest touch yields the sensor
+    # z-position given by platform_sensor_z. Without this correction, the z-component of the sensor_pos observation is
+    # offset by an unknown per-round constant and does not match the simulated environments.
     recalibrate_sensor_z: bool = True
+    # Sensor z-position (in m) the deepest touch of a round is mapped to by recalibrate_sensor_z. Like the real robot,
+    # the -DR variants of the simulated environments stop the gel at the platform (max_platform_penetration=0), where
+    # the sensor z-position is GELSIGHT_MINI_GEL_THICKNESS_MM. The variants without domain randomization press the gel
+    # into the platform by GEL_PENETRATION_DEPTH_MM instead, so evaluating a policy trained on them requires
+    # GEL_PENETRATION_DEPTH_MM / 1000.
+    platform_sensor_z: float = GELSIGHT_MINI_GEL_THICKNESS_MM / 1000
     # With the default sensor type "direct", the recorded tactile images are returned as they are. With any other one,
     # a depth map is estimated from every image with a DepthEstimator and re-rendered with the given TactileRenderer,
     # which maps the real images into the domain of the corresponding simulated environment (e.g.
@@ -114,6 +119,9 @@ class TactileRealSnapConfig:
     # window and not chosen, it is likely far away and won't be chosen again. So the actual truncation probability will
     # be slightly above this value.
     approx_truncation_probability: float = 0.1
+    # If set, overrides the touch window size derived from approx_truncation_probability (fewer touches per window
+    # make an episode span a shorter part of the recording round, so the object moves less during an episode)
+    touch_window_size: int | None = None
 
 
 class TactileRealSnapVectorEnv(
@@ -153,10 +161,14 @@ class TactileRealSnapVectorEnv(
             config.dataset.huggingface_dataset.features["pos_in_cell"].length
         )
 
-        self.__touch_window_size = compute_touch_window_size(
-            self.__available_touches_per_sequence,
-            config.step_limit,
-            config.approx_truncation_probability,
+        self.__touch_window_size = (
+            compute_touch_window_size(
+                self.__available_touches_per_sequence,
+                config.step_limit,
+                config.approx_truncation_probability,
+            )
+            if config.touch_window_size is None
+            else config.touch_window_size
         )
         logger.info(
             f"Determined touch sequence window size to be {self.__touch_window_size}."
@@ -384,13 +396,12 @@ class TactileRealSnapVectorEnv(
                 )
                 self.__current_data_points[i] = self.__datasets[i][idx]
                 if self.__config.recalibrate_sensor_z:
-                    # The deepest touch of the round is the one that went down to the platform surface, which
-                    # corresponds to a sensor z-position of GEL_PENETRATION_DEPTH_MM in the simulated environments
+                    # The deepest touch of the round is the one that went down to the platform surface
                     recorded_z = self.__current_data_points[
                         i
                     ].gel_pose_cell_frame.translation[:, 2]
                     self.__sensor_z_offset[i] = (
-                        GEL_PENETRATION_DEPTH_MM / 1000 - np.min(recorded_z)
+                        self.__config.platform_sensor_z - np.min(recorded_z)
                     )
                 if self.__mesh_datasets is not None:
                     object_id = self.__current_data_points[i].object_id
