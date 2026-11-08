@@ -25,6 +25,13 @@ NUM_ENVS = 2
 NUM_OBJECTS = 16
 STEP_LIMIT = 2
 NUM_STEPS = 8
+# Contact geometry variation of the -DR variants; the base depth overlay needs the real recordings
+DR_NOISE = SensorNoiseConfig(
+    contact_shift_mean=0.0006,
+    contact_shift_std=0.00035,
+    contact_blur_prob=0.3,
+    contact_blur_sigma_max=0.0003,
+)
 
 
 @pytest.fixture(scope="module")
@@ -89,52 +96,10 @@ def _rollout(
         obs, _, _, _, _ = env.step(env.action_space.sample())
 
 
-def _rollout_images_and_positions(
-    env: TactileClassificationVectorEnv, seed: int
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    obs, _ = env.reset(seed=seed)
-    all_obs = [obs]
-    renders = [env.render()]
-    env.action_space.seed(seed)
-    for _ in range(NUM_STEPS):
-        obs, _, _, _, _ = env.step(env.action_space.sample())
-        all_obs.append(obs)
-        renders.append(env.render())
-    return (
-        np.array([o["sensor_img"] for o in all_obs]),
-        np.array([o["sensor_pos"] for o in all_obs]),
-        np.array(renders),
-    )
-
-
-def test_penetration_depth_randomization_only_affects_the_observed_height(dataset):
-    """The imprint always presses the gel in by the nominal penetration depth; the randomization only perturbs the
-    sensor height the agent observes, so neither the tactile images nor the external camera view are affected.
-    """
-    plain = _mk_env(dataset)
-    randomized = _mk_env(dataset, penetration_depth_reduction_std=0.00065)
-    plain_images, plain_pos, plain_renders = _rollout_images_and_positions(
-        plain, seed=7
-    )
-    rand_images, rand_pos, rand_renders = _rollout_images_and_positions(
-        randomized, seed=7
-    )
-    plain.close()
-    randomized.close()
-    np.testing.assert_array_equal(plain_images, rand_images)
-    # The scene renders show tiny rasterization differences even for identical scenes, so only substantial
-    # differences (such as the imprint of the sensor changing) count. The dithered translucency additionally flips
-    # isolated pixels with the sub-millimeter sensor height difference.
-    render_diff = np.abs(plain_renders.astype(np.int_) - rand_renders.astype(np.int_))
-    assert np.mean(render_diff > 5) < 1e-5
-    np.testing.assert_array_equal(plain_pos[..., :2], rand_pos[..., :2])
-    assert np.abs(plain_pos[..., 2] - rand_pos[..., 2]).max() > 1e-4
-
-
 def test_sensor_noise_does_not_change_the_object_sequence(dataset):
-    """The -DR variants only add sensor noise, so they see the same objects in the same poses as the plain ones."""
+    """The -DR variants only vary the depth maps, so they see the same objects in the same poses as the plain ones."""
     plain = _mk_env(dataset)
-    dr = _mk_env(dataset, sensor_noise=SensorNoiseConfig())
+    dr = _mk_env(dataset, sensor_noise=DR_NOISE)
     plain_ids, plain_poses, plain_images = _rollout(plain, seed=3)
     dr_ids, dr_poses, dr_images = _rollout(dr, seed=3)
     plain.close()
@@ -148,13 +113,12 @@ def test_sensor_noise_does_not_change_the_object_sequence(dataset):
 
 
 def test_renderer_does_not_change_the_object_sequence(dataset):
-    """The per-frame noise draws depend on the channel count of the renderer (1 for depth, 3 for cycle_gan), which
-    must not leak into the object selection."""
+    """The renderer (and thus what it draws) must not leak into the object selection."""
     pytest.importorskip("torch")
-    depth = _mk_env(dataset, sensor_noise=SensorNoiseConfig())
+    depth = _mk_env(dataset, sensor_noise=DR_NOISE)
     cycle_gan = _mk_env(
         dataset,
-        sensor_noise=SensorNoiseConfig(),
+        sensor_noise=DR_NOISE,
         sensor_type="cycle_gan",
         sensor_backend="torch",
     )
@@ -167,7 +131,7 @@ def test_renderer_does_not_change_the_object_sequence(dataset):
 
 
 def test_rollouts_are_reproducible_for_a_given_seed(dataset):
-    env = _mk_env(dataset, sensor_noise=SensorNoiseConfig())
+    env = _mk_env(dataset, sensor_noise=DR_NOISE)
     first = _rollout(env, seed=11)
     second = _rollout(env, seed=11)
     env.close()

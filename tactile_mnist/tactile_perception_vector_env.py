@@ -141,11 +141,6 @@ class TactilePerceptionConfig:
     smallest_dimension_up: bool = False
     translation_perturbation_scale: float = 1e-3
     rotation_perturbation_scale: float = 5e-2
-    # Per-touch variation of the sensor height the agent observes. If set to a positive value, the gel is still
-    # pressed in by exactly GEL_PENETRATION_DEPTH_MM, but the reported penetration is reduced by the absolute value
-    # of a normally distributed variable with this scale, emulating a real robot, which presses down until a force
-    # threshold is reached and thus stops at a height that depends on the contact area and the state of the gel.
-    penetration_depth_reduction_std: float = 0.0
     # Maximum depth (in m) by which the gel surface may be pressed below the surface of the platform. Unlike an
     # object, the platform is rigid and spans the entire sensor, so a real robot that presses down until a force
     # threshold is reached stops right at it instead of penetrating it by GEL_PENETRATION_DEPTH_MM like every other
@@ -158,11 +153,8 @@ class TactilePerceptionConfig:
     # can only reach positions that are at least cell_padding away from the cell borders, so a margin smaller than
     # cell_padding allows the object to be placed in regions the sensor cannot reach.
     object_placement_margin: float = 0.01
-    # If sensor_noise is set, the per-episode and per-frame appearance variations of a real sensor and the artifacts
-    # of the depth estimator used by the re-rendering real-snap environments are simulated on top of the rendered
-    # depth maps and tactile images (see SensorNoiseConfig). Without it, tactile images are a deterministic function
-    # of the contact geometry and all images without contact are exactly identical, which does not happen on a real
-    # sensor.
+    # If sensor_noise is set, the depth maps are varied like the depth estimator of the re-rendering real-snap
+    # environments varies real contacts before they are rendered (see SensorNoiseConfig)
     sensor_noise: SensorNoiseConfig | None = None
     # If snap_touch_positions is set, the sensor cannot be positioned freely. Instead, in each step, the given
     # number of positions is sampled uniformly over the cell and the one closest to the requested target position is
@@ -322,9 +314,6 @@ class TactilePerceptionVectorEnv(
 
         self.__current_sensor_pose_platform_frame = Transformation.from_pos_euler(
             [[0.0, 0.0, 0.1]] * num_envs, [[0.0, np.pi, 0.0]] * num_envs
-        )
-        self.__current_true_sensor_pose_platform_frame = (
-            self.__current_sensor_pose_platform_frame
         )
         self.__current_sensor_target_poses_platform_frame = (
             self.__current_sensor_pose_platform_frame
@@ -878,22 +867,13 @@ class TactilePerceptionVectorEnv(
             sensor_target_pose = Transformation(
                 snapped_pos, sensor_target_pose.rotation
             )
-        sensor_output, depth_output, sensor_poses, true_sensor_poses = self.touch(
-            sensor_target_pose
-        )
+        sensor_output, depth_output, sensor_poses = self.touch(sensor_target_pose)
         self.__current_sensor_pose_platform_frame = transformation_where(
             mask,
             sensor_poses,
             self.__current_sensor_pose_platform_frame,
         )
-        self.__current_true_sensor_pose_platform_frame = transformation_where(
-            mask,
-            true_sensor_poses,
-            self.__current_true_sensor_pose_platform_frame,
-        )
-        # The imprint presses in by the nominal penetration depth, so the external view shows the true sensor pose
-        # rather than the observed one, which carries the sensor height randomization
-        self.__renderer.sensor_poses = self.__current_true_sensor_pose_platform_frame
+        self.__renderer.sensor_poses = self.__current_sensor_pose_platform_frame
         self.__renderer.sensor_shadow_poses = (
             self.__current_sensor_target_poses_platform_frame
         )
@@ -918,24 +898,8 @@ class TactilePerceptionVectorEnv(
         depth_gel_frame_shifted = self.__renderer.render_sensor_depths(
             sensor_target_poses
         )
-        nominal_penetration_depth = np.full(
-            depth_gel_frame_shifted.shape[:-2], GEL_PENETRATION_DEPTH_MM / 1000
-        )
-        observed_penetration_depth = nominal_penetration_depth
-        if self.__config.penetration_depth_reduction_std > 0:
-            observed_penetration_depth = np.minimum(
-                nominal_penetration_depth
-                + np.abs(
-                    render_rng.normal(
-                        scale=self.__config.penetration_depth_reduction_std,
-                        size=nominal_penetration_depth.shape,
-                    )
-                ),
-                GELSIGHT_MINI_GEL_THICKNESS_MM / 1000,
-            )
         min_depth = np.min(depth_gel_frame_shifted, axis=(-1, -2))
-        offset = nominal_penetration_depth - min_depth
-        observed_offset = observed_penetration_depth - min_depth
+        offset = GEL_PENETRATION_DEPTH_MM / 1000 - min_depth
         if self.__config.max_platform_penetration is not None:
             # The gel surface sits GELSIGHT_MINI_GEL_THICKNESS_MM below the sensor position, and the platform surface
             # is the zero of the platform frame
@@ -949,22 +913,14 @@ class TactilePerceptionVectorEnv(
                 min_sensor_z - sensor_target_poses.translation[..., 2]
             ) / sensor_target_poses.rotation.as_matrix()[..., 2, 2]
             offset = np.maximum(offset, min_offset)
-            observed_offset = np.maximum(observed_offset, min_offset)
         depth_gel_frame = depth_gel_frame_shifted + offset[:, None, None]
 
-        def mk_sensor_poses(offsets: np.ndarray) -> Transformation:
-            return sensor_target_poses * Transformation(
-                np.concatenate(
-                    [
-                        np.zeros((offsets.shape[0], 2), dtype=np.float32),
-                        offsets[:, None],
-                    ],
-                    axis=-1,
-                )
+        sensor_poses = sensor_target_poses * Transformation(
+            np.concatenate(
+                [np.zeros((offset.shape[0], 2), dtype=np.float32), offset[:, None]],
+                axis=-1,
             )
-
-        sensor_poses = mk_sensor_poses(observed_offset)
-        true_sensor_poses = mk_sensor_poses(offset)
+        )
 
         if self.__config.convert_image_to_numpy:
             sensor_output = self.__sensor(
@@ -978,7 +934,7 @@ class TactilePerceptionVectorEnv(
             sensor_output = res.tactile_image
             depth_output = res.depth_map
 
-        return sensor_output, depth_output, sensor_poses, true_sensor_poses
+        return sensor_output, depth_output, sensor_poses
 
     def render(self) -> np.ndarray | None:
         return self.__renderer.render_external_cameras()

@@ -130,6 +130,8 @@ def test_cache_keys_identify_the_content():
 def test_environments_are_registered_for_both_splits():
     ids = {i for i in gym.registry if i.startswith("PrimitiveGeometries")}
     for task in ["PrimitiveGeometries", "PrimitiveGeometriesVolume"]:
-        for variant in ["", "-DR", "-Depth", "-Depth-DR"]:
+        for variant in ["", "-Depth"]:
             for split in ["", "-train", "-test"]:
                 assert f"{task}{variant}{split}-v0" in ids
+            # Without real recordings, there is no domain randomized variant
+            assert f"{task}{variant}-DR-v0" not in ids

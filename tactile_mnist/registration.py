@@ -50,10 +50,17 @@ REAL_SNAP_OUTPUT_SIZE = (64, 64)
 # TactileMNIST* environment. The other environment families have no real recordings to draw from.
 REAL_BASE_DEPTH_DATASET = f"TimSchneider42/tactile-mnist-{REAL_TOUCH_DATASET}"
 
-# Sensor height randomization of the -DR variants (see TactilePerceptionConfig.penetration_depth_reduction_std),
-# calibrated such that touches reaching the platform spread like they do in the real recordings (median 0.46mm and
-# 90th percentile 1.0mm less deep than the deepest touch of a round).
-DR_PENETRATION_DEPTH_REDUCTION_STD = 0.00065
+# Contact geometry variation of the -DR variants (see SensorNoiseConfig.contact_*), calibrated on the under-recovery
+# of real contacts by the CycleGAN depth estimator: as the simulated strokes have sloped walls, a mean boundary shift of
+# 0.6 mm matches the ~34% thinner estimated real strokes. The spread allows dilations in ~4% of the touches.
+DR_CONTACT_SHIFT_MEAN = 0.0006
+DR_CONTACT_SHIFT_STD = 0.00035
+DR_CONTACT_BLUR_PROB = 0.3
+DR_CONTACT_BLUR_SIGMA_MAX = 0.0003
+
+# Scale of the base depth overlay of touches with object contact in the -DR variants (see
+# SensorNoiseConfig.base_depth_contact_scale_range), as the real estimator artifacts are 6-25% weaker on those
+DR_BASE_DEPTH_CONTACT_SCALE_RANGE = (0.65, 0.95)
 
 # Platform penetration limit of the -DR variants (see TactilePerceptionConfig.max_platform_penetration). Only applied
 # to environments without sensor rotation, as the limit constrains the sensor position rather than the deepest point
@@ -135,59 +142,46 @@ def register_with_dr_variant(
     **register_kwargs: Any,
 ):
     """
-    Register a simulated environment twice: once as it is and once with domain randomization.
+    Register a simulated environment and, if real recordings are available for it, a domain randomized variant.
 
     The domain randomized variant carries a "-DR" suffix between id_prefix and id_suffix (e.g.
-    TactileMNIST-CycleGAN-DR-train-v0) and simulates the per-episode and per-frame variations of a real sensor on top
-    of the rendered tactile images (see SensorNoiseConfig). If real_base_depth_dataset is given, it additionally
-    emulates the artifacts of the depth estimator used by the re-rendering real-snap environments by overlaying
-    estimated depth maps of recorded touches without object contact from that dataset. The depth sensor mode outputs
-    depth maps rather than tactile images, which the image-space noise terms do not apply to, so its -DR variants
-    only emulate the depth estimator artifacts (and the sensor height randomization). Additionally, the domain
-    randomized variants randomize the sensor height the agent observes and, if the sensor cannot rotate, limit how
-    far the gel may be pressed into the platform.
+    TactileMNISTSnap-CycleGAN-DR-train-v0) and is meant for training policies in simulation that are evaluated on the
+    re-rendering real-snap environments. It varies the contact geometry of every simulated depth map and overlays the
+    depth estimator artifacts of recorded touches without object contact from real_base_depth_dataset (see
+    SensorNoiseConfig), and, if the sensor cannot rotate, stops the gel at the platform surface. Both depth map terms
+    are calibrated on the real recordings, so the variant is only registered if real_base_depth_dataset is given.
     """
-    if kwargs["default_config"].get("sensor_type") == "depth":
-        dr_sensor_noise = (
-            None
-            if real_base_depth_dataset is None
-            else SensorNoiseConfig(
-                frame_noise_std=0.0,
-                episode_pattern_std=0.0,
-                episode_gain_std=0.0,
-                episode_offset_std=0.0,
-                real_base_depth_dataset=real_base_depth_dataset,
-            )
-        )
-    else:
-        dr_sensor_noise = SensorNoiseConfig(
-            real_base_depth_dataset=real_base_depth_dataset
-        )
-    # The platform penetration limit constrains the sensor position, which coincides with the deepest point of the gel
-    # only if the sensor points straight down
-    dr_max_platform_penetration = (
-        None
-        if kwargs["default_config"].get("allow_sensor_rotation", True)
-        else DR_MAX_PLATFORM_PENETRATION
-    )
-    for dr_suffix, dr_config in (
+    dr_variants = [
         (
             "",
-            dict(
-                sensor_noise=None,
-                penetration_depth_reduction_std=0.0,
-                max_platform_penetration=None,
-            ),
-        ),
-        (
-            "-DR",
-            dict(
-                sensor_noise=dr_sensor_noise,
-                penetration_depth_reduction_std=DR_PENETRATION_DEPTH_REDUCTION_STD,
-                max_platform_penetration=dr_max_platform_penetration,
-            ),
-        ),
-    ):
+            dict(sensor_noise=None, max_platform_penetration=None),
+        )
+    ]
+    if real_base_depth_dataset is not None:
+        # The platform penetration limit constrains the sensor position, which coincides with the deepest point of
+        # the gel only if the sensor points straight down
+        dr_max_platform_penetration = (
+            None
+            if kwargs["default_config"].get("allow_sensor_rotation", True)
+            else DR_MAX_PLATFORM_PENETRATION
+        )
+        dr_variants.append(
+            (
+                "-DR",
+                dict(
+                    sensor_noise=SensorNoiseConfig(
+                        contact_shift_mean=DR_CONTACT_SHIFT_MEAN,
+                        contact_shift_std=DR_CONTACT_SHIFT_STD,
+                        contact_blur_prob=DR_CONTACT_BLUR_PROB,
+                        contact_blur_sigma_max=DR_CONTACT_BLUR_SIGMA_MAX,
+                        real_base_depth_dataset=real_base_depth_dataset,
+                        base_depth_contact_scale_range=DR_BASE_DEPTH_CONTACT_SCALE_RANGE,
+                    ),
+                    max_platform_penetration=dr_max_platform_penetration,
+                ),
+            )
+        )
+    for dr_suffix, dr_config in dr_variants:
         ap_gym.register(
             id=f"{id_prefix}{dr_suffix}{id_suffix}",
             kwargs={
