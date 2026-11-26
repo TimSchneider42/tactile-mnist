@@ -84,3 +84,13 @@ In the sim-to-real experiments, the agents never see real data during training.
 They are trained in simulation on `TactileMNISTSnap-CycleGAN-DR-train-v0` and `TactileMNISTVolumeSnap-CycleGAN-DR-train-v0`, with the CycleGAN renderer and domain randomization, and evaluated on the recorded touches of the Real Tactile MNIST dataset in `TactileMNISTRealSnap-CycleGAN-test-v0` and `TactileMNISTVolumeRealSnap-CycleGAN-test-v0`.
 Every method was trained for 2.5M environment steps on 5 seeds.
 Hence, in these directories, `train_` metrics are measured in simulation and `eval_` metrics on the real recordings.
+
+### Ablations
+
+`sim2real-ablations/` holds SAC ablations of the `TactileMNISTRealSnap-CycleGAN` setup (5 seeds, 2.5M environment steps, same files as above):
+
+| Directory      | Trained on                                                                                  | Evaluated on                       |
+|----------------|---------------------------------------------------------------------------------------------|------------------------------------|
+| `NoOverlay`    | `TactileMNISTSnap-CycleGAN-DR-train-v0` with `config={"sensor_noise": {"real_base_depth_dataset": None}}` (no base depth overlay) | `TactileMNISTRealSnap-CycleGAN-test-v0` |
+| `RawEval`      | `TactileMNISTSnap-CycleGAN-DR-train-v0`                                                     | `TactileMNISTRealSnap-test-v0` (the recorded images without re-rendering) |
+| `TaximRawEval` | `TactileMNISTSnap-DR-train-v0` (Taxim renderer)                                             | `TactileMNISTRealSnap-test-v0`     |
