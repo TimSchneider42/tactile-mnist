@@ -4,22 +4,15 @@ import io
 import logging
 import os
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Generic, TypeVar
 
-import cv2
 import numpy as np
 import PIL.Image
-import scipy.ndimage
 from datasets import Image, List, load_dataset
 
-from .constants import (
-    CACHE_BASE_DIR,
-    GELSIGHT_MINI_GEL_THICKNESS_MM,
-    GELSIGHT_MINI_SENSOR_SURFACE_SIZE,
-)
+from .constants import CACHE_BASE_DIR, GELSIGHT_MINI_GEL_THICKNESS_MM
 from .depth_estimator import mk_depth_estimator
 from .tactile_renderer import RenderDirectOutput, TactileRenderer
 
@@ -33,9 +26,6 @@ EMPTY_TOUCH_Z_TOLERANCE_M = 0.001
 BASE_DEPTH_CONTACT_MIN_INDENTATION_M = 0.0001
 # Number of recorded touches the depth estimator processes at once while building the base depth cache
 BASE_DEPTH_CACHE_BATCH_SIZE = 32
-# The contact variation is computed at no less than this resolution (pixels along the shorter side), so that
-# boundary shifts of a fraction of a depth-map pixel (e.g. the 64x64 maps of the depth sensor) are still resolved
-CONTACT_VARIATION_MIN_RESOLUTION = 256
 
 logger = logging.getLogger(__name__)
 
@@ -47,29 +37,12 @@ class SensorNoiseConfig:
     estimate from real tactile images (see TactileRealSnapConfig.sensor_type).
 
     The re-rendering real-snap environments obtain their depth maps from the CycleGAN depth estimator, so a policy
-    trained in simulation sees real touches through that estimator. The model emulates its two main effects on the
-    simulated depth maps before they are rendered:
-
-    1. Contact geometry variation: the estimator under-recovers real contacts (thinner strokes, smoother profiles), so
-       every touch shrinks or grows its contact region by a random boundary shift and optionally blurs it.
-    2. Base depth overlay: the estimator writes artifacts into every estimate (most prominently a phantom
-       indentation in the bottom-right corner), which are overlaid from estimates of real touches without contact.
-
-    The contact variation is applied first, so the emulated artifacts are not affected by it. All terms default to
-    off; the -DR variants of the environments with real recordings enable them (see registration.py).
+    trained in simulation sees real touches through that estimator. The estimator writes artifacts into every estimate
+    (most prominently a phantom indentation in the bottom-right corner), which the model overlays onto the simulated
+    depth maps before they are rendered, using estimates of real touches without contact. The overlay defaults to
+    off; the -DR variants of the environments with real recordings enable it (see registration.py).
     """
 
-    # Per-touch variation of the contact geometry. Estimated real strokes are ~34% thinner than simulated ones and
-    # the estimator recovers only ~65-72% of the contact area (domain-gap analysis on the real recordings). Every
-    # touch draws a boundary shift (in m, positive shrinks the contact region by a grey-scale erosion of the
-    # indentation, negative grows it by a dilation) from a normal distribution with contact_shift_mean and
-    # contact_shift_std. With probability contact_blur_prob, the indentation is additionally blurred with a Gaussian
-    # whose standard deviation (in m) is drawn uniformly from [0, contact_blur_sigma_max], as the estimated real depth
-    # profiles are smoother than the sharp-edged simulated ones.
-    contact_shift_mean: float = 0.0
-    contact_shift_std: float = 0.0
-    contact_blur_prob: float = 0.0
-    contact_blur_sigma_max: float = 0.0
     # The CycleGAN depth estimator does not produce a clean no-contact estimate on real images: it writes a phantom
     # indentation into the bottom-right corner of every estimate (~8% of the frame, stable across recording sessions)
     # and a spatially structured noise floor elsewhere. If real_base_depth_dataset names a touch dataset (e.g.
@@ -86,14 +59,6 @@ class SensorNoiseConfig:
     # touches scale it down. (1, 1) disables the scaling.
     base_depth_contact_scale_range: tuple[float, float] = (1.0, 1.0)
 
-    @property
-    def varies_contact(self) -> bool:
-        return (
-            self.contact_shift_mean != 0.0
-            or self.contact_shift_std > 0.0
-            or (self.contact_blur_prob > 0.0 and self.contact_blur_sigma_max > 0.0)
-        )
-
 
 class SensorNoiseModel:
     """
@@ -103,9 +68,8 @@ class SensorNoiseModel:
     environment has to call `init` before the first touch and `destroy` when it is closed.
     """
 
-    def __init__(self, config: SensorNoiseConfig, num_envs: int):
+    def __init__(self, config: SensorNoiseConfig):
         self.__config = config
-        self.__num_envs = num_envs
         if config.real_base_depth_dataset is not None:
             dataset = load_dataset(config.real_base_depth_dataset, split="train")
             empty_touches = []
@@ -126,7 +90,6 @@ class SensorNoiseModel:
                 ["sensor_image"]
             ).cast_column("sensor_image", List(Image(decode=False)))
         self.__base_depth_maps: np.ndarray | None = None
-        self.__contact_pool: ThreadPoolExecutor | None = None
 
     def init(
         self,
@@ -189,11 +152,8 @@ class SensorNoiseModel:
         self.__base_depth_maps = base_depth_maps
 
     def destroy(self) -> None:
-        """Release the base depth maps and the worker threads of the contact variation. The counterpart of `init`."""
+        """Release the base depth maps. The counterpart of `init`."""
         self.__base_depth_maps = None
-        if self.__contact_pool is not None:
-            self.__contact_pool.shutdown()
-            self.__contact_pool = None
 
     def __build_base_depth_cache(
         self, cache_file: Path, depth_map_size: tuple[int, int], estimator: Any
@@ -236,122 +196,6 @@ class SensorNoiseModel:
         np.save(tmp_file, base_depth_maps)
         os.replace(tmp_file, cache_file)
         return base_depth_maps
-
-    def apply_contact_variation(
-        self, depth: np.ndarray, np_random: np.random.Generator
-    ) -> np.ndarray:
-        """
-        Shrink, grow, and blur the contact region of every simulated depth map by a freshly drawn amount (see the
-        contact_* fields of SensorNoiseConfig).
-
-        :param depth:       (num_envs, height, width) batch of depth maps in meters (gel thickness = no contact),
-                            covering GELSIGHT_MINI_SENSOR_SURFACE_SIZE.
-        :param np_random:   Random number generator used to draw the per-touch variation.
-        :return:            Batch of depth maps of the same shape, or `depth` unchanged if the variation is disabled.
-        """
-        config = self.__config
-        if not config.varies_contact:
-            return depth
-        depth = np.asarray(depth)
-        count = depth.shape[0]
-        shifts = np_random.normal(
-            config.contact_shift_mean, config.contact_shift_std, size=count
-        )
-        blur_sigmas = np.where(
-            np_random.uniform(size=count) < config.contact_blur_prob,
-            np_random.uniform(0.0, config.contact_blur_sigma_max, size=count),
-            0.0,
-        )
-        height, width = depth.shape[-2:]
-        zoom = max(
-            1, int(np.ceil(CONTACT_VARIATION_MIN_RESOLUTION / min(height, width)))
-        )
-        # Size of a pixel (x, y) in m at the working resolution; the sensor surface is not square, so neither are
-        # the pixels
-        pixel_size = GELSIGHT_MINI_SENSOR_SURFACE_SIZE / (
-            np.array([width, height]) * zoom
-        )
-        no_contact = GELSIGHT_MINI_GEL_THICKNESS_MM / 1000
-
-        def vary(i: int) -> np.ndarray:
-            indentation = np.maximum(no_contact - depth[i].astype(np.float64), 0.0)
-            if not np.any(indentation > 0):
-                return depth[i]
-            if indentation.min() == indentation.max():
-                # A constant indentation (the gel pressed flat onto the platform) is left unchanged by the filters
-                return (no_contact - indentation).astype(depth.dtype)
-            if zoom > 1:
-                indentation = scipy.ndimage.zoom(indentation, zoom, order=1)
-            radius_x, radius_y = np.abs(shifts[i]) / pixel_size
-            morph_radius = np.zeros(2, dtype=int)
-            footprint = None
-            if radius_x >= 0.5 or radius_y >= 0.5:
-                rx, ry = int(np.ceil(radius_x)), int(np.ceil(radius_y))
-                y, x = np.mgrid[-ry : ry + 1, -rx : rx + 1]
-                footprint = (x / max(radius_x, 1e-6)) ** 2 + (
-                    y / max(radius_y, 1e-6)
-                ) ** 2 <= 1.0
-                morph_radius = np.array([ry, rx])
-            blur_sigma = None
-            blur_radius = np.zeros(2, dtype=int)
-            if blur_sigmas[i] > 0:
-                blur_sigma = (
-                    blur_sigmas[i] / pixel_size[1],
-                    blur_sigmas[i] / pixel_size[0],
-                )
-                # The support of scipy's Gaussian kernel (truncate=4)
-                blur_radius = np.array([int(4.0 * s + 0.5) for s in blur_sigma])
-            # Both filters only reach a bounded distance, and the indentation is zero outside its contact region, so
-            # it suffices to filter a crop around the contact region: the output can only be non-zero within
-            # out_margin of it, and computing the output there only reads the input within in_margin of it. Where the
-            # crop is clipped by the image border, the "nearest" mode extends the image exactly as it does uncropped.
-            out_margin = (morph_radius if shifts[i] <= 0 else 0) + blur_radius
-            in_margin = out_margin + morph_radius + blur_radius
-            rows, cols = np.nonzero(indentation)
-            lo = np.array([rows.min(), cols.min()])
-            hi = np.array([rows.max(), cols.max()]) + 1
-            shape = np.array(indentation.shape)
-            in_lo, in_hi = np.maximum(lo - in_margin, 0), np.minimum(
-                hi + in_margin, shape
-            )
-            out_lo, out_hi = np.maximum(lo - out_margin, 0), np.minimum(
-                hi + out_margin, shape
-            )
-            crop = indentation[in_lo[0] : in_hi[0], in_lo[1] : in_hi[1]]
-            if footprint is not None:
-                # OpenCV computes the same flat-footprint grey erosion/dilation as scipy.ndimage (BORDER_REPLICATE
-                # is its "nearest" mode), but several times faster
-                morph = cv2.erode if shifts[i] > 0 else cv2.dilate
-                crop = morph(
-                    crop, footprint.astype(np.uint8), borderType=cv2.BORDER_REPLICATE
-                )
-            if blur_sigma is not None:
-                crop = scipy.ndimage.gaussian_filter(
-                    crop, sigma=blur_sigma, mode="nearest"
-                )
-            indentation = np.zeros_like(indentation)
-            indentation[out_lo[0] : out_hi[0], out_lo[1] : out_hi[1]] = crop[
-                out_lo[0] - in_lo[0] : out_hi[0] - in_lo[0],
-                out_lo[1] - in_lo[1] : out_hi[1] - in_lo[1],
-            ]
-            if zoom > 1:
-                indentation = indentation.reshape(height, zoom, width, zoom).mean(
-                    axis=(1, 3)
-                )
-            # Regions without contact keep their depth (it may lie beyond the gel thickness), regions that lost their
-            # contact through the erosion move back to the gel thickness
-            return np.where(
-                indentation > 0,
-                no_contact - indentation,
-                np.maximum(depth[i], no_contact),
-            ).astype(depth.dtype)
-
-        # The filters release the GIL, so the touches are processed in parallel
-        if self.__contact_pool is None:
-            self.__contact_pool = ThreadPoolExecutor(
-                max_workers=min(self.__num_envs, os.cpu_count() or 1)
-            )
-        return np.stack(list(self.__contact_pool.map(vary, range(count))))
 
     def apply_base_depth(
         self, depth: np.ndarray, np_random: np.random.Generator
@@ -397,8 +241,7 @@ class SensorNoiseModel:
         return np.minimum(depth, base)
 
     def apply(self, depth: np.ndarray, np_random: np.random.Generator) -> np.ndarray:
-        """Apply the contact variation and then the base depth overlay to a batch of depth maps."""
-        depth = self.apply_contact_variation(depth, np_random)
+        """Apply the depth map variations to a batch of depth maps."""
         return self.apply_base_depth(depth, np_random)
 
     @property
@@ -443,7 +286,7 @@ class SensorNoiseRenderer(TactileRenderer[OutputType], Generic[OutputType]):
             channels=inner.channels,
         )
         self.__inner = inner
-        self.__model = SensorNoiseModel(config, num_envs)
+        self.__model = SensorNoiseModel(config)
         if estimator_backend is None:
             estimator_backend = (
                 "auto" if inner.backend_name == "numpy" else inner.backend_name

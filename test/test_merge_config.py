@@ -7,28 +7,30 @@ def test_plain_override_replaces_default():
 
 
 def test_sensor_noise_mapping_updates_fields():
-    base = SensorNoiseConfig(contact_shift_mean=0.0006, real_base_depth_dataset="x")
+    base = SensorNoiseConfig(
+        base_depth_contact_scale_range=(0.65, 0.95), real_base_depth_dataset="x"
+    )
     merged = merge_config(
         {"sensor_noise": base}, {"sensor_noise": {"real_base_depth_dataset": None}}
     )
     assert merged["sensor_noise"] == SensorNoiseConfig(
-        contact_shift_mean=0.0006, real_base_depth_dataset=None
+        base_depth_contact_scale_range=(0.65, 0.95), real_base_depth_dataset=None
     )
     assert base.real_base_depth_dataset == "x"
 
 
 def test_sensor_noise_mapping_without_default_builds_config():
     merged = merge_config(
-        {"sensor_noise": None}, {"sensor_noise": {"contact_shift_std": 0.001}}
+        {"sensor_noise": None}, {"sensor_noise": {"real_base_depth_dataset": "x"}}
     )
-    assert merged["sensor_noise"] == SensorNoiseConfig(contact_shift_std=0.001)
+    assert merged["sensor_noise"] == SensorNoiseConfig(real_base_depth_dataset="x")
 
 
 def test_sensor_noise_instance_replaces_default():
     new = SensorNoiseConfig()
     assert (
         merge_config(
-            {"sensor_noise": SensorNoiseConfig(contact_blur_prob=0.3)},
+            {"sensor_noise": SensorNoiseConfig(real_base_depth_dataset="x")},
             {"sensor_noise": new},
         )["sensor_noise"]
         is new

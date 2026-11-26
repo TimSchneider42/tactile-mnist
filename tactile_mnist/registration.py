@@ -47,14 +47,6 @@ REAL_SNAP_OUTPUT_SIZE = (64, 64)
 # TactileMNIST* environment. The other environment families have no real recordings to draw from.
 REAL_BASE_DEPTH_DATASET = f"TimSchneider42/tactile-mnist-{REAL_TOUCH_DATASET}"
 
-# Contact geometry variation of the -DR variants (see SensorNoiseConfig.contact_*), calibrated on the under-recovery
-# of real contacts by the CycleGAN depth estimator: as the simulated strokes have sloped walls, a mean boundary shift of
-# 0.6 mm matches the ~34% thinner estimated real strokes. The spread allows dilations in ~4% of the touches.
-DR_CONTACT_SHIFT_MEAN = 0.0006
-DR_CONTACT_SHIFT_STD = 0.00035
-DR_CONTACT_BLUR_PROB = 0.3
-DR_CONTACT_BLUR_SIGMA_MAX = 0.0003
-
 # Scale of the base depth overlay of touches with object contact in the -DR variants (see
 # SensorNoiseConfig.base_depth_contact_scale_range), as the real estimator artifacts are 6-25% weaker on those
 DR_BASE_DEPTH_CONTACT_SCALE_RANGE = (0.65, 0.95)
@@ -150,10 +142,10 @@ def register_with_dr_variant(
 
     The domain randomized variant carries a "-DR" suffix between id_prefix and id_suffix (e.g.
     TactileMNISTSnap-CycleGAN-DR-train-v0) and is meant for training policies in simulation that are evaluated on the
-    re-rendering real-snap environments. It varies the contact geometry of every simulated depth map and overlays the
-    depth estimator artifacts of recorded touches without object contact from real_base_depth_dataset (see
-    SensorNoiseConfig), and, if the sensor cannot rotate, stops the gel at the platform surface. Both depth map terms
-    are calibrated on the real recordings, so the variant is only registered if real_base_depth_dataset is given.
+    re-rendering real-snap environments. It overlays the depth estimator artifacts of recorded touches without object
+    contact from real_base_depth_dataset onto every simulated depth map (see SensorNoiseConfig) and, if the sensor
+    cannot rotate, stops the gel at the platform surface. The overlay needs the real recordings, so the variant is only
+    registered if real_base_depth_dataset is given.
     """
     dr_variants = [
         (
@@ -174,10 +166,6 @@ def register_with_dr_variant(
                 "-DR",
                 dict(
                     sensor_noise=SensorNoiseConfig(
-                        contact_shift_mean=DR_CONTACT_SHIFT_MEAN,
-                        contact_shift_std=DR_CONTACT_SHIFT_STD,
-                        contact_blur_prob=DR_CONTACT_BLUR_PROB,
-                        contact_blur_sigma_max=DR_CONTACT_BLUR_SIGMA_MAX,
                         real_base_depth_dataset=real_base_depth_dataset,
                         base_depth_contact_scale_range=DR_BASE_DEPTH_CONTACT_SCALE_RANGE,
                     ),

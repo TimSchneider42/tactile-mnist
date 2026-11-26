@@ -25,12 +25,10 @@ NUM_ENVS = 2
 NUM_OBJECTS = 16
 STEP_LIMIT = 2
 NUM_STEPS = 8
-# Contact geometry variation of the -DR variants; the base depth overlay needs the real recordings
+# Sensor noise of the -DR variants
 DR_NOISE = SensorNoiseConfig(
-    contact_shift_mean=0.0006,
-    contact_shift_std=0.00035,
-    contact_blur_prob=0.3,
-    contact_blur_sigma_max=0.0003,
+    real_base_depth_dataset="TimSchneider42/tactile-mnist-touch-real-single-t256-320x240",
+    base_depth_contact_scale_range=(0.65, 0.95),
 )
 
 
